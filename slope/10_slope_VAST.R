@@ -84,6 +84,9 @@ df.slope1<-merge(x = df.slope,
 #rename cols df slope
 names(df.slope1)<-c('Sp_code','Year','Hauljoin','Strata','Lat','Lon','SST','SBT','Depth','CPUE_kg','CPUE_n','Sp_name')
 
+#correct slope data (slope is in ha, while others and in km2)
+df.slope1$CPUE_kg<-df.slope1$CPUE_kg/100
+
 #load grids
 grid.slope<-read.csv('./Resources/Extrapolation Grids/SlopeThorsonGrid.csv')
 colnames(grid.slope)[10]<-'Area_km2'
@@ -119,7 +122,7 @@ sp.list1<-sp.list[sp.list %in% df.slope1$Sp_name]
 
 #loop over species
 for (sp in sp.list1) {
-  #sp<-sp.list1[2]
+  #sp<-sp.list1[5]
   
   #windows progress bar
   py <- winProgressBar(title = paste0(sp, ' (',which(sp.list1 == sp),' out of ',length(sp.list1),')'), # Window title
@@ -130,11 +133,11 @@ for (sp in sp.list1) {
                        width = 300L) # Width of the window   
   
   #create folder to store results
-  dir.create(paste0('./slope EBS VAST/',sp),
+  dir.create(paste0(getwd(),'/slope EBS VAST/',sp),
              showWarnings = FALSE)
   
   #create df to store diagnostics
-  df.diagnostics<-data.frame(row.names = length(models))
+  df.diagnostics<-data.frame(row.names = models)
   
   #filter by sp
   df<-subset(df.slope1, Sp_name == sp)
@@ -146,7 +149,7 @@ for (sp in sp.list1) {
   covariate_data<-df[,c("Lat","Lon","Year",'CPUE_kg',"Depth",'SBT')]
   
   #VAST model settings
-  settings <- make_settings(n_x=200, 
+  settings <- make_settings(n_x=100, 
                             Region="bering_sea_slope", #'User'
                             purpose="index2", 
                             bias.correct=FALSE,
@@ -161,14 +164,14 @@ for (sp in sp.list1) {
   
   #each model
   for (m in models) {
-    #m<-models[2]
+    #m<-models[3]
     
     #create model folder to store results
     dir.create(paste(getwd(),'slope EBS VAST',sp,m,sep='/'),
                showWarnings = FALSE)
     
     if (m=='null') {
-     covariate_data1<- covariate_data[,c("Lat","Lon","Year")]
+     covariate_data1<- cbind(covariate_data[,c("Lat","Lon")],Year=NA)
     } else if (m=='depth'){
       covariate_data1<- cbind(covariate_data[,c("Lat","Lon","Depth")],Year=NA)
     } else if (m=='sbt'){
@@ -189,11 +192,11 @@ for (sp in sp.list1) {
                      X1_formula = ifelse(m=='null','~0',
                                          ifelse(m=='depth','~log(Depth)+(log(Depth))^2',
                                                 ifelse(m=='sbt','~log(SBT)+(log(SBT))^2',
-                                                       '~ log(SBT)+(log(SBT))^2+log(Depth)+(log(Depth))^2'))),
+                                                       '~ log(Depth)+(log(Depth))^2+log(SBT)+(log(SBT))^2'))),
                      X2_formula = ifelse(m=='null','~0',
                                          ifelse(m=='depth','~log(Depth)+(log(Depth))^2',
                                                 ifelse(m=='sbt','~log(SBT)+(log(SBT))^2',
-                                                       '~ log(SBT)+(log(SBT))^2+log(Depth)+(log(Depth))^2'))),
+                                                       '~ log(Depth)+(log(Depth))^2+log(SBT)+(log(SBT))^2'))),
                      covariate_data = covariate_data1, #covariate_data[,c("Lat","Lon","SBT","Year")],
                      #input_grid=grid.slope,
                      #strata.limits=data.frame(STRATA = c("All_areas","slope","shelf"))
@@ -201,55 +204,61 @@ for (sp in sp.list1) {
                      #newtonsteps = 1,
                      category_name=sp,
                      test_fit=FALSE,
-                     working_dir = paste(getwd(),'slope EBS VAST',sp,m,sep='/'))#;beepr::beep(sound = 8)
+                     working_dir = paste(getwd(),'slope EBS VAST',sp,m,'/',sep='/'))#;beepr::beep(sound = 8)
+    }, error=function(e){})
     
-    if (class(fit$Report)!='list') {
-      settings2<-settings
-      settings2$ObsModel<-c(1,1)
-      fit <- fit_model(settings=settings2,
-                       Lat_i=df$Lat, 
-                       Lon_i=df$Lon,
-                       t_i=df$Year,
-                       b_i=df$CPUE_kg,
-                       c_iz = as.numeric(factor(df$Sp_name))-1,
-                       a_i=rep(1,times=nrow(df)),
-                       X1_formula = ifelse(m=='null','~0',
-                                           ifelse(m=='depth','~log(Depth)+(log(Depth))^2',
-                                                  ifelse(m=='sbt','~log(SBT)+(log(SBT))^2',
-                                                         '~ log(SBT)+(log(SBT))^2+log(Depth)+(log(Depth))^2'))),
-                       X2_formula = ifelse(m=='null','~0',
-                                           ifelse(m=='depth','~log(Depth)+(log(Depth))^2',
-                                                  ifelse(m=='sbt','~log(SBT)+(log(SBT))^2',
-                                                         '~ log(SBT)+(log(SBT))^2+log(Depth)+(log(Depth))^2'))),
-                       covariate_data = ifelse(m=='null',NULL,
-                                               ifelse(m=='depth',cbind(covariate_data[,c("Lat","Lon","Depth")],Year=NA),
-                                                      ifelse(m=='sbt',cbind(covariate_data[,c("Lat","Lon","Depth")],Year=NA), #covariate_data[,c("Lat","Lon","SBT","Year")],
-                                                             cbind(covariate_data[,c("Lat","Lon","Depth")],Year=NA)))), #covariate_data[,c("Lat","Lon","SBT","Year")],
-                       #input_grid=grid.slope,
-                       #strata.limits=data.frame(STRATA = c("All_areas","slope","shelf"))
-                       #getJointPrecision = TRUE,
-                       #newtonsteps = 1,
-                       category_name=sp,
-                       test_fit=FALSE,
-                       working_dir = paste(getwd(),'slope EBS VAST',sp,m,sep='/'))#;beepr::beep(sound = 8)
-    }
+    try({
+      if (class(fit$Report)!='list') {
+       
+        settings2<-settings
+        settings2$ObsModel<-c(1,1)
+        fit <- fit_model(settings=settings2,
+                         Lat_i=df$Lat, 
+                         Lon_i=df$Lon,
+                         t_i=df$Year,
+                         b_i=df$CPUE_kg,
+                         c_iz = as.numeric(factor(df$Sp_name))-1,
+                         a_i=rep(1,times=nrow(df)),
+                         X1_formula = ifelse(m=='null','~0',
+                                             ifelse(m=='depth','~log(Depth)+(log(Depth))^2',
+                                                    ifelse(m=='sbt','~log(SBT)+(log(SBT))^2',
+                                                           '~ log(Depth)+(log(Depth))^2+log(SBT)+(log(SBT))^2'))),
+                         X2_formula = ifelse(m=='null','~0',
+                                             ifelse(m=='depth','~log(Depth)+(log(Depth))^2',
+                                                    ifelse(m=='sbt','~log(SBT)+(log(SBT))^2',
+                                                           '~ log(Depth)+(log(Depth))^2+log(SBT)+(log(SBT))^2'))),
+                         covariate_data = covariate_data1, #covariate_data[,c("Lat","Lon","SBT","Year")],
+                         #input_grid=grid.slope,
+                         #strata.limits=data.frame(STRATA = c("All_areas","slope","shelf"))
+                         #getJointPrecision = TRUE,
+                         #newtonsteps = 1,
+                         category_name=sp,
+                         test_fit=FALSE,
+                         working_dir = paste(getwd(),'slope EBS VAST',sp,m,'/',sep='/'))#;beepr::beep(sound = 8)
+      }
+    })
   
     #save fit
     save(list = "fit", file = paste(getwd(),'slope EBS VAST',sp,m,'fit.RData',sep='/'))
     load(paste(getwd(),'slope EBS VAST',sp,m,'fit.RData',sep='/'))
     #plot
+    if (class(fit$Report) =='list') {
     plot(fit,
          #plot_set = c(1:21),
          working_dir =  paste(getwd(),'slope EBS VAST',sp,m,'/',sep='/'))
-    }, error=function(e){})
+    }
     
     #diagnostics
     if (class(fit$Report)!='list') {
-      
-      df.diagnostics[m,'ObsModel']<-fit$data_list$ObsModel_ez
-      df.diagnostics[m,c('AIC','max_gradient','deltaAIC','jnll','rmse','mae')] <-NA
+      df.diagnostics[m,'ObsModel1']<-fit$data_list$ObsModel_ez[1,1]
+      df.diagnostics[m,'ObsModel2']<-fit$data_list$ObsModel_ez[1,2]
+      df.diagnostics[m,'Covergence']<-fit$Report
+      df.diagnostics[m,c('AIC','max_gradient','deltaAIC','jnll','rmse','mae','depth_effect1','depth_effect2','sbt_effect1','sbt_effect2')] <-NA
       
     } else{
+      df.diagnostics[m,'ObsModel1']<-fit$data_list$ObsModel_ez[1,1]
+      df.diagnostics[m,'ObsModel2']<-fit$data_list$ObsModel_ez[1,2]
+      df.diagnostics[m,'Covergence']<-fit$parameter_estimates$Convergence_check
       df.diagnostics[m,'AIC']<-fit$parameter_estimates$AIC
       df.diagnostics[m,'max_gradient']<-fit$parameter_estimates$max_gradient
       df.diagnostics[m,'jnll']<-fit$parameter_estimates$objective
@@ -260,8 +269,23 @@ for (sp in sp.list1) {
         sum <- abs(fit$data_frame$b_i[i] - fit$Report$D_i[i]) + sum}
       
       df.diagnostics[m,'mae'] <- sum/length(fit$data_frame$b_i)
+      
+        if (m=='null') {
+          df.diagnostics[m,c('depth_effect1','depth_effect2','sbt_effect1','sbt_effect2')]<-NA
+        } else if (m %in% c('depth','sbt')) {
+          df.diagnostics[m,paste0(m,'_effect1')]<-fit$ParHat$gamma1_cp
+          df.diagnostics[m,paste0(m,'_effect2')]<-fit$ParHat$gamma2_cp
+        } else if (m == 'depth_sbt'){
+          df.diagnostics[m,'depth_effect1']<-fit$ParHat$gamma1_cp[1]
+          df.diagnostics[m,'depth_effect2']<-fit$ParHat$gamma2_cp[1]
+          df.diagnostics[m,'sbt_effect1']<-fit$ParHat$gamma1_cp[2]
+          df.diagnostics[m,'sbt_effect2']<-fit$ParHat$gamma2_cp[2]
+        }
       }
       
+    #remove fit object
+    rm(fit)
+    
     #progress bar
     pctgy <- paste0(round(which(models == m)/length(models) *100, 0), "% completed")
     setWinProgressBar(py, which(models == m), label = pctgy) # The label will override the label set on the
@@ -276,8 +300,9 @@ for (sp in sp.list1) {
     df.diagnostics[m,'deltaAIC']<-df.diagnostics['null','AIC']-df.diagnostics[m,'AIC']
   }
 
+  #write df diagnostics
   write.csv(df.diagnostics, 
-            file = paste0(getwd(),'.slope EBS VAST',sp,m,"table_diagnostics.csv",sep=''),
+            file = paste(getwd(),'slope EBS VAST',sp,"table_diagnostics.csv",sep='/'),
             row.names = TRUE)
   
   #close window
