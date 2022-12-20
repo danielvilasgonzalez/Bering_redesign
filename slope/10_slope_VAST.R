@@ -157,7 +157,7 @@ for (sp in sp.list1) {
                             use_anisotropy=TRUE,
                             Version = vast_cpp_version,
                             fine_scale=TRUE,
-                            ObsModel = c(2,1), #c(2,1) #biomass
+                            ObsModel = c(1,1), #c(2,1) #biomass
                             max_cells = Inf,
                             Options = c("Calculate_Range" = F, 
                                         "Calculate_effective_area" = F))
@@ -211,7 +211,7 @@ for (sp in sp.list1) {
       if (class(fit$Report)!='list') {
        
         settings2<-settings
-        settings2$ObsModel<-c(1,1)
+        settings2$ObsModel<-c(2,1)
         fit <- fit_model(settings=settings2,
                          Lat_i=df$Lat, 
                          Lon_i=df$Lon,
@@ -309,5 +309,19 @@ for (sp in sp.list1) {
   close(py)
   }
     
-    
-##############################
+#merge all diagnostic files
+full.diagnostics<-do.call(rbind,
+                          lapply(paste(getwd(),'slope EBS VAST',list.files(path = paste(getwd(),'slope EBS VAST',sep = '/'),
+                                 pattern = 'table_diagnostics',
+                                 recursive = TRUE),sep='/'),
+                          read.csv))
+
+#change df diagnostics
+names(full.diagnostics)[1]<-'model'
+full.diagnostics<-full.diagnostics[,c("sp",'model','ObsModel1','ObsModel2','Covergence','AIC','deltaAIC','max_gradient','jnll','rmse','mae','depth_effect1','depth_effect2','sbt_effect1','sbt_effect2')]
+
+#write full df diagnostics
+write.csv(full.diagnostics, 
+          file = paste('./slope EBS VAST','full_diagnostics.csv',sep='/'),
+          row.names = FALSE)
+ 
