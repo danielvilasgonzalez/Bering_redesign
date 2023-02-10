@@ -46,6 +46,10 @@ ak_sppoly<-as(ebs_layers$akland, 'Spatial')
 #shapefile EBS
 ebs_sh<-rgdal::readOGR(dsn='./Shapefiles/',layer = 'EBSshelfThorson')
 
+####################################################
+# SBT from coldpool package
+####################################################
+
 #sbt ebs
 sbt_brick<-coldpool::ebs_bottom_temperature
 
