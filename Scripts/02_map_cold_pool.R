@@ -106,8 +106,6 @@ for (y in min(years):max(years)) {
   #store plot on list
   plot_list[[paste0(y)]]<-p
   
-  
-  
 }
 
 #save plot 16 first years (4x4)
@@ -125,5 +123,7 @@ tiff(paste0('E:/UW/Adapting Monitoring to a Changing Seascape/Figures/coldpool_'
 cowplot::plot_grid(plotlist = plot_list[34:length(years)],nrow = 4,ncol = 4)
 dev.off()
 
-
+####################################################
+# SBT from Bering 10K ROMS
+####################################################
 
