@@ -13,7 +13,7 @@ rm(list = ls(all.names = TRUE))
 gc() 
 
 #libraries from cran to call or install/load
-pack_cran<-c('rasterVis','rgeos','scales','rnaturalearth','grid')
+pack_cran<-c('rasterVis','rgeos','scales','rnaturalearth','grid','ggplot2')
 
 #install pacman to use p_load function - call library and if not installed, then install
 if (!('pacman' %in% installed.packages())) {
