@@ -12,20 +12,6 @@ rm(list = ls(all.names = TRUE))
 #free up memrory and report the memory usage
 gc() 
 
-#load library
-# library(rgdal)
-# library(ggspatial)
-# library(tidyverse)
-# library(sp)
-# library(raster)
-# library(rasterVis)
-# library(geomtextpath)
-# library(grid)
-# library(maps)
-# library(rnaturalearth)
-# library(RColorBrewer)
-###
-
 #libraries from cran to call or install/load
 pack_cran<-c('rasterVis','rgeos','scales','rnaturalearth','grid')
 
