@@ -169,6 +169,9 @@ dir.create('./Data/Bering 10K ROMS/',showWarnings = FALSE)
 #list to store values
 plot_list<-list()
 
+#sbt stack
+sbt_stack<-stack()
+
 #loop over years to incorporate values into the Bering Sea grid
 for (y in min(years):max(years)) {
   
@@ -275,12 +278,19 @@ for (y in min(years):max(years)) {
   r1 <- raster(ext=extent(df_nc4),res=c(15800,15800))
   r1<-rasterize(df_nc4, r1 )
   r1<-dropLayer(r1,'ID')
-  #plot(r1)
+  crs(r1) <- CRS('+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs')
+  
+  #create raster to CRS WGS84 to store
+  r1bis<-projectRaster(r1, crs = CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"))
+  r2bis<-crop(r1bis, extent(c(-180,-145,41.31245,71.47545)))
+  names(r2bis)<-paste0('y',y)
+  sbt_stack<-addLayer(sbt_stack,r2bis)
   
   ## crop and mask
   r2 <- crop(r1, extent(bs_sh))
   r3<- mask(r2, bs_sh)
   
+  #plot
   p<-
     gplot(r3) +
     geom_tile(aes(fill=value))+
@@ -318,6 +328,9 @@ for (y in min(years):max(years)) {
   nc_close(nc)
   
 }
+
+#save SBT stack 
+writeRaster(sbt_stack,'./Data/Bering 10K ROMS/SBT_ROMS_stack.grd')
 
 #save plot 16 first years (4x4)
 tiff(paste0('./Figures/coldpool_ROMS_',years[1],'_',years[16],'.tiff'),height=2500,width = 2500,res = 250)
