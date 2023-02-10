@@ -106,8 +106,6 @@ for (y in min(years):max(years)) {
   #store plot on list
   plot_list[[paste0(y)]]<-p
   
-  
-  
 }
 
 #save plot 16 first years (4x4)
