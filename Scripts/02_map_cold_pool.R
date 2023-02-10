@@ -14,7 +14,7 @@ rm(list = ls(all.names = TRUE))
 gc() 
 
 #libraries from cran to call or install/load
-pack_cran<-c('rasterVis','scales','rnaturalearth','cowplot','ggplot2')
+pack_cran<-c('rasterVis','scales','rnaturalearth','cowplot','ggplot2','ncdf4','googledrive')
 
 #install pacman to use p_load function - call library and if not installed, then install
 if (!('pacman' %in% installed.packages())) {
@@ -127,3 +127,101 @@ dev.off()
 # SBT from Bering 10K ROMS
 ####################################################
 
+#open downloaded SBT weekly netcdf files from Bering 10K ROMS (https://data.pmel.noaa.gov/aclim/thredds/catalog/files.html)
+nc_histfiles<-list.files('./Resources/ACLIM2/Data/out/netcdf_historical/',full.names = TRUE)
+nc_forfiles<-list.files('./Resources/ACLIM2/Data/out/netcdf_forecast/',full.names = TRUE)
+
+#loop over years to incorporate values into the Bering Sea grid
+for (y in min(years):max(years)) {
+  
+  y<-2020
+  
+  #print year to check progress
+  cat(paste("    ----- year", y, "-----\n"))  
+  
+  #open netcdf file for each year
+  if (y %in% c(1995:1999)) {
+    nc<-nc_open(nc_histfiles[1])
+  } else if (y %in% c(2000:2004)) {
+    nc<-nc_open(nc_histfiles[2])
+  } else if (y %in% c(2005:2009)) {
+    nc<-nc_open(nc_histfiles[3])
+  } else if (y %in% c(2010:2014)) {
+    nc<-nc_open(nc_histfiles[4])
+  } else if (y %in% c(2015:2019)) {
+    nc<-nc_open(nc_histfiles[5])
+  } else if (y %in% c(2020)) {
+    nc<-nc_open(nc_histfiles[6])
+  } else if (y %in% c(2021:2022)) {
+    nc<-nc_open(nc_forfiles[2])} #for year>2020 have to select projection
+  
+  #dimensions netcdf files
+  #258 rows
+  #182 cols
+  #46956 cells
+  #259 time steps
+  
+  #get variables
+  #names(nc$var)
+  
+  #get latitude
+  lats <- ncvar_get(nc,"lat_rho")
+  
+  #get longitude
+  lons <- ncvar_get(nc,"lon_rho")
+  
+  #get SBT
+  temp<-ncvar_get(nc,'temp')
+  
+  #get time
+  t_axis<-ncvar_get(nc,"ocean_time")
+  
+  #convert time
+  time_axis <- as.POSIXct(t_axis, origin = "1900-01-01", tz = "GMT") 
+  
+  #get weekly temp slices from specific year y
+  nc_y<-ncvar_get(nc, "temp")[,,which(grepl(paste0(y,'-'),time_axis))]
+  
+  #get mean matrix for this year
+  mean_nc<-apply(nc_y,c(1,2),mean,na.rm=TRUE)
+  
+  #create dataframe with lats, lons and mean year SBT
+  df_nc<-data.frame(Lat=as.vector(lats),
+                    Lon=as.vector(lons),
+                    temp=as.vector(mean_nc))
+  
+  #longitude are in eastern. get SBT for the western hemisphere (Bering Sea). longitude greater than 180 degrees
+  df_nc1<-df_nc[which(df_nc$Lon>=180),]
+  
+  #convert eastern longitude to western values (higher). longitude should be negative
+  df_nc1$Lon<-df_nc1$Lon-180-180
+  
+  #filter values from the grid 
+  df_nc2<-subset(df_nc1,Lat >= min(grid.ebs$Lat) & Lat <= max(grid.ebs$Lat) & Lon >= min(grid.ebs$Lon) & Lon <= max(grid.ebs$Lon))
+  
+  #remove rows with NAs
+  df_nc3<-df_nc2[complete.cases(df_nc2),]
+  
+  #create spatial object from df
+  coordinates(df_nc3) <- ~ Lon + Lat
+  
+  #create spatial object from grid
+  spg <- grid.ebs
+  coordinates(spg) <- ~ Lon + Lat
+  
+  #get the nearests points from one df to other df
+  nn<-get.knnx(coordinates(df_nc3),coordinates(spg),1)
+  nc_index<-nn$nn.index[,1]
+  
+  #get SBT
+  temps<-as.data.frame(df_nc3)$temp[nc_index]
+  grid.ebs$BottomTempROMS<-temps
+  grid.ebs$Year<-y
+  
+  #incorporate SBT
+  grid.ebs_year<-rbind(grid.ebs_year,grid.ebs)
+  
+  #close netcdf file
+  nc_close(nc)
+  
+}
