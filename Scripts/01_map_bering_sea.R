@@ -21,7 +21,7 @@ if (!('pacman' %in% installed.packages())) {
 
 #install akgfmaps to extract shapefile of Alaska
 if (!('akgfmaps' %in% installed.packages())) {
-  devtools::install_github('afsc-gap-products/akgfmaps')}
+  devtools::install_github('afsc-gap-products/akgfmaps')};library(akgfmaps)
 
 #load/install packages
 pacman::p_load(pack_cran,character.only = TRUE)
@@ -167,28 +167,28 @@ lakes83<-spTransform(lakes,CRSobj = CRS('+proj=aea +lat_1=55 +lat_2=65 +lat_0=50
 
 #zoomout plot
 zoomout<-
-ggplot() + 
-  geom_polygon(data=count83,aes(x=long,y=lat,group=group),color='black',fill='grey80') + 
-  geom_polygon(data=lakes83,aes(x=long,y=lat,group=group),color='black',fill='white') + 
-  scale_y_continuous(expand = c(0,0))+
-  scale_x_continuous(expand = c(0,0),
-                     breaks = c(160,170,-180,-170,-160,-150,-140,-130))+
-  coord_sf(crs ='+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +no_defs',
-           xlim=c(-3500000, 3500000),ylim = c(-2000000, 3000000))+
-  theme(panel.grid.major = element_line(color = rgb(0, 0, 0,20, maxColorValue = 285), linetype = 'dashed', linewidth =  0.5),
-        panel.ontop = TRUE,text = element_text(size=10),
-        legend.background =  element_rect(fill = "transparent", colour = "transparent"),legend.key.height= unit(20, 'points'),
-        legend.key.width= unit(20, 'points'),axis.title = element_blank(),legend.position = c(0.12,0.155),
-        panel.border = element_rect(fill = NA, colour = 'black'),
-        axis.text = element_blank(),axis.ticks.length = unit(-3, "points"),
-        panel.background = element_rect(fill = NA),plot.margin=grid::unit(c(0,0,0,0), "mm"))+
-  geom_rect(aes(xmin = panel_extent$x[1], xmax = panel_extent$x[2], ymin = panel_extent$y[1], ymax = panel_extent$y[2]),
-        colour = '#800000', linetype='solid', fill = NA,size=0.7) +
-  annotate("text", x = -2300000, y = 2600000, label = "Russia",parse=TRUE,size=4)+
-  annotate("text", x = 0, y = -1000000, label = "italic('Pacific Ocean')",parse=TRUE,size=4)+
-  annotate("text", x = +2000000, y = 1400000, label = "Canada",parse=TRUE,size=4)+
-  annotate("text", x = +3000000, y = 0, label = "USA",parse=TRUE,size=4)+
-  annotation_scale()
+  ggplot() + 
+    geom_polygon(data=count83,aes(x=long,y=lat,group=group),color='black',fill='grey80') + 
+    geom_polygon(data=lakes83,aes(x=long,y=lat,group=group),color='black',fill='white') + 
+    scale_y_continuous(expand = c(0,0))+
+    scale_x_continuous(expand = c(0,0),
+                       breaks = c(160,170,-180,-170,-160,-150,-140,-130))+
+    coord_sf(crs ='+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +no_defs',
+             xlim=c(-3500000, 3500000),ylim = c(-2000000, 3000000))+
+    theme(panel.grid.major = element_line(color = rgb(0, 0, 0,20, maxColorValue = 285), linetype = 'dashed', linewidth =  0.5),
+          panel.ontop = TRUE,text = element_text(size=10),
+          legend.background =  element_rect(fill = "transparent", colour = "transparent"),legend.key.height= unit(20, 'points'),
+          legend.key.width= unit(20, 'points'),axis.title = element_blank(),legend.position = c(0.12,0.155),
+          panel.border = element_rect(fill = NA, colour = 'black'),
+          axis.text = element_blank(),axis.ticks.length = unit(-3, "points"),
+          panel.background = element_rect(fill = NA),plot.margin=grid::unit(c(0,0,0,0), "mm"))+
+    geom_rect(aes(xmin = panel_extent$x[1], xmax = panel_extent$x[2], ymin = panel_extent$y[1], ymax = panel_extent$y[2]),
+          colour = '#800000', linetype='solid', fill = NA,size=0.7) +
+    annotate("text", x = -2300000, y = 2600000, label = "Russia",parse=TRUE,size=4)+
+    annotate("text", x = 0, y = -1000000, label = "italic('Pacific Ocean')",parse=TRUE,size=4)+
+    annotate("text", x = +2000000, y = 1400000, label = "Canada",parse=TRUE,size=4)+
+    annotate("text", x = +3000000, y = 0, label = "USA",parse=TRUE,size=4)+
+    annotation_scale()
 
 
 #save plot
