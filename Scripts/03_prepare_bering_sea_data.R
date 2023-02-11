@@ -72,93 +72,77 @@ sp.list<-c('Limanda aspera','Gadus chalcogrammus','Gadus macrocephalus','Atheres
            'Lepidopsetta polyxystra','Hippoglossoides elassodon','Pleuronectes quadrituberculatus','Hippoglossoides robustus')
 
 #####################################
-# EBS SLOPE CPUE
+# CPUE DATA
 #####################################
 
 #create directory
 dir.create('./Data/Surveys/',showWarnings = FALSE)
 
-#get cpue file
-file<-files.bering[grep('slope',files.bering)]
-file.id<-files.2[which(files.2$name==file),'id']
+#get survey folder id
+id.bering.folder<-files[which(files$name=='Surveys'),'id']
 
-#download file into temp folder
-googledrive::drive_download(file=file.id$id,
-                            path = paste0('./Data/Surveys/',file),
-                            overwrite = TRUE)
-
-#read csv file
-df.slope<-read.csv(paste0('./Data/Surveys/',file))
-
-df.slope1<-merge(x = df.slope,
-                 y = df.sp1,
-                 by = 'SPECIES_CODE',
-                 all.x = TRUE)
-
-#####################################
-# EBS SHELF
-#####################################
+#list of files and folder
+files.1<-googledrive::drive_ls(id.bering.folder$id)
 
 #get cpue file
-file<-files.bering[grep('shelf',files.bering)]
-file.id<-files.2[which(files.2$name==file),'id']
+file<-files.1[grep('|slope|shelf|nbs',files.1),]
+#file.id<-files.2[which(files.2$name %in% file),]
 
-#download file into temp folder
-googledrive::drive_download(file=file.id$id,
-                            path = paste0('./Data/Surveys/',file),
-                            overwrite = TRUE)
+#df to store results
+dfsurveys<-data.frame(matrix(nrow = 0,ncol = 6))
+colnames(dfsurveys)<-c("SPECIES_NAME","YEAR","LATITUDE","LONGITUDE","CPUE_KGHA",'SURVEY')
 
-#read csv file
-df.shelf<-read.csv(paste0('./Data/Surveys/',file))
-
-#####################################
-# NBS SHELF
-#####################################
-
-#get cpue file
-file<-files.bering[grep('nbs',files.bering)]
-file.id<-files.2[which(files.2$name==file),'id']
-
-#download file into temp folder
-googledrive::drive_download(file=file.id$id,
-                            path = paste0('./Data/Surveys/',file),
-                            overwrite = TRUE)
-
-#read csv file
-df.nbs<-read.csv(paste0('./Data/Surveys/',file))
-
-#####################################
-# MERGE DATA
-#####################################
-
-#by species
-df.shelf1<-subset(df.shelf, SPECIES_NAME %in% sp.list) 
-df.nbs1<-subset(df.nbs, SPECIES_NAME %in% sp.list)
-df.slope1<-subset(df.slope1,SPECIES_NAME %in% sp.list)
-
-#select columns
-df.shelf2<-df.shelf1[,c("SPECIES_NAME","YEAR","LATITUDE","LONGITUDE","CPUE_KGHA")]
-df.slope2<-df.slope1[,c("SPECIES_NAME","YEAR","LATITUDE","LONGITUDE","WGTCPUE")]
-colnames(df.slope2)[5]<-'CPUE_KGHA'
-df.nbs2<-df.nbs1[,c("SPECIES_NAME","YEAR","LATITUDE","LONGITUDE","CPUE_KGHA")]
-
-#correct slope data (slope is in ha, while others and in km2)
-df.slope2$CPUE_KGHA<-df.slope2$CPUE_KGHA/100
-
-#add survey
-df.slope2$SURVEY<-'slope'
-unique(df.slope2[,c("SPECIES_NAME",'YEAR')])
-df.shelf2$SURVEY<-'shelf'
-unique(df.shelf2[,c("SPECIES_NAME",'YEAR')])
-df.nbs2$SURVEY<-'nbs'
-unique(df.nbs2[,c("SPECIES_NAME",'YEAR')])
-
-#bind dfs
-df<-rbind(df.slope2,df.shelf2,df.nbs2)
-
+ for (i in 1:nrow(file)) {
+   
+   #i=2
+   
+   googledrive::drive_download(file=file$id[i],
+                               path = paste0('./Data/Surveys/',file$name[i]),
+                               overwrite = TRUE)
+   
+   
+   df<-read.csv(paste0('./Data/Surveys/',file$name[i]))
+   
+   if (file$name[i]=="ebs_slope_cpue.csv") {
+     
+     #add sp information
+     df<-merge(x = df,
+               y = df.sp1,
+               by = 'SPECIES_CODE',
+               all.x = TRUE)
+     
+     #rename column
+     names(df)[10]<-'CPUE_KGHA'
+     
+     #correct slope data (slope is in ha, while others and in km2)
+     df$CPUE_KGHA<-df$CPUE_KGHA/100}
+   
+   #filter by sp
+   df1<-subset(df, SPECIES_NAME %in% sp.list) 
+   
+   #select columns
+   df2<-df1[,c("SPECIES_NAME","YEAR","LATITUDE","LONGITUDE","CPUE_KGHA")]
+   
+   #add survey column
+   
+   if (file$name[i]=='nbs_cpue.csv') {
+     df2$SURVEY<-'nbs'
+   } else if (file$name[i]=='ebs_slope_cpue.csv') {
+     df2$SURVEY<-'slope'
+   } else if (file$name[i]=='ebs_shelf_cpue.csv') {
+     df2$SURVEY<-'shelf'}
+   
+  #rbind data 
+  dfsurveys<-rbind(dfsurveys,df2)
+   
+ }
+ 
 #####################################
 # ADD DEPTH
 #####################################
+
+#create directory
+dir.create('./Data/Bathymetry/',showWarnings = FALSE)
 
 #get raster depth from gebco (https://download.gebco.net/)
 #get id shared folder from google drive
@@ -169,47 +153,51 @@ files.1<-googledrive::drive_ls(id.bering.folder$id)
 id.data<-files.1[which(files.1$name=='gebco_2022_n70.0_s50.0_w-180.0_e-155.0.asc'),]
 
 googledrive::drive_download(file=id.data$id,
-                            path = paste0('./Data/Additional/',id.data$name),
+                            path = paste0('./Data/Bathymetry/',id.data$name),
                             overwrite = TRUE)
 
-r<-raster('./Data/Additional/gebco_2022_n70.0_s50.0_w-180.0_e-155.0.asc')
+#read raster
+r<-raster('./Data/Bathymetry/gebco_2022_n70.0_s50.0_w-180.0_e-155.0.asc')
 
 #extract depth values for each station
-rr<-extract(r, SpatialPoints(cbind(df$LONGITUDE,df$LATITUDE)))
-df$DEPTH<-rr
+rr<-extract(r, SpatialPoints(cbind(dfsurveys$LONGITUDE,dfsurveys$LATITUDE)))
+dfsurveys$DEPTH<-rr
 
 #rename cols
-colnames(df)<-c('Species','Year',"Lat","Lon",'CPUE_kg','Survey','Depth')
+colnames(dfsurveys)<-c('Species','Year',"Lat","Lon",'CPUE_kg','Survey','Depth')
 
 #####################################
-# BERING SEA GRIDS
+# CREATE DATA_GEOSTAT FILE
 #####################################
 
-#get raster depth from gebco (https://download.gebco.net/)
-#get id shared folder from google drive
-id.bering.folder<-files[which(files$name=='Extrapolation Grids'),'id']
+#create folder
+dir.create('./slope shelf EBS NBS VAST/',showWarnings = FALSE)
 
-#list of files and folder
-files.1<-googledrive::drive_ls(id.bering.folder$id)
-id.data<-files.1[which(files.1$name=='gebco_2022_n70.0_s50.0_w-180.0_e-155.0.asc'),]
+#save data_geostat file
+saveRDS(dfsurveys, paste0('./slope shelf EBS NBS VAST/slope_shelf_ebs_nbs_data_geostat.rds'))
 
-googledrive::drive_download(file=id.data$id,
-                            path = paste0('./Data/Additional/',id.data$name),
-                            overwrite = TRUE)
-
-
-grid.slope<-read.csv('./Resources/Extrapolation Grids/SlopeThorsonGrid.csv')
-colnames(grid.slope)[10]<-'Area_km2'
-grid.slope$STRATA<-'slope'
-grid.shelf<-read.csv('./Resources/Extrapolation Grids/EBSThorsonGrid.csv')
-colnames(grid.shelf)[10]<-'Area_km2'
-grid.shelf$STRATA<-'shelf'
-grid.nbs<-read.csv('./Resources/Extrapolation Grids/NBSThorsonGrid.csv')
-colnames(grid.nbs)[10]<-'Area_km2'
-grid.nbs$STRATA<-'nbs'
-
-#join grids
-grid.ebs<-rbind(grid.slope,grid.shelf,grid.nbs)
-head(grid.ebs)
-
+#loop over species to create data_geostat df
+for (sp in sp.list) {
+  
+  #sp<-sp.list[3]
+  
+  #print species to check progress
+  cat(paste("    -----", sp, "-----\n"))
+  
+  #create folder to store results
+  dir.create(paste0('./slope shelf EBS NBS VAST/',sp),
+             showWarnings = FALSE)
+  
+  #filter by sp
+  df1<-subset(dfsurveys, Species == sp)
+  df1<-subset(df1, Year %in% sta_y:end_y)
+  
+  #remove rows with NAs in env data
+  df1<-df1[complete.cases(df1[c('Depth')]),]
+  df1$Depth<--df1$Depth
+  
+  #save data_geostat file
+  saveRDS(df1, paste0('./slope shelf EBS NBS VAST/',sp,'/data_geostat.rds'))
+  
+}
 
