@@ -88,14 +88,16 @@ id.bering.folder<-files[which(files$name=='Shapefiles'),'id']
 #list of files and folder
 files.1<-googledrive::drive_ls(id.bering.folder$id)
 
+#loop over shapefiles
 for (i in shfiles) {
   
   #i=shfiles[1]
   
-  id.data<-files.1[which(grepl(i,files.1$name)),] #'SlopeThorsonGrid.csv',
+  id.data<-files.1[which(grepl(i,files.1$name)),]
   
   for (j in 1:nrow(id.data)) {
     
+    #download data
     googledrive::drive_download(file=id.data$id[j],
                                 path = paste0('./Data/Shapefiles/',id.data$name[j]),
                                 overwrite = TRUE)
