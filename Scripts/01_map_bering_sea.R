@@ -27,8 +27,8 @@ if (!('akgfmaps' %in% installed.packages())) {
 pacman::p_load(pack_cran,character.only = TRUE)
 
 #set working directory
-mydir<-'E:/UW/Adapting Monitoring to a Changing Seascape/Resources/'
-setwd(mydir)
+out_dir<-'E:/UW/Adapting Monitoring to a Changing Seascape/'
+setwd(out_dir)
 
 # Define plot extent (through trial end error) units km
 panel_extent <- data.frame(x = c(-1716559.21, -77636.05), #x = c(-1326559.21, -87636.05),
@@ -49,26 +49,105 @@ ak_sppoly<-as(ebs_layers$akland, 'Spatial')
 #save raster with the new projection
 #writeRaster(ak_bathy_2,
 #            'E:/UW/Adapting Monitoring to a Changing Seascape/Resources/ak_bathy_NAD83.tiff',overwrite=FALSE)
-ak_bathy_2<-raster('./Bathymetry/ak_bathy_NAD83.tiff')
-#plot(ak_bathy_2)
 
-#shapefile EBS
-ebs_sh<-rgdal::readOGR(dsn='./Shapefiles/',layer = 'EBSshelfThorson')
+#####################################
+# GET DEPTH
+#####################################
 
-#shapefile NBS
-nbs_sh<-rgdal::readOGR(dsn='./Shapefiles/',layer = 'NBSThorson')
+#create directory
+dir.create('./Data/Bathymetry/',showWarnings = FALSE)
 
-#shapefile NBS
-slo_sh<-rgdal::readOGR(dsn='./Shapefiles/',layer = 'EBSslopeThorson')
-proj4string(slo_sh) <- CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0") 
-slo_sh<-spTransform(slo_sh,CRSobj = CRS('+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs'))
+#get id shared folder from google drive
+id.bering.folder<-files[which(files$name=='Bathymetry'),'id']
+
+#list of files and folder
+files.1<-googledrive::drive_ls(id.bering.folder$id)
+id.data<-files.1[which(files.1$name=='ak_bathy_NAD83.tiff'),]
+
+#download file
+googledrive::drive_download(file=id.data$id,
+                            path = paste0('./Data/Bathymetry/',id.data$name),
+                            overwrite = TRUE)
+
+#read raster
+ak_bathy_2<-raster('./Data/Bathymetry/ak_bathy_NAD83.tiff')
+
+#####################################
+# BERING SHAPEFILES
+#####################################
+
+#create directory
+dir.create('./Data/Shapefiles/',showWarnings = FALSE)
+
+#name shapefiles 
+shfiles<-c('EBSshelfThorson','NBSThorson','EBSslopeThorson')
+
+#get id shared folder from google drive
+id.bering.folder<-files[which(files$name=='Shapefiles'),'id']
+
+#list of files and folder
+files.1<-googledrive::drive_ls(id.bering.folder$id)
+
+for (i in shfiles) {
+  
+  #i=shfiles[1]
+  
+  id.data<-files.1[which(grepl(i,files.1$name)),] #'SlopeThorsonGrid.csv',
+  
+  for (j in 1:nrow(id.data)) {
+    
+    googledrive::drive_download(file=id.data$id[j],
+                                path = paste0('./Data/Shapefiles/',id.data$name[j]),
+                                overwrite = TRUE)
+    
+  }
+  
+  #shapefile EBS
+  sh<-rgdal::readOGR(dsn='./Data/Shapefiles/',layer = i)
+  
+  if (i=='EBSslopeThorson') {
+    
+    #reproject shapefile
+    proj4string(sh) <- CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0") 
+    sh<-spTransform(sh,CRSobj = CRS('+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs'))
+    
+  }
+  
+  #shapefile name
+  shname<-paste0(gsub('Thorson','',i),'_sh')
+  
+  #assign shapefiles
+  assign(shname,sh)
+  
+}
 
 #merge shapefiles
-bs_sh<-union(ebs_sh,nbs_sh)
-bs_sh<-union(bs_sh,slo_sh)
+bs_sh<-union(EBSshelf_sh,NBS_sh)
+bs_sh<-union(bs_sh,EBSslope_sh)
+
+#####################################
+# GET EEZ
+#####################################
+
+#create directory
+dir.create('./Data/Shapefiles/',showWarnings = FALSE)
+
+#get id shared folder from google drive
+id.bering.folder<-files[which(files$name=='EEZ'),'id']
+
+#list of files and folder
+id.data<-googledrive::drive_ls(id.bering.folder$id)
+
+for (j in 1:nrow(id.data)) {
+  
+  googledrive::drive_download(file=id.data$id[j],
+                              path = paste0('./Data/Shapefiles/',id.data$name[j]),
+                              overwrite = TRUE)
+  
+}
 
 #shapefile EEZ
-eez_sh<-rgdal::readOGR(dsn='./EEZ',layer = 'EEZ_Land_v3_202030')
+eez_sh<-rgdal::readOGR(dsn='./Data/Shapefiles',layer = 'EEZ_Land_v3_202030')
 
 #clip EEZ
 bbox = c(latN = 70, latS = 50, lonW = -200, lonE = -150)
@@ -92,8 +171,27 @@ ak_bathy_4 <- mask(ak_bathy_3, bs_sh)
 ak_bathy_4[ak_bathy_4>0]<-0 
 ak_bathy_4<--ak_bathy_4 
 
+#####################################
+# GET Stations 
+#####################################
+
+#create directory
+dir.create('./Data/Additional/',showWarnings = FALSE)
+
+#get id shared folder from google drive
+id.bering.folder<-files[which(files$name=='Additional'),'id']
+
+#list of files and folder
+files.1<-googledrive::drive_ls(id.bering.folder$id)
+id.data<-files.1[which(files.1$name=='ebs_nbs_temperature_full_area.csv'),]
+
+#download file
+googledrive::drive_download(file=id.data$id,
+                            path = paste0('./Data/Additional/',id.data$name),
+                            overwrite = TRUE)
+
 #extract station EBS bottom trawl
-st_EBS<-read.csv('./Stations/ebs_nbs_temperature_full_area.csv')
+st_EBS<-read.csv('./Data/Additional//ebs_nbs_temperature_full_area.csv')
 
 #filter 2019 stations, an example year where EBS and NBS surveys were carried out
 st_EBS<-subset(st_EBS,year==2019 ) #& survey_definition_id ==98
@@ -126,9 +224,9 @@ zoomin<-
     geom_polygon(data=eez_sh33,aes(x=long,y=lat,group=group),fill=NA,color='grey40')+
     scale_x_continuous(expand = c(0,0),position = 'bottom',
                        breaks = c(-175,-170,-165,-160,-155),sec.axis = dup_axis())+
-    geom_polygon(data=nbs_sh,aes(x=long,y=lat,group=group),fill=NA,col='black')+
-    geom_polygon(data=ebs_sh,aes(x=long,y=lat,group=group),fill=NA,col='black')+
-    geom_polygon(data=slo_sh,aes(x=long,y=lat,group=group),fill=NA,col='black')+
+    geom_polygon(data=NBS_sh,aes(x=long,y=lat,group=group),fill=NA,col='black')+
+    geom_polygon(data=EBSshelf_sh,aes(x=long,y=lat,group=group),fill=NA,col='black')+
+    geom_polygon(data=EBSslope_sh,aes(x=long,y=lat,group=group),fill=NA,col='black')+
     coord_sf(crs = '+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs',
              xlim = panel_extent$x,
              ylim = panel_extent$y,
@@ -192,7 +290,7 @@ zoomout<-
 
 
 #save plot
-tiff(filename = 'E:/UW/Adapting Monitoring to a Changing Seascape/Figures/map_bering_sea.tif',res = 220,width = 1500,height = 1900)
+tiff(filename = './Figures/map_bering_sea.tif',res = 220,width = 1500,height = 1900)
 grid.newpage()
 vp_b <- viewport(width = 1, height = 1, x = 0.5, y = 0.5)  # the larger map
 vp_a <- viewport(width = 0.4, height = 0.3, x = 0.211, y = 0.78)  # the inset in upper left
