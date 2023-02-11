@@ -245,10 +245,14 @@ for (y in min(years):max(years)) {
     f<-files.for[1]
     file.id<-nc_forfiles[which(nc_forfiles$name==f),'id']} #for year>2020 have to select projection
  
-  #download file into temp folder
-  googledrive::drive_download(file=file.id$id,
-                              path = paste0('./Data/Bering 10K ROMS/',f),
-                              overwrite = TRUE)
+  #if not file, download
+  if (!(f %in% list.files('./Data/Bering 10K ROMS/'))) {
+    
+    #download file into temp folder
+    googledrive::drive_download(file=file.id$id,
+                                path = paste0('./Data/Bering 10K ROMS/',f),
+                                overwrite = TRUE)
+  }
   
   #open netcdf
   nc<-nc_open(paste0('./Data/Bering 10K ROMS/',f))
