@@ -32,8 +32,8 @@ if (!('akgfmaps' %in% installed.packages())) {
 pacman::p_load(pack_cran,character.only = TRUE)
 
 #set working directory
-mydir<-'E:/UW/Adapting Monitoring to a Changing Seascape/'
-setwd(mydir)
+out_dir<-'E:/UW/Adapting Monitoring to a Changing Seascape/'
+setwd(out_dir)
 
 # Define plot extent (through trial end error) units km
 panel_extent <- data.frame(x = c(-1856559.21, 55636.05), #x = c(-1326559.21, -87636.05),
@@ -43,9 +43,61 @@ panel_extent <- data.frame(x = c(-1856559.21, 55636.05), #x = c(-1326559.21, -87
 ebs_layers <- akgfmaps::get_base_layers(select.region = "ebs", set.crs = "EPSG:3338")
 ak_sppoly<-as(ebs_layers$akland, 'Spatial')
 
-#shapefile EBS
-ebs_sh<-rgdal::readOGR(dsn='./Resources/Shapefiles/',layer = 'EBSshelfThorson')
+#####################################
+# BERING SHAPEFILES
+#####################################
+ 
+ #create directory
+ dir.create('./Data/Shapefiles/',showWarnings = FALSE)
+ 
+ #name shapefiles 
+ shfiles<-c('EBSshelfThorson','NBSThorson','EBSslopeThorson')
 
+ #get id shared folder from google drive
+ id.bering.folder<-files[which(files$name=='Shapefiles'),'id']
+ 
+ #list of files and folder
+ files.1<-googledrive::drive_ls(id.bering.folder$id)
+
+ for (i in shfiles) {
+   
+   #i=shfiles[1]
+   
+   id.data<-files.1[which(grepl(i,files.1$name)),] #'SlopeThorsonGrid.csv',
+   
+   for (j in 1:nrow(id.data)) {
+     
+     googledrive::drive_download(file=id.data$id[j],
+                                 path = paste0('./Data/Shapefiles/',id.data$name[j]),
+                                 overwrite = TRUE)
+     
+   }
+   
+   
+   
+   #shapefile EBS
+   sh<-rgdal::readOGR(dsn='./Data/Shapefiles/',layer = i)
+
+   if (i=='EBSslopeThorson') {
+     
+     #reproject shapefile
+     proj4string(sh) <- CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0") 
+     sh<-spTransform(sh,CRSobj = CRS('+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs'))
+     
+   }
+   
+   #shapefile name
+   shname<-paste0(gsub('Thorson','',i),'_sh')
+   
+   #assign shapefiles
+   assign(shname,sh)
+   
+ }
+ 
+ #merge shapefiles
+ bs_sh<-union(EBSshelf_sh,NBS_sh)
+ bs_sh<-union(bs_sh,EBSslope_sh)
+ 
 ####################################################
 # SBT from coldpool package
 ####################################################
@@ -82,7 +134,7 @@ for (y in min(years):max(years)) {
     geom_polygon(data=ak_sppoly,aes(x=long,y=lat,group=group),fill = 'grey60')+
     scale_x_continuous(expand = c(0,0),position = 'bottom',
                        breaks = c(-175,-170,-165,-160,-155),sec.axis = dup_axis())+
-    geom_polygon(data=ebs_sh,aes(x=long,y=lat,group=group),fill=NA,col='black')+
+    geom_polygon(data=EBSshelf_sh,aes(x=long,y=lat,group=group),fill=NA,col='black')+
     coord_sf(crs = '+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs',
              xlim =c(-1716559.21,57636.05),
              ylim = c(403099.5, 1754909.7),
@@ -128,21 +180,6 @@ dev.off()
 # SBT from Bering 10K ROMS
 ####################################################
 
-#shapefile EBS
-ebs_sh<-rgdal::readOGR(dsn='./Resources/Shapefiles/',layer = 'EBSshelfThorson')
-
-#shapefile NBS
-nbs_sh<-rgdal::readOGR(dsn='./Resources/Shapefiles/',layer = 'NBSThorson')
-
-#shapefile NBS
-slo_sh<-rgdal::readOGR(dsn='./Resources/Shapefiles/',layer = 'EBSslopeThorson')
-proj4string(slo_sh) <- CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0") 
-slo_sh<-spTransform(slo_sh,CRSobj = CRS('+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs'))
-
-#merge shapefiles
-bs_sh<-union(ebs_sh,nbs_sh)
-bs_sh<-union(bs_sh,slo_sh)
-
 #get files from google drive and set up
 files<-googledrive::drive_find()
 1 #for dvilasg@uw.edu
@@ -150,7 +187,7 @@ files<-googledrive::drive_find()
 #get id shared folder from google drive
 id.roms.folder<-files[which(files$name=='Bering 10K ROMS'),'id']
 
-#list of files and folder
+#list of files and folder of netcd files
 files.1<-googledrive::drive_ls(id.roms.folder$id)
 id.data<-files.1[which(files.1$name=='netcdf_historical'),'id']
 nc_histfiles<-googledrive::drive_ls(id.data$id)
@@ -158,10 +195,6 @@ id.data<-files.1[which(files.1$name=='netcdf_forecast'),'id']
 nc_forfiles<-googledrive::drive_ls(id.data$id)
 files.hist<-sort(nc_histfiles$name)
 files.for<-sort(nc_forfiles$name)
-
-#open downloaded SBT weekly netcdf files from Bering 10K ROMS (https://data.pmel.noaa.gov/aclim/thredds/catalog/files.html)
-# nc_histfiles<-list.files('./Resources/ACLIM2/Data/out/netcdf_historical/',full.names = TRUE)
-# nc_forfiles<-list.files('./Resources/ACLIM2/Data/out/netcdf_forecast/',full.names = TRUE)
 
 #create folder to store netcdf
 dir.create('./Data/Bering 10K ROMS/',showWarnings = FALSE)
@@ -272,10 +305,11 @@ for (y in min(years):max(years)) {
   coordinates(df_nc3) <- ~ Lon + Lat
   proj4string(df_nc3) <- CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0") 
   df_nc4<-spTransform(df_nc3,CRSobj = CRS('+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs'))
-  #proj4string(df_nc3) <- CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0") 
 
   # create a template raster
   r1 <- raster(ext=extent(df_nc4),res=c(15800,15800))
+  
+  #create raster
   r1<-rasterize(df_nc4, r1 )
   r1<-dropLayer(r1,'ID')
   crs(r1) <- CRS('+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs')
@@ -284,6 +318,8 @@ for (y in min(years):max(years)) {
   r1bis<-projectRaster(r1, crs = CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"))
   r2bis<-crop(r1bis, extent(c(-180,-145,41.31245,71.47545)))
   names(r2bis)<-paste0('y',y)
+  
+  #add layer to stack
   sbt_stack<-addLayer(sbt_stack,r2bis)
   
   ## crop and mask
@@ -297,9 +333,9 @@ for (y in min(years):max(years)) {
     geom_polygon(data=ak_sppoly,aes(x=long,y=lat,group=group),fill = 'grey60')+
     scale_x_continuous(expand = c(0,0),position = 'bottom',
                        breaks = c(-175,-170,-165,-160,-155),sec.axis = dup_axis())+
-    geom_polygon(data=ebs_sh,aes(x=long,y=lat,group=group),fill=NA,col='black')+
-    geom_polygon(data=nbs_sh,aes(x=long,y=lat,group=group),fill=NA,col='black')+
-    geom_polygon(data=slo_sh,aes(x=long,y=lat,group=group),fill=NA,col='black')+
+    geom_polygon(data=EBSshelf_sh,aes(x=long,y=lat,group=group),fill=NA,col='black')+
+    geom_polygon(data=NBS_sh,aes(x=long,y=lat,group=group),fill=NA,col='black')+
+    geom_polygon(data=EBSslope_sh,aes(x=long,y=lat,group=group),fill=NA,col='black')+
     coord_sf(crs = '+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs',
              xlim = panel_extent$x,
              ylim = panel_extent$y,
