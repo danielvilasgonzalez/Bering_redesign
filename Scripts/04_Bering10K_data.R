@@ -2,8 +2,8 @@
 ####################################################################
 ##
 ##    extract sea bottom temperature (SBT) from netcdf of Bering 10K ROMS
-##    incorporate SBT to Bering Sea grid
-##    incorporate SBT to data_geostat file from Bering Sea 
+##    incorporate Temp (SBT) to Bering Sea grid
+##    incorporate Temp (SBT) to data_geostat file from Bering Sea 
 ##    (shelf Eastern Bering Sea, slope Eastern Bering Sea, northern Bering Sea)
 ##    save data_geostat_temp file to fit VAST
 ##    Daniel Vilas (danielvilasgonzalez@gmail.com/dvilasg@uw.edu)
@@ -132,7 +132,7 @@ files.for<-sort(nc_forfiles$name)
 grid.ebs_year<-data.frame(matrix(nrow = 0,
                                  ncol = ncol(grid.ebs)+2))
 colnames(grid.ebs_year)<-c(colnames(grid.ebs),
-                           'BottomTempROMS',
+                           'Temp',
                            'Year')
 
 #loop over years to incorporate values into the Bering Sea grid
@@ -247,7 +247,7 @@ for (y in sta_y:end_y) {
   
   #get SBT
   temps<-as.data.frame(df_nc3)$temp[nc_index]
-  grid.ebs$BottomTempROMS<-temps
+  grid.ebs$Temp<-temps
   grid.ebs$Year<-y
   
   #incorporate SBT
@@ -266,7 +266,7 @@ saveRDS(grid.ebs_year,'./slope shelf EBS NBS VAST/grid_ebs_covariate_data.rds')
 #####################################
 
 #get species name
-splist<-list.dirs('./slope shelf EBS NBS VAST',full.names = FALSE)
+splist<-list.dirs('./slope shelf EBS NBS VAST',full.names = FALSE,recursive = FALSE)
 splist<-splist[-1]
 
 #loop over species to add SBT to data_geostat
@@ -283,7 +283,7 @@ for (sp in splist) {
   #create df to store results
   df1_temp<-data.frame(matrix(nrow=0,
                               ncol=ncol(df1)+1))
-  colnames(df1_temp)<-c("Species","Year","Lat","Lon","CPUE_kg","Survey","Depth","BottomTempROMS")
+  colnames(df1_temp)<-c("Species","Year","Lat","Lon","CPUE_kg","Survey",'Depth','LogDepth',"ScaleLogDepth","Temp")
   
   #sort years
   years<-sort(unique(df1$Year))
@@ -409,7 +409,11 @@ for (sp in splist) {
     
     #get SBT
     temps<-as.data.frame(df_nc3)$temp[nc_index]
-    df2$BottomTempROMS<-temps
+    df2$Temp<-temps
+    
+    #scale temp values to standard normal, using the mean and sd
+    df2$LogTemp <- log(df2$Temp)
+    df2$ScaleLogTemp <- scale(df2$LogTemp)
     
     #add results
     df1_temp<-rbind(df1_temp,df2)

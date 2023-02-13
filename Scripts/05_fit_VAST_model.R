@@ -30,15 +30,11 @@ if (!('VAST' %in% installed.packages())) {
 out_dir<-'E:/UW/Adapting Monitoring to a Changing Seascape/'
 setwd(out_dir)
 
-#range years of data
-sta_y<-2002
-end_y<-2022
-
 #number of knots
 knots<-'200'
 
 #list of sp
-splist<-list.dirs('./slope shelf EBS NBS VAST',full.names = FALSE)
+splist<-list.dirs('./slope shelf EBS NBS VAST',full.names = FALSE,recursive = FALSE)
 splist<-splist[-1]
 
 #list of models
@@ -65,13 +61,12 @@ py <- winProgressBar(title = paste0(sp, ' (',which(splist == sp),' out of ',leng
 
 #read data_geostat_temp file
 df1<-readRDS(paste0('./slope shelf EBS NBS VAST/',sp,'/data_geostat_temp.rds'))
-colnames(df1)[8]<-'Temp'
 
 #remove rows with NAs
 df2<-df1[complete.cases(df1),]
 
 #covariate data
-covariate_data<-df1[,c("Lat","Lon","Year",'CPUE_kg',"Depth",'Temp')]
+covariate_data<-df1[,c("Lat","Lon","Year",'CPUE_kg',"ScaleLogDepth",'ScaleLogTemp')]
 
 #regions (predefined in VAST)
 region<-c("bering_sea_slope","eastern_bering_sea",'northern_bering_sea')
@@ -111,9 +106,9 @@ region<-c("bering_sea_slope","eastern_bering_sea",'northern_bering_sea')
   }
   
   #formula for each model
-  X1_formula<-ifelse(grepl('full',m), '~log(Depth)+(log(Depth))^2+Temp',
-                     ifelse(grepl('depth',m),'~log(Depth)+(log(Depth))^2',
-                            ifelse(grepl('temp',m),'~Temp',
+  X1_formula<-ifelse(grepl('full',m), '~ScaleLogDepth+(ScaleLogDepth)^2+ScaleLogTemp+(ScaleLogTemp)^2',
+                     ifelse(grepl('depth',m),'~ScaleLogDepth+(ScaleLogDepth)^2',
+                            ifelse(grepl('temp',m),'~ScaleLogTemp+(ScaleLogTemp)^2',
                                    ifelse(grepl('null',m),'~0'))))
 
   #formula for positive catch rates equal to presence/absence
@@ -140,7 +135,7 @@ region<-c("bering_sea_slope","eastern_bering_sea",'northern_bering_sea')
                    getJointPrecision = TRUE,
                    test_fit=FALSE,
                    create_strata_per_region = TRUE,  
-                   covariate_data = cbind(covariate_data[,c("Lat","Lon","Depth",'Temp','Year')]), 
+                   covariate_data = cbind(covariate_data[,c("Lat","Lon","ScaleLogDepth",'ScaleLogTemp','Year')]), 
                    X1_formula =  X1_formula,
                    X2_formula = X2_formula, 
                    #X_gtp = X_gtp,
@@ -162,13 +157,13 @@ region<-c("bering_sea_slope","eastern_bering_sea",'northern_bering_sea')
 
   #depth effects
   if (grepl('|depth|full',m)) {
-    diagnostics[m,'depth1',sp]<-round(fit$ParHat$gamma1_cp[,'log(Depth)'],3)
-    diagnostics[m,'depth2',sp]<-round(fit$ParHat$gamma2_cp[,'log(Depth)'],3)
+    diagnostics[m,'depth1',sp]<-round(fit$ParHat$gamma1_cp[,'ScaleLogDepth'],3)
+    diagnostics[m,'depth2',sp]<-round(fit$ParHat$gamma2_cp[,'ScaleLogDepth'],3)
   }
   #temp effects
   if (grepl('|temp|full',m)) {
-    diagnostics[m,'temp1',sp]<-round(fit$ParHat$gamma1_cp[,'Temp'],3)
-    diagnostics[m,'temp2',sp]<-round(fit$ParHat$gamma2_cp[,'Temp'],3)
+    diagnostics[m,'temp1',sp]<-round(fit$ParHat$gamma1_cp[,'ScaleLogTemp'],3)
+    diagnostics[m,'temp2',sp]<-round(fit$ParHat$gamma2_cp[,'ScaleLogTemp'],3)
   }
   
   #progress bar

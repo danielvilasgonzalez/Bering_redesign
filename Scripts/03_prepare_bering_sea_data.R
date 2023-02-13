@@ -161,10 +161,14 @@ r<-raster('./Data/Bathymetry/gebco_2022_n70.0_s50.0_w-180.0_e-155.0.asc')
 
 #extract depth values for each station
 rr<-extract(r, SpatialPoints(cbind(dfsurveys$LONGITUDE,dfsurveys$LATITUDE)))
-dfsurveys$DEPTH<-rr
+dfsurveys$DEPTH<--rr
 
 #rename cols
 colnames(dfsurveys)<-c('Species','Year',"Lat","Lon",'CPUE_kg','Survey','Depth')
+
+#scale grid bathymetry values to standard normal, using the mean and sd
+dfsurveys$LogDepth <- log(dfsurveys$Depth)
+dfsurveys$ScaleLogDepth <- scale(dfsurveys$LogDepth)
 
 #####################################
 # CREATE DATA_GEOSTAT FILE
@@ -194,8 +198,7 @@ for (sp in sp.list) {
   
   #remove rows with NAs in env data
   df1<-df1[complete.cases(df1[c('Depth')]),]
-  df1$Depth<--df1$Depth
-  
+
   #save data_geostat file
   saveRDS(df1, paste0('./slope shelf EBS NBS VAST/',sp,'/data_geostat.rds'))
   
