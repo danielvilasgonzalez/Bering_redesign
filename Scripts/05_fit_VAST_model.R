@@ -1,7 +1,7 @@
 ####################################################################
 ####################################################################
 ##    
-##    fit single sp VAST models using depth and SBT
+##    fit single sp VAST models using depth and temp (SBT)
 ##    Daniel Vilas (danielvilasgonzalez@gmail.com/dvilasg@uw.edu)
 ##
 ####################################################################
@@ -42,10 +42,11 @@ splist<-list.dirs('./slope shelf EBS NBS VAST',full.names = FALSE)
 splist<-splist[-1]
 
 #list of models
-models<-c('null',
-          'depth','sbt','sp','st',
-          'depth_sbt','sp_st','depth_sbt_sp','depth_sbt_st',
-          'full')
+models<-as.vector(outer(c('null','depth','temp','full'), c('IID','f2','f3'), paste, sep="_"))
+
+#diagnostics df
+diagnostics<-array(dim = c(length(models),9,length(splist)),
+                   dimnames = list(models,c('status','maxgradient','aic','jnll','rmse','depth1','depth2','temp1','temp2'),splist))
 
 #loop over species to fit models
 #for (sp in sp.list) {
@@ -76,9 +77,9 @@ covariate_data<-df1[,c("Lat","Lon","Year",'CPUE_kg',"Depth",'Temp')]
 region<-c("bering_sea_slope","eastern_bering_sea",'northern_bering_sea')
 
   #loop over models
-  #for (m in models) {
+  for (m in models) {
   
-  m<-models[2]
+  #m<-models[2]
   
   #print year to check progress
   cat(paste("    ----- ", sp, " -----\n","       - ", m, " model\n"))  
@@ -97,7 +98,6 @@ region<-c("bering_sea_slope","eastern_bering_sea",'northern_bering_sea')
                             #FieldConfig = c("Omega1"="IID", "Epsilon1"="IID", "Omega2"="IID", "Epsilon2"="IID"),
                             #RhoConfig=c("Beta1"=3,"Beta2"=0,"Epsilon1"=0,"Epsilon2"=0), #RhoConfig=c("Beta1"=1,"Beta2"=0,"Epsilon1"=0,"Epsilon2"=0)
                             #Version = "VAST_v12_0_0",
-                            #strata.limits=data.frame(STRATA = c('All_areas',"shelf","slope")),
                             #fine_scale=TRUE,
                             ObsModel = c(2,1), #c(1,1) #biomass
                             max_cells = Inf,
@@ -105,31 +105,28 @@ region<-c("bering_sea_slope","eastern_bering_sea",'northern_bering_sea')
                                         "Calculate_effective_area" = T)) 
   
   #Kmeans_knots-200
-  if (!file.exists(paste0('./slope shelf EBS NBS VAST/',sp,'/',m,'/','Kmeans_knots-',knots,'.RData'))) {
-    file.copy(paste0('./slope shelf EBS NBS VAST/',splist[1],'/',models[1],'/','Kmeans_knots-',knots,'.RData'),
+  if (!file.exists(paste0('./slope shelf EBS NBS VAST/',sp,'/',m,'/','Kmeans_knots-',knots,'.RData')) & m!=models[1]) {
+    file.copy(paste0('./slope shelf EBS NBS VAST/',sp,'/',models[1],'/','Kmeans_knots-',knots,'.RData'),
               paste0('./slope shelf EBS NBS VAST/',sp,'/',m,'/','Kmeans_knots-',knots,'.RData'))
   }
   
   #formula for each model
-  X1_formula<-ifelse(m %in% c('full','depth_sbt','depth_sbt_sp','depth_sbt_st'), '~log(Depth)+(log(Depth))^2+Temp',
-                     ifelse(m=='depth','~log(Depth)+(log(Depth))^2',
-                            ifelse(m=='sbt','~Temp',
-                                   ifelse(m %in% c('null','sp','st','sp_st'),'~0'))))
+  X1_formula<-ifelse(grepl('full',m), '~log(Depth)+(log(Depth))^2+Temp',
+                     ifelse(grepl('depth',m),'~log(Depth)+(log(Depth))^2',
+                            ifelse(grepl('temp',m),'~Temp',
+                                   ifelse(grepl('null',m),'~0'))))
 
   #formula for positive catch rates equal to presence/absence
   X2_formula<-X1_formula
   
-  #modify settings
-  #FieldConfig = c("Omega1"="IID", "Epsilon1"="IID", "Omega2"="IID", "Epsilon2"="IID"),
-  #FieldConfig = c("Omega1"=2, "Epsilon1"=2, "Omega2"=2, "Epsilon2"=2), #2 factors
-  #FieldConfig = c("Omega1"=3, "Epsilon1"=3, "Omega2"=3, "Epsilon2"=3), #3 factors
-  settings$
-  
-  
-  #check factors
-  
-  
-  
+  #modify settings to use 2 or 3 factors on the spatial and spatiotemporal variation
+  if (grepl('IID',m)) {
+    settings$FieldConfig[c('Epsilon','Omega'),]<-'IID'
+  } else if (grepl('f2',m)) {
+    settings$FieldConfig[c('Epsilon','Omega'),]<-2
+  } else if (grepl('f3',m)) {
+    settings$FieldConfig[c('Epsilon','Omega'),]<-3
+  }
   
   #fit model
   fit <- fit_model(settings=settings,
@@ -149,6 +146,30 @@ region<-c("bering_sea_slope","eastern_bering_sea",'northern_bering_sea')
                    #X_gtp = X_gtp,
                    working_dir = paste0('./slope shelf EBS NBS VAST/',sp,'/',m,'/'))
   
+  #save fit
+  save(list = "fit", file = paste0('./slope shelf EBS VAST/',sp,'/',m,'/fit.RData'))
+  
+  #convergence
+  diagnostics[m,'status',sp]<-ifelse(test = is.null(fit) == T | is.null(fit$parameter_estimates$max_gradient),"no_convergence","check_gradient")
+  #max gradient
+  diagnostics[m,'maxgradient',sp]<-fit$parameter_estimates$max_gradient
+  #AIC
+  diagnostics[m,'aic',sp]<-round(fit$parameter_estimates$AIC[1],3)
+  #JNLL
+  diagnostics[m,'jnll',sp]<-round(fit$parameter_estimates$objective[1],3)
+  #RMSE
+  diagnostics[m,'rmse',sp]<-round(sqrt(mean((df2$CPUE_kg - fit$Report$D_i)^2)) / mean(df2$CPUE_kg),3)
+
+  #depth effects
+  if (grepl('|depth|full',m)) {
+    diagnostics[m,'depth1',sp]<-round(fit$ParHat$gamma1_cp[,'log(Depth)'],3)
+    diagnostics[m,'depth2',sp]<-round(fit$ParHat$gamma2_cp[,'log(Depth)'],3)
+  }
+  #temp effects
+  if (grepl('|temp|full',m)) {
+    diagnostics[m,'temp1',sp]<-round(fit$ParHat$gamma1_cp[,'Temp'],3)
+    diagnostics[m,'temp2',sp]<-round(fit$ParHat$gamma2_cp[,'Temp'],3)
+  }
   
   #progress bar
   pctgy <- paste0(round(which(models == m)/length(models) *100, 0), "% completed")
@@ -158,4 +179,4 @@ region<-c("bering_sea_slope","eastern_bering_sea",'northern_bering_sea')
 
 close(py)
 
-}
+#}
