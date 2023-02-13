@@ -66,7 +66,7 @@ df1<-readRDS(paste0('./slope shelf EBS NBS VAST/',sp,'/data_geostat_temp.rds'))
 df2<-df1[complete.cases(df1),]
 
 #covariate data
-covariate_data<-df1[,c("Lat","Lon","Year",'CPUE_kg',"ScaleLogDepth",'ScaleLogTemp')]
+covariate_data<-df1[,c("Lat","Lon","Year",'CPUE_kg',"ScaleLogDepth",'ScaleTemp')]
 
 #regions (predefined in VAST)
 region<-c("bering_sea_slope","eastern_bering_sea",'northern_bering_sea')
@@ -106,9 +106,9 @@ region<-c("bering_sea_slope","eastern_bering_sea",'northern_bering_sea')
   }
   
   #formula for each model
-  X1_formula<-ifelse(grepl('full',m), '~ScaleLogDepth+(ScaleLogDepth)^2+ScaleLogTemp+(ScaleLogTemp)^2',
+  X1_formula<-ifelse(grepl('full',m), '~ScaleLogDepth+(ScaleLogDepth)^2+ScaleTemp+(ScaleTemp)^2',
                      ifelse(grepl('depth',m),'~ScaleLogDepth+(ScaleLogDepth)^2',
-                            ifelse(grepl('temp',m),'~ScaleLogTemp+(ScaleLogTemp)^2',
+                            ifelse(grepl('temp',m),'~ScaleTemp+(ScaleTemp)^2',
                                    ifelse(grepl('null',m),'~0'))))
 
   #formula for positive catch rates equal to presence/absence
@@ -135,7 +135,7 @@ region<-c("bering_sea_slope","eastern_bering_sea",'northern_bering_sea')
                    getJointPrecision = TRUE,
                    test_fit=FALSE,
                    create_strata_per_region = TRUE,  
-                   covariate_data = cbind(covariate_data[,c("Lat","Lon","ScaleLogDepth",'ScaleLogTemp','Year')]), 
+                   covariate_data = cbind(covariate_data[,c("Lat","Lon","ScaleLogDepth",'ScaleTemp','Year')]), 
                    X1_formula =  X1_formula,
                    X2_formula = X2_formula, 
                    #X_gtp = X_gtp,
@@ -162,8 +162,8 @@ region<-c("bering_sea_slope","eastern_bering_sea",'northern_bering_sea')
   }
   #temp effects
   if (grepl('|temp|full',m)) {
-    diagnostics[m,'temp1',sp]<-round(fit$ParHat$gamma1_cp[,'ScaleLogTemp'],3)
-    diagnostics[m,'temp2',sp]<-round(fit$ParHat$gamma2_cp[,'ScaleLogTemp'],3)
+    diagnostics[m,'temp1',sp]<-round(fit$ParHat$gamma1_cp[,'ScaleTemp'],3)
+    diagnostics[m,'temp2',sp]<-round(fit$ParHat$gamma2_cp[,'ScaleTemp'],3)
   }
   
   #progress bar

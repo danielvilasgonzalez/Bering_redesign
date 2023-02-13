@@ -282,8 +282,8 @@ for (sp in splist) {
   
   #create df to store results
   df1_temp<-data.frame(matrix(nrow=0,
-                              ncol=ncol(df1)+1))
-  colnames(df1_temp)<-c("Species","Year","Lat","Lon","CPUE_kg","Survey",'Depth','LogDepth',"ScaleLogDepth","Temp")
+                              ncol=ncol(df1)+2))
+  colnames(df1_temp)<-c("Species","Year","Lat","Lon","CPUE_kg","Survey",'Depth','LogDepth',"ScaleLogDepth","Temp","ScaleTemp")
   
   #sort years
   years<-sort(unique(df1$Year))
@@ -410,10 +410,7 @@ for (sp in splist) {
     #get SBT
     temps<-as.data.frame(df_nc3)$temp[nc_index]
     df2$Temp<-temps
-    
-    #scale temp values to standard normal, using the mean and sd
-    df2$LogTemp <- log(df2$Temp)
-    df2$ScaleLogTemp <- scale(df2$LogTemp)
+    df2$ScaleTemp<-df2$Temp
     
     #add results
     df1_temp<-rbind(df1_temp,df2)
