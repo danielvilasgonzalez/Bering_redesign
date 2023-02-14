@@ -142,7 +142,7 @@ region<-c("bering_sea_slope","eastern_bering_sea",'northern_bering_sea')
                    working_dir = paste0('./slope shelf EBS NBS VAST/',sp,'/',m,'/'))
   
   #save fit
-  save(list = "fit", file = paste0('./slope shelf EBS VAST/',sp,'/',m,'/fit.RData'))
+  save(list = "fit", file = paste0('./slope shelf EBS NBS VAST/',sp,'/',m,'/fit.RData'))
   
   #convergence
   diagnostics[m,'status',sp]<-ifelse(test = is.null(fit) == T | is.null(fit$parameter_estimates$max_gradient),"no_convergence","check_gradient")
@@ -156,12 +156,12 @@ region<-c("bering_sea_slope","eastern_bering_sea",'northern_bering_sea')
   diagnostics[m,'rmse',sp]<-round(sqrt(mean((df2$CPUE_kg - fit$Report$D_i)^2)) / mean(df2$CPUE_kg),3)
 
   #depth effects
-  if (grepl('|depth|full',m)) {
+  if (grepl('depth|full',m)) {
     diagnostics[m,'depth1',sp]<-round(fit$ParHat$gamma1_cp[,'ScaleLogDepth'],3)
     diagnostics[m,'depth2',sp]<-round(fit$ParHat$gamma2_cp[,'ScaleLogDepth'],3)
   }
   #temp effects
-  if (grepl('|temp|full',m)) {
+  if (grepl('temp|full',m)) {
     diagnostics[m,'temp1',sp]<-round(fit$ParHat$gamma1_cp[,'ScaleTemp'],3)
     diagnostics[m,'temp2',sp]<-round(fit$ParHat$gamma2_cp[,'ScaleTemp'],3)
   }
