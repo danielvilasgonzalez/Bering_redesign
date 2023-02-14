@@ -266,7 +266,7 @@ saveRDS(grid.ebs_year,'./slope shelf EBS NBS VAST/grid_ebs_covariate_data.rds')
 #####################################
 
 #get species name
-splist<-list.dirs('./slope shelf EBS NBS VAST',full.names = FALSE,recursive = FALSE)
+splist<-list.dirs('./slope shelf EBS NBS VAST/',full.names = FALSE,recursive = FALSE)
 splist<-splist[-1]
 
 #loop over species to add SBT to data_geostat
@@ -284,11 +284,8 @@ for (sp in splist) {
   df1_temp<-data.frame(matrix(nrow=0,
                               ncol=ncol(df1)+2))
   colnames(df1_temp)<-c("Species","Year","Lat","Lon","CPUE_kg","Survey",'Depth','LogDepth',"ScaleLogDepth","Temp","ScaleTemp")
-  
-  #sort years
-  years<-sort(unique(df1$Year))
-  
-  for (y in min(years):max(years)) {
+
+  for (y in sta_y:end_y) {
     
     #y<-2020
     
@@ -410,7 +407,7 @@ for (sp in splist) {
     #get SBT
     temps<-as.data.frame(df_nc3)$temp[nc_index]
     df2$Temp<-temps
-    df2$ScaleTemp<-df2$Temp
+    df2$ScaleTemp<-scale(df2$Temp)
     
     #add results
     df1_temp<-rbind(df1_temp,df2)

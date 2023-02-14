@@ -70,6 +70,8 @@ df.sp1<-df.sp[,c('SPECIES_CODE','SPECIES_NAME')]
 #sp list
 sp.list<-c('Limanda aspera','Gadus chalcogrammus','Gadus macrocephalus','Atheresthes stomias','Reinhardtius hippoglossoides',
            'Lepidopsetta polyxystra','Hippoglossoides elassodon','Pleuronectes quadrituberculatus','Hippoglossoides robustus')
+           #'Boreogadus saida','Eleginus gracilis','Anoplopoma fimbria',
+           #'Chionoecetes opilio','Paralithodes platypus','Paralithodes camtschaticus'
 
 #####################################
 # CPUE DATA
@@ -136,7 +138,7 @@ colnames(dfsurveys)<-c("SPECIES_NAME","YEAR","LATITUDE","LONGITUDE","CPUE_KGHA",
   dfsurveys<-rbind(dfsurveys,df2)
    
  }
- 
+
 #####################################
 # ADD DEPTH
 #####################################

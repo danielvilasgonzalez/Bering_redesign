@@ -38,7 +38,8 @@ splist<-list.dirs('./slope shelf EBS NBS VAST',full.names = FALSE,recursive = FA
 splist<-splist[-1]
 
 #list of models
-models<-as.vector(outer(c('null','depth','temp','full'), c('IID','f2','f3'), paste, sep="_"))
+#models<-as.vector(outer(c('null','depth','temp','full'), c('IID','f2','f3'), paste, sep="_"))
+models<-c('null','depth','temp','full')
 
 #diagnostics df
 diagnostics<-array(dim = c(length(models),9,length(splist)),
@@ -48,7 +49,7 @@ diagnostics<-array(dim = c(length(models),9,length(splist)),
 #for (sp in sp.list) {
 
 #Pcod example
-sp<-splist[3]
+sp<-splist[2]
 
 #check % of process  
 #windows progress bar
@@ -77,7 +78,7 @@ region<-c("bering_sea_slope","eastern_bering_sea",'northern_bering_sea')
   #m<-models[2]
   
   #print year to check progress
-  cat(paste("    ----- ", sp, " -----\n","       - ", m, " model\n"))  
+  cat(paste("\n","    ----- ", sp, " -----\n","       - ", m, " model\n"))  
   
   #create folder to store results
   dir.create(paste0(getwd(),'/slope shelf EBS NBS VAST/',sp,'/',m,'/'),
@@ -102,8 +103,7 @@ region<-c("bering_sea_slope","eastern_bering_sea",'northern_bering_sea')
   #Kmeans_knots-200
   if (!file.exists(paste0('./slope shelf EBS NBS VAST/',sp,'/',m,'/','Kmeans_knots-',knots,'.RData')) & m!=models[1]) {
     file.copy(paste0('./slope shelf EBS NBS VAST/',sp,'/',models[1],'/','Kmeans_knots-',knots,'.RData'),
-              paste0('./slope shelf EBS NBS VAST/',sp,'/',m,'/','Kmeans_knots-',knots,'.RData'))
-  }
+              paste0('./slope shelf EBS NBS VAST/',sp,'/',m,'/','Kmeans_knots-',knots,'.RData'))}
   
   #formula for each model
   X1_formula<-ifelse(grepl('full',m), '~ScaleLogDepth+(ScaleLogDepth)^2+ScaleTemp+(ScaleTemp)^2',
@@ -115,15 +115,15 @@ region<-c("bering_sea_slope","eastern_bering_sea",'northern_bering_sea')
   X2_formula<-X1_formula
   
   #modify settings to use 2 or 3 factors on the spatial and spatiotemporal variation
-  if (grepl('IID',m)) {
-    settings$FieldConfig[c('Epsilon','Omega'),]<-'IID'
-  } else if (grepl('f2',m)) {
-    settings$FieldConfig[c('Epsilon','Omega'),]<-2
-  } else if (grepl('f3',m)) {
-    settings$FieldConfig[c('Epsilon','Omega'),]<-3
-  }
+  # if (grepl('IID',m)) {
+  #   settings$FieldConfig[c('Epsilon','Omega'),]<-'IID'
+  # } else if (grepl('f2',m)) {
+  #   settings$FieldConfig[c('Epsilon','Omega'),]<-2
+  # } else if (grepl('f3',m)) {
+  #   settings$FieldConfig[c('Epsilon','Omega'),]<-3
+  # }
   
-  #fit model
+  #fit model #### ADD TryCatch{(),}
   fit <- fit_model(settings=settings,
                    Lat_i=df2$Lat, 
                    Lon_i=df2$Lon,
