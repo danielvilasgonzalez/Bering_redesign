@@ -36,15 +36,37 @@ sta_y<-1982
 end_y<-2022
 
 #####################################
+# STATIONS
+#####################################
+
+#create directory
+dir.create('./Data/Additional/',showWarnings = FALSE)
+
+#get files from google drive and set up
+files<-googledrive::drive_find()
+1 #for dvilasg@uw.edu
+
+#get id shared folder from google drive
+id.bering.folder<-files[which(files$name=='Additional'),'id']
+
+#list of files and folder
+files.1<-googledrive::drive_ls(id.bering.folder$id)
+id.data<-files.1[which(files.1$name=='ebs_nbs_temperature_full_area.csv'),]
+
+#download
+googledrive::drive_download(file=id.data$id,
+                            path = paste0('./Data/Additional/',id.data$name),
+                            overwrite = TRUE)
+
+#get stations
+st<-read.csv(paste0('./Data/Additional/',id.data$name))
+
+#####################################
 # BERING SEA GRIDS
 #####################################
  
 #create directory
 dir.create('./Data/Extrapolation Grids/',showWarnings = FALSE)
- 
-#get files from google drive and set up
-files<-googledrive::drive_find()
-1 #for dvilasg@uw.edu
 
 #get id shared folder from google drive
 id.bering.folder<-files[which(files$name=='Extrapolation Grids'),'id']
@@ -109,9 +131,13 @@ googledrive::drive_download(file=id.data$id,
 #read raster
 r<-raster('./Data/Bathymetry/gebco_2022_n70.0_s50.0_w-180.0_e-155.0.asc')
 
-#extract depth values for each station
+#extract depth values for each station of grid
 rr<-extract(r, SpatialPoints(cbind(grid.ebs$Lon,grid.ebs$Lat)))
-grid.ebs$DepthGEBCO<-rr
+grid.ebs$DepthGEBCO<--rr
+
+#extract depth values for each station of grid
+rr<-extract(r, SpatialPoints(cbind(st$longitude,st$latitude)))
+st$DepthGEBCO<--rr
 
 #####################################
 # LOOP OVER YEARS
@@ -135,6 +161,12 @@ grid.ebs_year<-data.frame(matrix(nrow = 0,
 colnames(grid.ebs_year)<-c(colnames(grid.ebs),
                            'Temp',
                            'Year')
+
+#create df to store results
+st_year<-data.frame(matrix(nrow = 0,
+                                 ncol = ncol(st)+1))
+colnames(st_year)<-c(colnames(st),
+                           'Temp')
 
 #loop over years to incorporate values into the Bering Sea grid
 for (y in sta_y:end_y) {
@@ -238,6 +270,10 @@ for (y in sta_y:end_y) {
   #create spatial object from df
   coordinates(df_nc3) <- ~ Lon + Lat
   
+  ########################################
+  # for GRID
+  ########################################
+  
   #create spatial object from grid
   spg <- grid.ebs
   coordinates(spg) <- ~ Lon + Lat
@@ -254,6 +290,43 @@ for (y in sta_y:end_y) {
   #incorporate SBT
   grid.ebs_year<-rbind(grid.ebs_year,grid.ebs)
   
+  ########################################
+  # for STATIONS
+  ########################################
+  
+  #create spatial object from grid
+  st1<-subset(st,year==y)
+  
+  if (nrow(st1)==0) {
+    
+    st2<-data.frame(matrix(nrow = nrow(grid.ebs),ncol = ncol(st1)))
+    colnames(st2)<-colnames(st1)
+    st2$bottom_depth<-grid.ebs$Depth
+    st2$DepthGEBCO<-grid.ebs$DepthGEBCO
+    st2$latitude<-grid.ebs$Lat
+    st2$longitude<-grid.ebs$Lon
+    st2$year<-grid.ebs$Year
+    st2$Temp<-grid.ebs$Temp
+    
+    #incorporate df with SBT
+    st_year<-rbind(st_year,st2)
+    
+  } else {
+  
+  spg <- st1
+  coordinates(spg) <- ~ longitude + latitude
+  
+  #get the nearests points from one df to other df
+  nn<-get.knnx(coordinates(df_nc3),coordinates(spg),1)
+  nc_index<-nn$nn.index[,1]
+  
+  #get SBT
+  temps<-as.data.frame(df_nc3)$temp[nc_index]
+  st1$Temp<-temps
+  
+  #incorporate df with SBT
+  st_year<-rbind(st_year,st1)}
+  
   #close netcdf file
   nc_close(nc)
   
@@ -261,6 +334,9 @@ for (y in sta_y:end_y) {
 
 #save grid Bering Sea with SBT and depth as dataframe
 saveRDS(grid.ebs_year,'./slope shelf EBS NBS VAST/grid_ebs_covariate_data.rds')
+
+#save grid Bering Sea with SBT and depth as dataframe
+saveRDS(st_year,'./slope shelf EBS NBS VAST/stations_covariate_data.rds')
 
 #####################################
 # LOOP OVER SPP
@@ -273,7 +349,7 @@ splist<-splist[-1]
 #loop over species to add SBT to data_geostat
 for (sp in splist) {
   
-  #sp<-splist[3]
+  #sp<-splist[5]
   
   #print species to check progress
   cat(paste(" ############# ", sp, " #############\n"))
@@ -288,7 +364,7 @@ for (sp in splist) {
 
   for (y in sta_y:end_y) {
     
-    #y<-2020
+    #y<-1982
     
     #print year to check progress
     cat(paste("    ---- year", y, "----\n"))
@@ -296,11 +372,22 @@ for (sp in splist) {
     #subset df by year
     df2<-subset(df1,Year==y)
     
-    #if no data for that year, add NA in biomass estimates because covariate data needs SBT for all years
+    #if no data for that year, use stations file
     if (nrow(df2)==0) {
-      df2<-subset(df1,Year==y-1)
-      df2$Year<-y
-      df2$CPUE_kg<-NA
+      
+      #filter year and remove negative depth values
+      st_year1<-subset(st_year,year==y & DepthGEBCO >0)
+      df3<-data.frame(matrix(nrow = nrow(st_year1),ncol = ncol(df2)))
+      colnames(df3)<-colnames(df2)
+      df3$Species<-sp
+      df3$Year<-y
+      df3$Lat<-st_year1$latitude
+      df3$Lon<-st_year1$longitude
+      df3$Depth<-st_year1$DepthGEBCO
+      df3$LogDepth<-log(df3$Depth)
+      df3$ScaleLogDepth<-scale(df3$LogDepth)
+      df2<-df3
+
     }
     
     #open netcdf file for each year
