@@ -38,8 +38,8 @@ splist<-list.dirs('./slope shelf EBS NBS VAST',full.names = FALSE,recursive = FA
 splist<-sort(splist[-1])
 
 #list of models
-#models<-as.vector(outer(c('null','depth','temp','full'), c('IID','f2','f3'), paste, sep="_"))
-models<-c('null','depth','temp','full')
+models<-c('null',as.vector(outer(c('depth','temp','full'), c('2d','3d'), paste, sep="_")))
+#models<-c('null','depth','temp','full')
 
 #diagnostics df
 diagnostics<-array(dim = c(length(models),9,length(splist)),
@@ -138,6 +138,7 @@ region<-c("bering_sea_slope","eastern_bering_sea",'northern_bering_sea')
                    covariate_data = cbind(covariate_data[,c("Lat","Lon","ScaleLogDepth",'ScaleTemp','Year')]), 
                    X1_formula =  X1_formula,
                    X2_formula = X2_formula, 
+                   newtonsteps = 0,
                    #X_gtp = X_gtp,
                    working_dir = paste0('./slope shelf EBS NBS VAST/',sp,'/',m,'/'))
   
