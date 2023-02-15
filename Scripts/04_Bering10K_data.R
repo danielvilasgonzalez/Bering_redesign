@@ -2,6 +2,7 @@
 ####################################################################
 ##
 ##    extract sea bottom temperature (SBT) from netcdf of Bering 10K ROMS
+##    netcdf downloaded from https://data.pmel.noaa.gov/aclim/thredds/
 ##    incorporate Temp (SBT) to Bering Sea grid
 ##    incorporate Temp (SBT) to data_geostat file from Bering Sea 
 ##    (shelf Eastern Bering Sea, slope Eastern Bering Sea, northern Bering Sea)
@@ -31,7 +32,7 @@ out_dir<-'E:/UW/Adapting Monitoring to a Changing Seascape/'
 setwd(out_dir)
 
 #range years of data
-sta_y<-2002
+sta_y<-1982
 end_y<-2022
 
 #####################################

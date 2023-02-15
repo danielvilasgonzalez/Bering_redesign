@@ -35,7 +35,7 @@ knots<-'200'
 
 #list of sp
 splist<-list.dirs('./slope shelf EBS NBS VAST',full.names = FALSE,recursive = FALSE)
-splist<-splist[-1]
+splist<-sort(splist[-1])
 
 #list of models
 #models<-as.vector(outer(c('null','depth','temp','full'), c('IID','f2','f3'), paste, sep="_"))
@@ -43,13 +43,13 @@ models<-c('null','depth','temp','full')
 
 #diagnostics df
 diagnostics<-array(dim = c(length(models),9,length(splist)),
-                   dimnames = list(models,c('status','maxgradient','aic','jnll','rmse','depth1','depth2','temp1','temp2'),splist))
+                   dimnames = list(models,c('status','maxgradient','aic','jnll','rmse','ScaleLogDepth1','ScaleLogDepth2','ScaleTemp1','ScaleTemp2'),splist))
 
 #loop over species to fit models
 #for (sp in sp.list) {
 
 #Pcod example
-sp<-splist[2]
+sp<-'Gadus macrocephalus'
 
 #check % of process  
 #windows progress bar
@@ -157,13 +157,13 @@ region<-c("bering_sea_slope","eastern_bering_sea",'northern_bering_sea')
 
   #depth effects
   if (grepl('depth|full',m)) {
-    diagnostics[m,'depth1',sp]<-round(fit$ParHat$gamma1_cp[,'ScaleLogDepth'],3)
-    diagnostics[m,'depth2',sp]<-round(fit$ParHat$gamma2_cp[,'ScaleLogDepth'],3)
+    diagnostics[m,'ScaleLogDepth1',sp]<-round(fit$ParHat$gamma1_cp[,'ScaleLogDepth'],3)
+    diagnostics[m,'ScaleLogDepth2',sp]<-round(fit$ParHat$gamma2_cp[,'ScaleLogDepth'],3)
   }
   #temp effects
   if (grepl('temp|full',m)) {
-    diagnostics[m,'temp1',sp]<-round(fit$ParHat$gamma1_cp[,'ScaleTemp'],3)
-    diagnostics[m,'temp2',sp]<-round(fit$ParHat$gamma2_cp[,'ScaleTemp'],3)
+    diagnostics[m,'ScaleTemp1',sp]<-round(fit$ParHat$gamma1_cp[,'ScaleTemp'],3)
+    diagnostics[m,'ScaleTemp2',sp]<-round(fit$ParHat$gamma2_cp[,'ScaleTemp'],3)
   }
   
   #progress bar

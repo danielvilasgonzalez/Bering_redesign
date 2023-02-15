@@ -31,7 +31,7 @@ out_dir<-'E:/UW/Adapting Monitoring to a Changing Seascape/'
 setwd(out_dir)
 
 #range years of data
-sta_y<-2002
+sta_y<-1982
 end_y<-2022
 
 #get files from google drive and set up
