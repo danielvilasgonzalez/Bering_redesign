@@ -13,18 +13,18 @@ rm(list = ls(all.names = TRUE))
 gc() 
 
 #libraries from cran to call or install/load
-#pack_cran<-c("TMB")
+pack_cran<-c("splines",'effects')
 
 #install pacman to use p_load function - call library and if not installed, then install
-# if (!('pacman' %in% installed.packages())) {
-#   install.packages("pacman")}
+ if (!('pacman' %in% installed.packages())) {
+   install.packages("pacman")}
 
 #install coldpool to extract SBT for the EBS
 if (!('VAST' %in% installed.packages())) {
   devtools::install_github("james-thorson/VAST@main", INSTALL_opts="--no-staged-install")};library(VAST)
 
 #load/install packages
-#pacman::p_load(pack_cran,character.only = TRUE)
+pacman::p_load(pack_cran,character.only = TRUE)
 
 #setwd
 out_dir<-'E:/UW/Adapting Monitoring to a Changing Seascape/'
@@ -38,7 +38,11 @@ splist<-list.dirs('./slope shelf EBS NBS VAST',full.names = FALSE,recursive = FA
 splist<-sort(splist[-1])
 
 #list of models
-models<-c('null',as.vector(outer(c('depth','temp','full'), c('2d','3d'), paste, sep="_")))
+models<-c('null',
+          as.vector(outer(c('depth','temp'), c('2d','3d'), paste, sep="")),
+          as.vector(outer(as.vector(outer(c('depth','temp'), c('2d','3d'), paste, sep=""))[c(1,3)],
+                          as.vector(outer(c('depth','temp'), c('2d','3d'), paste, sep=""))[c(2,4)],
+                          paste, sep="_")))
 #models<-c('null','depth','temp','full')
 
 #diagnostics df
@@ -106,10 +110,34 @@ region<-c("bering_sea_slope","eastern_bering_sea",'northern_bering_sea')
               paste0('./slope shelf EBS NBS VAST/',sp,'/',m,'/','Kmeans_knots-',knots,'.RData'))}
   
   #formula for each model
-  X1_formula<-ifelse(grepl('full',m), '~ScaleLogDepth+(ScaleLogDepth)^2+ScaleTemp+(ScaleTemp)^2',
-                     ifelse(grepl('depth',m),'~ScaleLogDepth+(ScaleLogDepth)^2',
-                            ifelse(grepl('temp',m),'~ScaleTemp+(ScaleTemp)^2',
-                                   ifelse(grepl('null',m),'~0'))))
+  if(grepl('depth',m) & grepl('temp',m)){
+    
+    f1<-ifelse(grepl('depth2d',m),
+               ' ~ bs(ScaleLogDepth, degree=2)',
+               ' ~ bs(ScaleLogDepth, degree=3)')
+    f2<-ifelse(grepl('temp2d',m),
+               ' + bs(ScaleTemp, degree=2)',
+               ' + bs(ScaleTemp, degree=3)')
+    
+    X1_formula<-paste(f1,f2)
+  
+  } else if (grepl('depth',m)){
+    
+    X1_formula<-ifelse(grepl('depth2d',m),
+                       ' ~ bs(ScaleLogDepth, degree=2)',
+                       ' ~ bs(ScaleLogDepth, degree=3)')
+    
+  } else if (grepl('temp',m)) {
+    
+    X1_formula<-ifelse(grepl('temp2d',m),
+                       ' + bs(ScaleTemp, degree=2)',
+                       ' + bs(ScaleTemp, degree=3)')
+    
+  } else {
+    
+    X1_formula<-'~0'
+    
+  }
 
   #formula for positive catch rates equal to presence/absence
   X2_formula<-X1_formula
@@ -175,4 +203,4 @@ region<-c("bering_sea_slope","eastern_bering_sea",'northern_bering_sea')
 
 close(py)
 
-#}
+}
