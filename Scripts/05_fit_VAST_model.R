@@ -46,8 +46,14 @@ models<-c('null',
 #models<-c('null','depth','temp','full')
 
 #diagnostics df
-diagnostics<-array(dim = c(length(models),9,length(splist)),
-                   dimnames = list(models,c('status','maxgradient','aic','jnll','rmse','ScaleLogDepth1','ScaleLogDepth2','ScaleTemp1','ScaleTemp2'),splist))
+diagnostics<-array(dim = c(length(models),5,length(splist)),
+                   dimnames = list(models,c('status','maxgradient','aic','jnll','rmse'),splist))
+
+effects_df<-array(dim = c(length(models),12,length(splist)),
+                  dimnames = list(models,c('pres_depth1','pres_depth2','pres_depth3',
+                                           'pos_depth1','pos_depth2','pos_depth3',
+                                           'pres_temp1','pres_temp2','pres_temp3',
+                                           'pos_temp1','pos_temp2','pos_temp3'),splist))
 
 #loop over species to fit models
 #for (sp in sp.list) {
@@ -186,13 +192,24 @@ region<-c("bering_sea_slope","eastern_bering_sea",'northern_bering_sea')
 
   #depth effects
   if (grepl('depth',m)) {
-    diagnostics[m,'ScaleLogDepth1',sp]<-round(fit$ParHat$gamma1_cp[,'ScaleLogDepth'],3)
-    diagnostics[m,'ScaleLogDepth2',sp]<-round(fit$ParHat$gamma2_cp[,'ScaleLogDepth'],3)
+    effects_df[m,c('pres_depth1','pres_depth2'),sp]<-round(fit$ParHat$gamma1_cp[ ,grepl( "ScaleLogDepth",names(data.frame(fit$ParHat$gamma1_cp)))][c(1:2)],3)
+    effects_df[m,c('pos_depth1','pos_depth2'),sp]<-round(fit$ParHat$gamma2_cp[ ,grepl( "ScaleLogDepth",names(data.frame(fit$ParHat$gamma2_cp)))][c(1:2)],3)
+    #if 3 degrees
+    if (grepl(3,m)) {
+      effects_df[m,'pres_depth3',sp]<-round(fit$ParHat$gamma1_cp[ ,grepl( "ScaleLogDepth",names(data.frame(fit$ParHat$gamma1_cp)))][3],3)
+      effects_df[m,'pos_depth3',sp]<-round(fit$ParHat$gamma2_cp[ ,grepl( "ScaleLogDepth",names(data.frame(fit$ParHat$gamma2_cp)))][3],3)
+    }
   }
+  
   #temp effects
   if (grepl('temp',m)) {
-    diagnostics[m,'ScaleTemp1',sp]<-round(fit$ParHat$gamma1_cp[,'ScaleTemp'],3)
-    diagnostics[m,'ScaleTemp2',sp]<-round(fit$ParHat$gamma2_cp[,'ScaleTemp'],3)
+    effects_df[m,c('pres_temp1','pres_temp2'),sp]<-round(fit$ParHat$gamma1_cp[ ,grepl( "ScaleTemp",names(data.frame(fit$ParHat$gamma1_cp)))][c(1:2)],3)
+    effects_df[m,c('pos_temp1','pos_temp2'),sp]<-round(fit$ParHat$gamma2_cp[ ,grepl( "ScaleTemp",names(data.frame(fit$ParHat$gamma2_cp)))][c(1:2)],3)
+    #if 3 degrees
+    if (grepl(3,m)) {
+      effects_df[m,'pres_temp3',sp]<-round(fit$ParHat$gamma1_cp[ ,grepl( "ScaleTemp",names(data.frame(fit$ParHat$gamma1_cp)))][3],3)
+      effects_df[m,'pos_temp3',sp]<-round(fit$ParHat$gamma2_cp[ ,grepl( "ScaleTemp",names(data.frame(fit$ParHat$gamma2_cp)))][3],3)
+    }
   }
   
   #progress bar
