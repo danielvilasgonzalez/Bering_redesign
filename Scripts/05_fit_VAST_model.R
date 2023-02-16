@@ -13,7 +13,7 @@ rm(list = ls(all.names = TRUE))
 gc() 
 
 #libraries from cran to call or install/load
-pack_cran<-c("splines",'effects')
+pack_cran<-c("splines")
 
 #install pacman to use p_load function - call library and if not installed, then install
  if (!('pacman' %in% installed.packages())) {
@@ -71,7 +71,7 @@ df1<-readRDS(paste0('./slope shelf EBS NBS VAST/',sp,'/data_geostat_temp.rds'))
 df2<-df1[complete.cases(df1),]
 
 #covariate data
-covariate_data<-df1[,c("Lat","Lon","Year",'CPUE_kg',"ScaleLogDepth",'ScaleTemp')]
+covariate_data<-df1[,c("Lat","Lon","Year",'CPUE_kg',"ScaleLogDepth",'LogDepth','ScaleTemp','Temp')]
 
 #regions (predefined in VAST)
 region<-c("bering_sea_slope","eastern_bering_sea",'northern_bering_sea')
@@ -79,7 +79,7 @@ region<-c("bering_sea_slope","eastern_bering_sea",'northern_bering_sea')
   #loop over models
   for (m in models) {
   
-  #m<-models[2]
+  m<-models[4]
   
   #print year to check progress
   cat(paste("\n","    ----- ", sp, " -----\n","       - ", m, " model\n"))  
@@ -101,8 +101,8 @@ region<-c("bering_sea_slope","eastern_bering_sea",'northern_bering_sea')
                             #fine_scale=TRUE,
                             ObsModel = c(2,1), #c(1,1) #biomass
                             max_cells = Inf,
-                            Options = c("Calculate_Range" =  T, 
-                                        "Calculate_effective_area" = T)) 
+                            Options = c("Calculate_Range" =  F, 
+                                        "Calculate_effective_area" = F)) 
   
   #Kmeans_knots-200
   if (!file.exists(paste0('./slope shelf EBS NBS VAST/',sp,'/',m,'/','Kmeans_knots-',knots,'.RData')) & m!=models[1]) {
@@ -130,12 +130,12 @@ region<-c("bering_sea_slope","eastern_bering_sea",'northern_bering_sea')
   } else if (grepl('temp',m)) {
     
     X1_formula<-ifelse(grepl('temp2d',m),
-                       ' + bs(ScaleTemp, degree=2)',
-                       ' + bs(ScaleTemp, degree=3)')
+                       ' ~ bs(ScaleTemp, degree=2)',
+                       ' ~ bs(ScaleTemp, degree=3)')
     
   } else {
     
-    X1_formula<-'~0'
+    X1_formula<-' ~ 0'
     
   }
 
@@ -163,10 +163,10 @@ region<-c("bering_sea_slope","eastern_bering_sea",'northern_bering_sea')
                    getJointPrecision = TRUE,
                    test_fit=FALSE,
                    create_strata_per_region = TRUE,  
-                   covariate_data = cbind(covariate_data[,c("Lat","Lon","ScaleLogDepth",'ScaleTemp','Year')]), 
+                   covariate_data = covariate_data[,c('Year',"Lat","Lon","ScaleLogDepth","LogDepth",'ScaleTemp','Temp',"CPUE_kg")], 
                    X1_formula =  X1_formula,
                    X2_formula = X2_formula, 
-                   newtonsteps = 0,
+                   #newtonsteps = 0,
                    #X_gtp = X_gtp,
                    working_dir = paste0('./slope shelf EBS NBS VAST/',sp,'/',m,'/'))
   
@@ -185,12 +185,12 @@ region<-c("bering_sea_slope","eastern_bering_sea",'northern_bering_sea')
   diagnostics[m,'rmse',sp]<-round(sqrt(mean((df2$CPUE_kg - fit$Report$D_i)^2)) / mean(df2$CPUE_kg),3)
 
   #depth effects
-  if (grepl('depth|full',m)) {
+  if (grepl('depth',m)) {
     diagnostics[m,'ScaleLogDepth1',sp]<-round(fit$ParHat$gamma1_cp[,'ScaleLogDepth'],3)
     diagnostics[m,'ScaleLogDepth2',sp]<-round(fit$ParHat$gamma2_cp[,'ScaleLogDepth'],3)
   }
   #temp effects
-  if (grepl('temp|full',m)) {
+  if (grepl('temp',m)) {
     diagnostics[m,'ScaleTemp1',sp]<-round(fit$ParHat$gamma1_cp[,'ScaleTemp'],3)
     diagnostics[m,'ScaleTemp2',sp]<-round(fit$ParHat$gamma2_cp[,'ScaleTemp'],3)
   }
@@ -203,4 +203,4 @@ region<-c("bering_sea_slope","eastern_bering_sea",'northern_bering_sea')
 
 close(py)
 
-}
+#}
