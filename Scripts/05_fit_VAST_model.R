@@ -77,7 +77,7 @@ df1<-readRDS(paste0('./slope shelf EBS NBS VAST/',sp,'/data_geostat_temp.rds'))
 df2<-df1[complete.cases(df1),]
 
 #covariate data
-covariate_data<-df1[,c("Lat","Lon","Year",'CPUE_kg',"ScaleLogDepth",'LogDepth','ScaleTemp','Temp')]
+covariate_data<-df2[,c("Lat","Lon","Year",'CPUE_kg',"ScaleLogDepth",'LogDepth','ScaleTemp','Temp')]
 
 #regions (predefined in VAST)
 region<-c("bering_sea_slope","eastern_bering_sea",'northern_bering_sea')
@@ -85,7 +85,7 @@ region<-c("bering_sea_slope","eastern_bering_sea",'northern_bering_sea')
   #loop over models
   for (m in models) {
   
-  m<-models[4]
+  m<-models[6]
   
   #print year to check progress
   cat(paste("\n","    ----- ", sp, " -----\n","       - ", m, " model\n"))  

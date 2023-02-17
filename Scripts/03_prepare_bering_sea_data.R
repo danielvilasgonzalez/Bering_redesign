@@ -169,8 +169,8 @@ dfsurveys$DEPTH<--rr
 colnames(dfsurveys)<-c('Species','Year',"Lat","Lon",'CPUE_kg','Survey','Depth')
 
 #scale grid bathymetry values to standard normal, using the mean and sd
-dfsurveys$LogDepth <- log(dfsurveys$Depth)
-dfsurveys$ScaleLogDepth <- scale(dfsurveys$LogDepth)
+#dfsurveys$LogDepth <- log(dfsurveys$Depth)
+#dfsurveys$ScaleLogDepth <- scale(dfsurveys$LogDepth)
 
 #####################################
 # CREATE DATA_GEOSTAT FILE

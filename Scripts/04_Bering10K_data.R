@@ -349,7 +349,7 @@ splist<-splist[-1]
 #loop over species to add SBT to data_geostat
 for (sp in splist) {
   
-  #sp<-splist[5]
+  #sp<-splist[1]
   
   #print species to check progress
   cat(paste(" ############# ", sp, " #############\n"))
@@ -359,8 +359,8 @@ for (sp in splist) {
   
   #create df to store results
   df1_temp<-data.frame(matrix(nrow=0,
-                              ncol=ncol(df1)+2))
-  colnames(df1_temp)<-c("Species","Year","Lat","Lon","CPUE_kg","Survey",'Depth','LogDepth',"ScaleLogDepth","Temp","ScaleTemp")
+                              ncol=ncol(df1)+4))
+  colnames(df1_temp)<-c("Species","Year","Lat","Lon","CPUE_kg","Survey",'Depth',"Temp")
 
   for (y in sta_y:end_y) {
     
@@ -495,12 +495,16 @@ for (sp in splist) {
     #get SBT
     temps<-as.data.frame(df_nc3)$temp[nc_index]
     df2$Temp<-temps
-    df2$ScaleTemp<-scale(df2$Temp)
-    
+
     #add results
     df1_temp<-rbind(df1_temp,df2)
     
   }
+  
+  #scale covariates
+  df1_temp$ScaleTemp<-scale(df1_temp$Temp)
+  df1_temp$LogDepth<-log(df1_temp$Depth)
+  df1_temp$ScaleLogDepth<-scale(df1_temp$LogDepth)
   
   #save data_geostat with SBT
   saveRDS(df1_temp,
