@@ -27,12 +27,16 @@ if (!('VAST' %in% installed.packages())) {
 pacman::p_load(pack_cran,character.only = TRUE)
 
 #setwd
-out_dir<-'E:/UW/Adapting Monitoring to a Changing Seascape/'
+out_dir<-'D:/UW/Adapting Monitoring to a Changing Seascape/'
 setwd(out_dir)
 
 #list of sp
 splist<-list.dirs('./slope shelf EBS NBS VAST/',full.names = FALSE,recursive = FALSE)
 splist<-sort(splist[splist!=""])
+
+#####################
+# Effects package
+#####################
 
 #formulas
 fs<-c('X1','X2')
@@ -47,29 +51,27 @@ fs<-c('X1','X2')
   
   #list of models
   models<-list.dirs(paste0('./slope shelf EBS NBS VAST/',sp),full.names = FALSE,recursive = FALSE)
-
-#####################
-# Effects package
-#####################
+  models<-models[models!='null']
 
 #pdf file for each sp  
-pdf(file = paste0('./slope shelf EBS NBS VAST/',sp,'_effects.pdf'),   # The directory you want to save the file in
-    width = 5, # The width of the plot in inches
-    height = 5,
-    onefile = TRUE)
+ pdf(file = paste0(getwd(),'/slope shelf EBS NBS VAST/',sp,'/',sp,'_effects.pdf'),   # The directory you want to save the file in
+     width = 10, # The width of the plot in inches
+     height = 10,
+     onefile = TRUE)
   
+  #list of plots
+  grid_list<-list()
+
   
   for (m in models) {
-    
-    m<-models[1]
-    load(paste0('./slope shelf EBS NBS VAST/',sp,'/',m,'/fit.RData'))
+    plot_list<-list()
+    #m<-models[2]
+    load(paste0(getwd(),'/slope shelf EBS NBS VAST/',sp,'/',m,'/fit.RData'))
     
     # Must add data-frames to global environment (hope to fix in future)
     # covariate_data_full = fit$effects$covariate_data_full
     # catchability_data_full = fit$effects$catchability_data_full
-    
-    #list of plots
-    plot_list<-list()
+
     
     if (grepl('depth',m)) {
       
@@ -81,6 +83,10 @@ pdf(file = paste0('./slope shelf EBS NBS VAST/',sp,'_effects.pdf'),   # The dire
         
         #for title purposes
         f1<-ifelse(f=='X1','presence','positive')
+        
+        # Must add data-frames to global environment (hope to fix in future)
+        covariate_data_full = fit$effects$covariate_data_full
+        catchability_data_full = fit$effects$catchability_data_full
         
         #calculate effect of covariate
         pred = Effect.fit_model( fit,
@@ -99,9 +105,14 @@ pdf(file = paste0('./slope shelf EBS NBS VAST/',sp,'_effects.pdf'),   # The dire
                                  lab="Catch (kg)")))
         
         #add plot to list
-        plot_list[[f]]<-p
-        }
-      } else if (grepl('temp',m)) {
+        plot_list[[paste0(m,'depth_',f)]]<-p
+        
+        #p<-NULL
+        
+      }
+    }
+      
+    if (grepl('temp',m)) {
         
         #loop over formulas
         for (f in fs) {
@@ -129,17 +140,20 @@ pdf(file = paste0('./slope shelf EBS NBS VAST/',sp,'_effects.pdf'),   # The dire
                                    lab="Catch (kg)")))
           
           #add plot to list
-          plot_list[[f]]<-p
+          plot_list[[paste0(m,'temp_',f)]]<-p
+          
+          #p<-NULL
+          
           }
-        }
+      }
         
         
     if (grepl('depth',m) & grepl("temp",m)) {
       #multiplot
-      plot_row<-plot_grid(plotlist = plot_list,nrow = 2)
+      plot_row<-plot_grid(plotlist = plot_list,nrow = 2,ncol=2)
     }   else {
       #multiplot
-      plot_row<-plot_grid(plotlist = plot_list,nrow = 1)
+      plot_row<-plot_grid(plotlist = plot_list,nrow = 1,ncol=2)
     } 
   
     # now add the title
@@ -151,17 +165,32 @@ pdf(file = paste0('./slope shelf EBS NBS VAST/',sp,'_effects.pdf'),   # The dire
              theme(plot.margin = margin(0, 0, 0, 7))#;plot(title)
     
     #print plot
-    print(
-      plot_grid(title,
-                plot_row,
-                ncol = 1,
-                rel_heights = c(0.1, 1)))
     
+      gr<-plot_grid(title,
+                    plot_row,
+                    ncol = 1,
+                    rel_heights = c(0.1, 1))
+    
+    grid_list[[m]]<-gr
+    
+    print(gr)
+    #gr<-NULL
     #close pdf
-    dev.off()
+    #dev.off()
       
 }
-    
+  
+  dev.off()
+  #pdf file for each sp  
+  # pdf(file = paste0(getwd(),'/slope shelf EBS NBS VAST/',sp,'/',sp,'_effects.pdf'),   # The directory you want to save the file in
+  #     width = 10, # The width of the plot in inches
+  #     height = 10,
+  #     onefile = TRUE)
+  # plot_list
+  # dev.off()
+
+#}  
+  
     #try to use transform argument for plot effects
     # #You can use the attributes to unscale:
     # scaled<-scale(covariate_data_full$LogDepth)
