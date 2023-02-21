@@ -35,7 +35,7 @@ knots<-'200'
 
 #list of sp
 splist<-list.dirs('./slope shelf EBS NBS VAST',full.names = FALSE,recursive = FALSE)
-splist<-sort(splist[-1])
+splist<-sort(splist[splist!=""])
 
 #list of models
 models<-c('null',
@@ -77,7 +77,7 @@ df1<-readRDS(paste0('./slope shelf EBS NBS VAST/',sp,'/data_geostat_temp.rds'))
 df2<-df1[complete.cases(df1),]
 
 #covariate data
-covariate_data<-df2[,c("Lat","Lon","Year",'CPUE_kg',"ScaleLogDepth",'LogDepth','ScaleTemp','Temp')]
+covariate_data<-df1[,c("Lat","Lon","Year",'CPUE_kg',"ScaleLogDepth",'LogDepth','ScaleTemp','Temp')]
 
 #regions (predefined in VAST)
 region<-c("bering_sea_slope","eastern_bering_sea",'northern_bering_sea')
@@ -85,7 +85,7 @@ region<-c("bering_sea_slope","eastern_bering_sea",'northern_bering_sea')
   #loop over models
   for (m in models) {
   
-  m<-models[6]
+  #m<-models[4]
   
   #print year to check progress
   cat(paste("\n","    ----- ", sp, " -----\n","       - ", m, " model\n"))  
@@ -218,6 +218,15 @@ region<-c("bering_sea_slope","eastern_bering_sea",'northern_bering_sea')
 
   }
 
+#save RDS effects and diagnostics
+saveRDS(effects_df[,,sp],paste0('./slope shelf EBS NBS VAST/',sp,'/effects.RData'))
+saveRDS(diagnostics[,,sp],paste0('./slope shelf EBS NBS VAST/',sp,'/diagnostics.RData'))
+
+#save Rdata effects and diagnostics
+save(list = "effects_df", file = paste0('./slope shelf EBS NBS VAST/',sp,'/effects.RData'))
+save(list = "diagnostics", file = paste0('./slope shelf EBS NBS VAST/',sp,'/diagnostics.RData'))
+
+#close process window
 close(py)
 
 #}
