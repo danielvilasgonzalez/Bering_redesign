@@ -13,7 +13,7 @@ rm(list = ls(all.names = TRUE))
 gc() 
 
 #libraries from cran to call or install/load
-pack_cran<-c("effects",'ggplot2')
+pack_cran<-c("effects",'ggplot2','splines','cowplot')
 
 #install pacman to use p_load function - call library and if not installed, then install
 if (!('pacman' %in% installed.packages())) {
@@ -27,53 +27,159 @@ if (!('VAST' %in% installed.packages())) {
 pacman::p_load(pack_cran,character.only = TRUE)
 
 #setwd
-#out_dir<-'E:/UW/Adapting Monitoring to a Changing Seascape/'
-out_dir<-'C:/Users/danie/Desktop/'
+out_dir<-'E:/UW/Adapting Monitoring to a Changing Seascape/'
 setwd(out_dir)
 
 #list of sp
-#splist<-list.dirs('./slope shelf EBS NBS VAST/',full.names = FALSE,recursive = FALSE)
-#splist<-sort(splist[-1])
+splist<-list.dirs('./slope shelf EBS NBS VAST/',full.names = FALSE,recursive = FALSE)
+splist<-sort(splist[splist!=""])
+
+#formulas
+fs<-c('X1','X2')
 
 #loop over species to fit models
 #for (sp in sp.list) {
   
-  #sp<-'Gadus macrocephalus'
-  sp<-'Gadus macrocephalus 1'
+  sp<-'Gadus macrocephalus'
+  
+  #load data_geostat to unscale
+  data_geostat<-readRDS(paste0('./slope shelf EBS NBS VAST/',sp,'/data_geostat_temp.rds'))
   
   #list of models
-  #models<-list.dirs(paste0('./slope shelf EBS NBS VAST/',sp),full.names = FALSE,recursive = FALSE)
-  models<-list.dirs(paste0('./',sp),full.names = FALSE,recursive = FALSE)
-  
+  models<-list.dirs(paste0('./slope shelf EBS NBS VAST/',sp),full.names = FALSE,recursive = FALSE)
+
 #####################
 # Effects package
 #####################
+
+#pdf file for each sp  
+pdf(file = paste0('./slope shelf EBS NBS VAST/',sp,'_effects.pdf'),   # The directory you want to save the file in
+    width = 5, # The width of the plot in inches
+    height = 5,
+    onefile = TRUE)
+  
   
   for (m in models) {
     
     m<-models[1]
-    load(paste0('./',sp,'/',m,'/fit.RData'))
+    load(paste0('./slope shelf EBS NBS VAST/',sp,'/',m,'/fit.RData'))
     
     # Must add data-frames to global environment (hope to fix in future)
-    covariate_data_full = fit$effects$covariate_data_full
-    summary(covariate_data_full)
-    catchability_data_full = fit$effects$catchability_data_full
+    # covariate_data_full = fit$effects$covariate_data_full
+    # catchability_data_full = fit$effects$catchability_data_full
     
-    # Plot 1st linear predictor, but could use `transformation` to apply link function
-    pred = Effect.fit_model( fit,
-                             focal.predictors = c("ScaleLogDepth"),
-                             which_formula = "X1",
-                             xlevels = 100,
-                             transformation = list(link=identity, inverse=exp) )
-    plot(pred)
+    #list of plots
+    plot_list<-list()
     
+    if (grepl('depth',m)) {
+      
+      #loop over formulas
+      for (f in fs) {
+      
+        #formula
+        #f<-'X2'
+        
+        #for title purposes
+        f1<-ifelse(f=='X1','presence','positive')
+        
+        #calculate effect of covariate
+        pred = Effect.fit_model( fit,
+                                 focal.predictors = c("ScaleLogDepth"),
+                                 which_formula = f,
+                                 xlevels = 100,
+                                 transformation = list(link=identity, inverse=indentity) )
+        
+        #plot response
+        p<-plot(pred,
+                main=paste(m,'model -',f1),
+                axes=list(grid=TRUE, 
+                          x=list(rug=FALSE,
+                                 ScaleLogDepth=list(lab="Depth (scale log m)")),
+                          y=list(rug=FALSE,
+                                 lab="Catch (kg)")))
+        
+        #add plot to list
+        plot_list[[f]]<-p
+        }
+      } else if (grepl('temp',m)) {
+        
+        #loop over formulas
+        for (f in fs) {
+          
+          #formula
+          #f<-'X2'
+          
+          #for title purposes
+          f1<-ifelse(f=='X1','presence','positive')
+          
+          #calculate effect of covariate
+          pred = Effect.fit_model( fit,
+                                   focal.predictors = c("ScaleTemp"),
+                                   which_formula = f,
+                                   xlevels = 100,
+                                   transformation = list(link=identity, inverse=indentity) )
+          
+          #plot response
+          p<-plot(pred,
+                  main=paste(m,'model -',f1),
+                  axes=list(grid=TRUE, 
+                            x=list(rug=FALSE,
+                                   ScaleTemp=list(lab="Temp (scale °C)")),
+                            y=list(rug=FALSE,
+                                   lab="Catch (kg)")))
+          
+          #add plot to list
+          plot_list[[f]]<-p
+          }
+        }
+        
+        
+    if (grepl('depth',m) & grepl("temp",m)) {
+      #multiplot
+      plot_row<-plot_grid(plotlist = plot_list,nrow = 2)
+    }   else {
+      #multiplot
+      plot_row<-plot_grid(plotlist = plot_list,nrow = 1)
+    } 
+  
+    # now add the title
+    title <- ggdraw()+ 
+             draw_label(sp,
+                        x = 0,
+                        size = 16,
+                        hjust = -1.1)+
+             theme(plot.margin = margin(0, 0, 0, 7))#;plot(title)
+    
+    #print plot
+    print(
+      plot_grid(title,
+                plot_row,
+                ncol = 1,
+                rel_heights = c(0.1, 1)))
+    
+    #close pdf
+    dev.off()
+      
+}
+    
+    #try to use transform argument for plot effects
+    # #You can use the attributes to unscale:
+    # scaled<-scale(covariate_data_full$LogDepth)
+    # unscaled<-scaled * attr(scaled, 'scaled:scale') + attr(scaled, 'scaled:center')
+    # expunscaled<-exp(unscaled)
+    # 
+    # y<-pred$data$ScaleLogDepth
+    # exp_unscale<-function(x) as.vector(exp(x * attr(scaled, 'scaled:scale') + attr(scaled, 'scaled:center')))
+    # exp_unscale(scaled)
+    # log_scale<-function(x) as.vector(scale(log(x)))
+
     
 
 ######################################
 # For S.Brodie
 ######################################
 
-load('C:/Users/danie/Desktop/Gadus macrocephalus 1/depth/fit.RData')
+load('./slope shelf EBS NBS VAST/Gadus macrocephalus//depth3d/fit.RData')
 
 #Get parameters from VAST model object
 Gammas <- fit$ParHat[c("gamma1_cp","gamma2_cp")]
@@ -86,10 +192,10 @@ df<-fit$covariate_data
 
 Gammas_1 <- Gammas[[1]] #[i,1,1:2]
 Gammas_2 <- Gammas[[2]] #[i,1,1:2]
-Xlim = range(df$CPE)
-Xcenter = mean(df$CPE)
+Xlim = range(data_geostat$ScaleLogDepth)
+Xcenter = mean(data_geostat$ScaleLogDepth)
 X = seq(Xlim[1], Xlim[2], length=1e4)
-Y1 = (X-Xcenter)*Gammas_1[1]#  + (X-Xcenter)^2*Gammas_1[1]
+Y1 = (X-Xcenter)*Gammas_1[1]  + ((X-Xcenter)^2)*Gammas_1[2] + ((X-Xcenter)^3)*Gammas_1[3]
 plot( x=X, y=exp(Y1-max(Y1)), col="black", type="l", lty="solid", lwd=2, xlab="Depth",ylab="Response", main=paste0("Occurrence "))
 Y2 = (X-Xcenter)*Gammas_2[1] + (X-Xcenter)*Gammas_2[2]
 plot( x=X, y=exp(Y2-max(Y2)), col=c("black","grey"), type="l", lty="solid", lwd=2, xlab="Depth",ylab="Response", main=paste0("Abundance ",spp.names[i]))
