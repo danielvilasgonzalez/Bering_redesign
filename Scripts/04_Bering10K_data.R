@@ -344,12 +344,12 @@ saveRDS(st_year,'./slope shelf EBS NBS VAST/stations_covariate_data.rds')
 
 #get species name
 splist<-list.dirs('./slope shelf EBS NBS VAST/',full.names = FALSE,recursive = FALSE)
-splist<-splist[-1]
+splist<-sort(splist[splist!=""])
 
 #loop over species to add SBT to data_geostat
 for (sp in splist) {
   
-  #sp<-splist[1]
+  #sp<-splist[2]
   
   #print species to check progress
   cat(paste(" ############# ", sp, " #############\n"))
@@ -364,7 +364,7 @@ for (sp in splist) {
 
   for (y in sta_y:end_y) {
     
-    #y<-1982
+    #y<-2020
     
     #print year to check progress
     cat(paste("    ---- year", y, "----\n"))
