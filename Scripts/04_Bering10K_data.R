@@ -349,7 +349,11 @@ splist<-sort(splist[splist!=""])
 #loop over species to add SBT to data_geostat
 for (sp in splist) {
   
+<<<<<<< HEAD
   #sp<-splist[2]
+=======
+  #sp<-splist[1]
+>>>>>>> 60b1bc09bb01de5b674794e7de831863942c5ee0
   
   #print species to check progress
   cat(paste(" ############# ", sp, " #############\n"))
