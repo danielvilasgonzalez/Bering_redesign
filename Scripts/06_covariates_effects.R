@@ -59,15 +59,26 @@ fs<-c('X1','X2')
      height = 10,
      onefile = TRUE)
   
-  #list of plots
+  #grid list
   grid_list<-list()
 
   
   for (m in models) {
+    m<-models[6]
+    
+    #plot list
     plot_list<-list()
-    #m<-models[2]
+    
+    #load fit file
     load(paste0(getwd(),'/slope shelf EBS NBS VAST/',sp,'/',m,'/fit.RData'))
     
+    #plot fit
+    plot(fit=fit,
+              working_dir = paste0(getwd(),'/slope shelf EBS NBS VAST/',sp,'/',m,'/'))
+    plot_maps(fit=fit,
+         working_dir = paste0(getwd(),'/slope shelf EBS NBS VAST/',sp,'/',m,'/'),
+         plot_num=5,PlotDF = mdl$PlotDF,n_cells = 1000,year_labels = c(1982:2022))
+    fit$settings$use_anisotropy=FALSE
     # Must add data-frames to global environment (hope to fix in future)
     # covariate_data_full = fit$effects$covariate_data_full
     # catchability_data_full = fit$effects$catchability_data_full
@@ -148,13 +159,13 @@ fs<-c('X1','X2')
       }
         
         
-    if (grepl('depth',m) & grepl("temp",m)) {
+    #if (grepl('depth',m) & grepl("temp",m)) {
       #multiplot
       plot_row<-plot_grid(plotlist = plot_list,nrow = 2,ncol=2)
-    }   else {
+    #}   else {
       #multiplot
-      plot_row<-plot_grid(plotlist = plot_list,nrow = 1,ncol=2)
-    } 
+    #  plot_row<-plot_grid(plotlist = plot_list,nrow = 2,ncol=2)
+    #} 
   
     # now add the title
     title <- ggdraw()+ 
@@ -177,7 +188,7 @@ fs<-c('X1','X2')
     #gr<-NULL
     #close pdf
     #dev.off()
-      
+    gc()  
 }
   
   dev.off()
