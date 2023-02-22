@@ -30,6 +30,9 @@ pacman::p_load(pack_cran,character.only = TRUE)
 out_dir<-'E:/UW/Adapting Monitoring to a Changing Seascape/'
 setwd(out_dir)
 
+#version VAST (cpp)
+version<-'VAST_v13_1_0'
+
 #number of knots
 knots<-'200'
 
@@ -84,12 +87,9 @@ region<-c("bering_sea_slope","eastern_bering_sea",'northern_bering_sea')
 
   #loop over models
   for (m in models) {
-  
-<<<<<<< HEAD
+
   #m<-models[4]
-=======
-  m<-models[6]
->>>>>>> 60b1bc09bb01de5b674794e7de831863942c5ee0
+
   
   #print year to check progress
   cat(paste("\n","    ----- ", sp, " -----\n","       - ", m, " model\n"))  
@@ -107,7 +107,7 @@ region<-c("bering_sea_slope","eastern_bering_sea",'northern_bering_sea')
                             use_anisotropy=TRUE,
                             #FieldConfig = c("Omega1"="IID", "Epsilon1"="IID", "Omega2"="IID", "Epsilon2"="IID"),
                             #RhoConfig=c("Beta1"=3,"Beta2"=0,"Epsilon1"=0,"Epsilon2"=0), #RhoConfig=c("Beta1"=1,"Beta2"=0,"Epsilon1"=0,"Epsilon2"=0)
-                            #Version = "VAST_v12_0_0",
+                            Version = version,
                             #fine_scale=TRUE,
                             ObsModel = c(2,1), #c(1,1) #biomass
                             max_cells = Inf,

@@ -46,6 +46,9 @@ fs<-c('X1','X2')
   
   sp<-'Gadus macrocephalus'
   
+  #check effects
+  load('./slope shelf EBS NBS VAST/Gadus macrocephalus/diagnostics.RData')
+  
   #load data_geostat to unscale
   data_geostat<-readRDS(paste0('./slope shelf EBS NBS VAST/',sp,'/data_geostat_temp.rds'))
   
@@ -212,9 +215,22 @@ fs<-c('X1','X2')
     # exp_unscale<-function(x) as.vector(exp(x * attr(scaled, 'scaled:scale') + attr(scaled, 'scaled:center')))
     # exp_unscale(scaled)
     # log_scale<-function(x) as.vector(scale(log(x)))
-
+library(marginaleffects)
     
-
+  # Plot 1st linear predictor, but could use `transformation` to apply link function
+  quant = function(x) seq(min(x),max(x),length=21)
+  newdata = datagrid( newdata=fit$covariate_data[,'ScaleLogDepth',drop=FALSE], ScaleLogDepth = quant )
+  pred = predictions( fit, newdata=newdata, covariate="X1" )
+  
+  library(ggplot2)
+  library(gridExtra)
+  ggplot( pred, aes(CPE, predicted)) +
+    geom_line( aes(y=predicted), color="blue", size=1 ) +
+    geom_ribbon( aes( x=CPE, ymin=conf.low, ymax=conf.high), fill=rgb(0,0,1,0.2) ) +
+    facet_wrap(vars(category), scales="free", ncol=2) +
+    labs(y="Predicted response")
+  
+  
 ######################################
 # For S.Brodie
 ######################################
