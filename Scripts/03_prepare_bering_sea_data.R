@@ -17,7 +17,7 @@ rm(list = ls(all.names = TRUE))
 gc() 
 
 #libraries from cran to call or install/load
-pack_cran<-c('googledrive','raster')
+pack_cran<-c('googledrive','lubridate')
 
 #install pacman to use p_load function - call library and if not installed, then install
 if (!('pacman' %in% installed.packages())) {
@@ -27,12 +27,29 @@ if (!('pacman' %in% installed.packages())) {
 pacman::p_load(pack_cran,character.only = TRUE)
 
 #setwd
-out_dir<-'E:/UW/Adapting Monitoring to a Changing Seascape/'
+out_dir<-'D:/UW/Adapting Monitoring to a Changing Seascape/'
 setwd(out_dir)
 
 #range years of data
 sta_y<-1982
 end_y<-2022
+
+#selected species
+spp<-c('Limanda aspera',
+       'Gadus chalcogrammus',
+       'Gadus macrocephalus',
+       'Atheresthes stomias',
+       'Reinhardtius hippoglossoides',
+       'Lepidopsetta polyxystra',
+       'Hippoglossoides elassodon',
+       'Pleuronectes quadrituberculatus',
+       'Hippoglossoides robustus',
+       'Boreogadus saida',
+       'Eleginus gracilis',
+       'Anoplopoma fimbria',
+       'Chionoecetes opilio',
+       'Paralithodes platypus',
+       'Paralithodes camtschaticus')
 
 #get files from google drive and set up
 files<-googledrive::drive_find()
@@ -47,130 +64,69 @@ id.data<-files.1[which(files.1$name=='data raw'),'id']
 files.2<-googledrive::drive_ls(id.data$id)
 
 #####################################
-# SP CODE
-#####################################
-
-#create directory
-dir.create('./Data/Additional/',showWarnings = FALSE)
-
-#get species file
-files.bering<-files.2$name
-file<-files.bering[grep('species',files.bering)]
-file.id<-files.2[which(files.2$name==file),'id']
-
-#download file into temp folder
-googledrive::drive_download(file=file.id$id,
-                            path = paste0('./Data/Additional/',file),
-                            overwrite = TRUE)
-
-#read csv file
-df.sp<-read.csv(paste0('./Data/Additional/',file))
-df.sp1<-df.sp[,c('SPECIES_CODE','SPECIES_NAME')]
-
-#sp list
-sp.list<-c('Limanda aspera','Gadus chalcogrammus','Gadus macrocephalus','Atheresthes stomias','Reinhardtius hippoglossoides',
-           'Lepidopsetta polyxystra','Hippoglossoides elassodon','Pleuronectes quadrituberculatus','Hippoglossoides robustus')
-           #'Boreogadus saida','Eleginus gracilis','Anoplopoma fimbria',
-           #'Chionoecetes opilio','Paralithodes platypus','Paralithodes camtschaticus'
-
-#####################################
-# CPUE DATA
+# HAUL DATA
 #####################################
 
 #create directory
 dir.create('./Data/Surveys/',showWarnings = FALSE)
 
-#get survey folder id
-id.bering.folder<-files[which(files$name=='Surveys'),'id']
-
-#list of files and folder
-files.1<-googledrive::drive_ls(id.bering.folder$id)
-
-#get cpue file
-file<-files.1[grep('|slope|shelf|nbs',files.1),]
+#get haul (stations) data
+file<-files.2[grep('haul',files.2$name),]
 #file.id<-files.2[which(files.2$name %in% file),]
 
-#df to store results
-dfsurveys<-data.frame(matrix(nrow = 0,ncol = 6))
-colnames(dfsurveys)<-c("SPECIES_NAME","YEAR","LATITUDE","LONGITUDE","CPUE_KGHA",'SURVEY')
-
- for (i in 1:nrow(file)) {
-   
-   #i=2
-   
-   googledrive::drive_download(file=file$id[i],
-                               path = paste0('./Data/Surveys/',file$name[i]),
-                               overwrite = TRUE)
-   
-   
-   df<-read.csv(paste0('./Data/Surveys/',file$name[i]))
-   
-   if (file$name[i]=="ebs_slope_cpue.csv") {
-     
-     #add sp information
-     df<-merge(x = df,
-               y = df.sp1,
-               by = 'SPECIES_CODE',
-               all.x = TRUE)
-     
-     #rename column
-     names(df)[10]<-'CPUE_KGHA'
-     
-     #correct slope data (slope is in ha, while others and in km2)
-     df$CPUE_KGHA<-df$CPUE_KGHA/100}
-   
-   #filter by sp
-   df1<-subset(df, SPECIES_NAME %in% sp.list) 
-   
-   #select columns
-   df2<-df1[,c("SPECIES_NAME","YEAR","LATITUDE","LONGITUDE","CPUE_KGHA")]
-   
-   #add survey column
-   
-   if (file$name[i]=='nbs_cpue.csv') {
-     df2$SURVEY<-'nbs'
-   } else if (file$name[i]=='ebs_slope_cpue.csv') {
-     df2$SURVEY<-'slope'
-   } else if (file$name[i]=='ebs_shelf_cpue.csv') {
-     df2$SURVEY<-'shelf'}
-   
-  #rbind data 
-  dfsurveys<-rbind(dfsurveys,df2)
-   
- }
-
-#####################################
-# ADD DEPTH
-#####################################
-
-#create directory
-dir.create('./Data/Bathymetry/',showWarnings = FALSE)
-
-#get raster depth from gebco (https://download.gebco.net/)
-#get id shared folder from google drive
-id.bering.folder<-files[which(files$name=='Bathymetry'),'id']
-
-#list of files and folder
-files.1<-googledrive::drive_ls(id.bering.folder$id)
-id.data<-files.1[which(files.1$name=='gebco_2022_n70.0_s50.0_w-180.0_e-155.0.asc'),]
-
-googledrive::drive_download(file=id.data$id,
-                            path = paste0('./Data/Bathymetry/',id.data$name),
+#download file
+googledrive::drive_download(file=file$id,
+                            path = paste0('./Data/Surveys/',file$name),
                             overwrite = TRUE)
 
-#read raster
-r<-raster('./Data/Bathymetry/gebco_2022_n70.0_s50.0_w-180.0_e-155.0.asc')
+#read csv file
+haul<-readRDS(paste0('./Data/Surveys/',file$name))
+dim(haul);length(unique(haul$hauljoin))
 
-#extract depth values for each station
-rr<-extract(r, SpatialPoints(cbind(dfsurveys$LONGITUDE,dfsurveys$LATITUDE)))
-dfsurveys$DEPTH<--rr
+#####################################
+# CATCH DATA
+#####################################
 
-#rename cols
-colnames(dfsurveys)<-c('Species','Year',"Lat","Lon",'CPUE_kg','Survey','Depth')
+#get cpue file
+file<-files.2[grep('catch',files.2$name),]
+#file.id<-files.2[which(files.2$name %in% file),]
 
-#scale grid bathymetry values to standard normal, using the mean and sd
-#dfsurveys$LogDepth <- log(dfsurveys$Depth)
-#dfsurveys$ScaleLogDepth <- scale(dfsurveys$LogDepth)
+#download file
+googledrive::drive_download(file=file$id,
+                            path = paste0('./Data/Surveys/',file$name),
+                            overwrite = TRUE)
+
+#read csv file
+catch<-readRDS(paste0('./Data/Surveys/',file$name))
+
+#filter by species
+catch1<-subset(catch,scientific_name %in% spp)
+length(unique(catch1$scientific_name))==length(spp)
+
+#####################################
+# MERGE CATCH and HAUL DATA 
+#####################################
+#if there are 15 selected spp and 16693 hauls in slope EBS, shelf EBS and NBS
+#then 15*16693=250395 rows for the dataframe
+
+#create the empty df 
+haul1<-do.call("rbind", replicate(length(spp), haul, simplify = FALSE))
+dim(haul1)
+
+#replicate spp for each station
+spp1<-rep(spp,each=nrow(haul))
+
+#join dataframe
+all<-data.frame(haul1,'scientific_name'=spp1)
+head(all);dim(all)
+
+#merge haul and catch
+all1<-merge(all,catch1,all.x=T)
+dim(all1)
+
+#cpue_kgha,cpue_kgkm2,cpue_noha,cpue_nokm2,count,weight_kg columns need to replace NA by 0s
+all1[c('cpue_kgha','cpue_kgkm2','cpue_noha','cpue_nokm2','count','weight_kg')][is.na(all1[c('cpue_kgha','cpue_kgkm2','cpue_noha','cpue_nokm2','count','weight_kg')])] <- 0
+head(all1)
 
 #####################################
 # CREATE DATA_GEOSTAT FILE
@@ -179,11 +135,15 @@ colnames(dfsurveys)<-c('Species','Year',"Lat","Lon",'CPUE_kg','Survey','Depth')
 #create folder
 dir.create('./slope shelf EBS NBS VAST/',showWarnings = FALSE)
 
+#add year and month
+all1$month<-month(as.POSIXlt(all1$date, format="%d/%m/%Y"))
+all1$year<-year(as.POSIXlt(all1$date, format="%d/%m/%Y"))
+
 #save data_geostat file
-saveRDS(dfsurveys, paste0('./slope shelf EBS NBS VAST/slope_shelf_ebs_nbs_data_geostat.rds'))
+saveRDS(all1, paste0('./slope shelf EBS NBS VAST/slope_shelf_ebs_nbs_data_geostat.rds'))
 
 #loop over species to create data_geostat df
-for (sp in sp.list) {
+for (sp in spp) {
   
   #sp<-sp.list[3]
   
@@ -195,14 +155,12 @@ for (sp in sp.list) {
              showWarnings = FALSE)
   
   #filter by sp
-  df1<-subset(dfsurveys, Species == sp)
-  df1<-subset(df1, Year %in% sta_y:end_y)
+  all2<-subset(all1, scientific_name == sp)
+  all2<-subset(all2, year %in% sta_y:end_y)
+  cat(paste("    ----- ", nrow(all2) , "samples -----\n"))
   
-  #remove rows with NAs in env data
-  df1<-df1[complete.cases(df1[c('Depth')]),]
-
   #save data_geostat file
-  saveRDS(df1, paste0('./slope shelf EBS NBS VAST/',sp,'/data_geostat.rds'))
+  saveRDS(all2, paste0('./slope shelf EBS NBS VAST/',sp,'/data_geostat.rds'))
   
 }
 
