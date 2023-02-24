@@ -27,18 +27,28 @@ if (!('VAST' %in% installed.packages())) {
 pacman::p_load(pack_cran,character.only = TRUE)
 
 #setwd
-out_dir<-'E:/UW/Adapting Monitoring to a Changing Seascape/'
+out_dir<-'C:/Users/Daniel.Vilas/Work/Adapting Monitoring to a Changing Seascape/'
 setwd(out_dir)
 
 #version VAST (cpp)
 version<-'VAST_v13_1_0'
 
 #number of knots
-knots<-'200'
+knots<-'200' #100
 
 #list of sp
-splist<-list.dirs('./slope shelf EBS NBS VAST',full.names = FALSE,recursive = FALSE)
-splist<-sort(splist[splist!=""])
+splist<-list.dirs('./data processed/',full.names = FALSE,recursive = FALSE)
+
+#folder region
+fol_region<-'slope EBS VAST'
+
+#dir create for slope region results
+dir.create(paste(out_dir,fol_region,sep='/'))
+
+#dir create for splist
+for (sp in splist) {
+  dir.create(paste(out_dir,fol_region,sp,sep='/'))
+}
 
 #list of models
 models<-c('null',
@@ -46,7 +56,6 @@ models<-c('null',
           as.vector(outer(as.vector(outer(c('depth','temp'), c('2d','3d'), paste, sep=""))[c(1,3)],
                           as.vector(outer(c('depth','temp'), c('2d','3d'), paste, sep=""))[c(2,4)],
                           paste, sep="_")))
-#models<-c('null','depth','temp','full')
 
 #diagnostics df
 diagnostics<-array(dim = c(length(models),5,length(splist)),
@@ -74,28 +83,38 @@ py <- winProgressBar(title = paste0(sp, ' (',which(splist == sp),' out of ',leng
                      width = 300L) # Width of the window   
 
 #read data_geostat_temp file
-df1<-readRDS(paste0('./slope shelf EBS NBS VAST/',sp,'/data_geostat_temp.rds'))
+df1<-readRDS(paste0('./data processed/',sp,'/data_geostat_temp.rds'))
 
-#remove rows with NAs
-df2<-df1[complete.cases(df1),]
+#select rows and rename
+df2<-df1[,c("lat_start","lon_start","year",'scientific_name','weight_kg','effort','depth_m','LogDepth',"ScaleLogDepth",'Scalebottom_temp_c','bottom_temp_c','survey_name')]
+colnames(df2)<-c('Lat','Lon','Year','Species','CPUE_kg','Effort','Depth','LogDepth','ScaleLogDepth','ScaleBotTemp','BotTemp','Region')
 
-#covariate data
-covariate_data<-df2[,c("Lat","Lon","Year",'CPUE_kg',"ScaleLogDepth",'LogDepth','ScaleTemp','Temp')]
+#data geostat
+df3<-subset(df2,Region== "Eastern Bering Sea Slope Bottom Trawl Survey")
+yrs_region<-range(df3$Year)
+data_geostat<-df3[complete.cases(df3$CPUE_kg),]
+
+#covariate data - filter by year and complete cases for env variables
+covariate_data<-subset(df2,Year>=yrs_region[1] & Year<=yrs_region[2])
+covariate_data<-covariate_data[complete.cases(covariate_data[,c('ScaleBotTemp','ScaleLogDepth')]),]
+
+#save data
+saveRDS(data_geostat,paste(out_dir,fol_region,sp,'data_geostat_temp.rds',sep='/'))
 
 #regions (predefined in VAST)
-region<-c("bering_sea_slope","eastern_bering_sea",'northern_bering_sea')
+region<-c("bering_sea_slope")
 
   #loop over models
   for (m in models) {
 
-  #m<-models[4]
+  #m<-models[6]
 
   
   #print year to check progress
   cat(paste("\n","    ----- ", sp, " -----\n","       - ", m, " model\n"))  
   
   #create folder to store results
-  dir.create(paste0(getwd(),'/slope shelf EBS NBS VAST/',sp,'/',m,'/'),
+  dir.create(paste(out_dir,fol_region,sp,m,sep='/'),
              showWarnings = FALSE)
     
   #VAST model settings
@@ -115,9 +134,9 @@ region<-c("bering_sea_slope","eastern_bering_sea",'northern_bering_sea')
                                         "Calculate_effective_area" = F)) 
   
   #Kmeans_knots-200
-  if (!file.exists(paste0('./slope shelf EBS NBS VAST/',sp,'/',m,'/','Kmeans_knots-',knots,'.RData')) & m!=models[1]) {
-    file.copy(paste0('./slope shelf EBS NBS VAST/',sp,'/',models[1],'/','Kmeans_knots-',knots,'.RData'),
-              paste0('./slope shelf EBS NBS VAST/',sp,'/',m,'/','Kmeans_knots-',knots,'.RData'))}
+  if (!file.exists(paste(out_dir,fol_region,sp,m,'Kmeans_knots-',knots,'.RData',sep='/')) & m!=models[1]) {
+    file.copy(paste(out_dir,fol_region,sp,models[1],'Kmeans_knots-',knots,'.RData',sep='/'),
+              paste(out_dir,fol_region,sp,m,'Kmeans_knots-',knots,'.RData',sep='/'))}
   
   #formula for each model
   if(grepl('depth',m) & grepl('temp',m)){
@@ -126,8 +145,8 @@ region<-c("bering_sea_slope","eastern_bering_sea",'northern_bering_sea')
                ' ~ bs(ScaleLogDepth, degree=2)',
                ' ~ bs(ScaleLogDepth, degree=3)')
     f2<-ifelse(grepl('temp2d',m),
-               ' + bs(ScaleTemp, degree=2)',
-               ' + bs(ScaleTemp, degree=3)')
+               ' + bs(ScaleBotTemp, degree=2)',
+               ' + bs(ScaleBotTemp, degree=3)')
     
     X1_formula<-paste(f1,f2)
   
@@ -140,8 +159,8 @@ region<-c("bering_sea_slope","eastern_bering_sea",'northern_bering_sea')
   } else if (grepl('temp',m)) {
     
     X1_formula<-ifelse(grepl('temp2d',m),
-                       ' ~ bs(ScaleTemp, degree=2)',
-                       ' ~ bs(ScaleTemp, degree=3)')
+                       ' ~ bs(ScaleBotTemp, degree=2)',
+                       ' ~ bs(ScaleBotTemp, degree=3)')
     
   } else {
     
@@ -163,25 +182,28 @@ region<-c("bering_sea_slope","eastern_bering_sea",'northern_bering_sea')
   
   #fit model #### ADD TryCatch{(),}
   fit <- fit_model(settings=settings,
-                   Lat_i=df2$Lat, 
-                   Lon_i=df2$Lon,
-                   t_i=df2$Year,
-                   b_i=df2$CPUE_kg,
-                   c_iz = as.numeric(factor(df2$Species))-1,
-                   a_i=rep(0.1,times=nrow(df2)),
+                   Lat_i=data_geostat$Lat, 
+                   Lon_i=data_geostat$Lon,
+                   t_i=data_geostat$Year,
+                   b_i=data_geostat$CPUE_kg,
+                   c_iz = as.numeric(factor(data_geostat$Species))-1,
+                   a_i=data_geostat$Effort,
                    #input_grid=grid.ebs,
                    getJointPrecision = TRUE,
                    test_fit=FALSE,
                    create_strata_per_region = TRUE,  
-                   covariate_data = covariate_data[,c('Year',"Lat","Lon","ScaleLogDepth","LogDepth",'ScaleTemp','Temp',"CPUE_kg")], 
+                   covariate_data = covariate_data[,c('Year',"Lat","Lon","ScaleLogDepth","LogDepth",'ScaleBotTemp','BotTemp',"CPUE_kg")], 
                    X1_formula =  X1_formula,
                    X2_formula = X2_formula, 
                    #newtonsteps = 0,
                    #X_gtp = X_gtp,
-                   working_dir = paste0('./slope shelf EBS NBS VAST/',sp,'/',m,'/'))
+                   working_dir = paste(out_dir,fol_region,sp,m,'/',sep='/'))
+  
+  #plot(fit,
+  #     working_dir=paste(out_dir,fol_region,sp,m,'/',sep='/'))
   
   #save fit
-  save(list = "fit", file = paste0('./slope shelf EBS NBS VAST/',sp,'/',m,'/fit.RData'))
+  save(list = "fit", file = paste(out_dir,fol_region,sp,m,'fit.RData',sep='/'))
   
   #convergence
   diagnostics[m,'status',sp]<-ifelse(test = is.null(fit) == T | is.null(fit$parameter_estimates$max_gradient),"no_convergence","check_gradient")
@@ -223,12 +245,12 @@ region<-c("bering_sea_slope","eastern_bering_sea",'northern_bering_sea')
   }
 
 #save RDS effects and diagnostics
-saveRDS(effects_df[,,sp],paste0('./slope shelf EBS NBS VAST/',sp,'/effects.RData'))
-saveRDS(diagnostics[,,sp],paste0('./slope shelf EBS NBS VAST/',sp,'/diagnostics.RData'))
+saveRDS(effects_df[,,sp],paste(out_dir,fol_region,sp,'effects.RData',sep='/'))
+saveRDS(diagnostics[,,sp],paste(out_dir,fol_region,sp,'diagnostics.RData',sep='/'))
 
 #save Rdata effects and diagnostics
-save(list = "effects_df", file = paste0('./slope shelf EBS NBS VAST/',sp,'/effects.RData'))
-save(list = "diagnostics", file = paste0('./slope shelf EBS NBS VAST/',sp,'/diagnostics.RData'))
+save(list = "effects_df", file = paste(out_dir,fol_region,sp,'effects.RData'))
+save(list = "diagnostics", file = paste(out_dir,fol_region,sp,'diagnostics.RData'))
 
 #close process window
 close(py)
