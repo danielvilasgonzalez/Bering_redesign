@@ -28,7 +28,7 @@ if (!('pacman' %in% installed.packages())) {
 pacman::p_load(pack_cran,character.only = TRUE)
 
 #setwd
-out_dir<-'D:/UW/Adapting Monitoring to a Changing Seascape/'
+out_dir<-'C:/Users/Daniel.Vilas/Work/Adapting Monitoring to a Changing Seascape/'
 setwd(out_dir)
 
 #range years of data
@@ -36,21 +36,21 @@ sta_y<-1982
 end_y<-2022
 
 #selected species
-spp<-c('Limanda aspera',
-       'Gadus chalcogrammus',
-       'Gadus macrocephalus',
-       'Atheresthes stomias',
-       'Reinhardtius hippoglossoides',
-       'Lepidopsetta polyxystra',
-       'Hippoglossoides elassodon',
-       'Pleuronectes quadrituberculatus',
-       'Hippoglossoides robustus',
-       'Boreogadus saida',
-       'Eleginus gracilis',
-       'Anoplopoma fimbria',
-       'Chionoecetes opilio',
-       'Paralithodes platypus',
-       'Paralithodes camtschaticus')
+splist<-c('Limanda aspera',
+           'Gadus chalcogrammus',
+           'Gadus macrocephalus',
+           'Atheresthes stomias',
+           'Reinhardtius hippoglossoides',
+           'Lepidopsetta polyxystra',
+           'Hippoglossoides elassodon',
+           'Pleuronectes quadrituberculatus',
+           'Hippoglossoides robustus',
+           'Boreogadus saida',
+           'Eleginus gracilis',
+           'Anoplopoma fimbria',
+           'Chionoecetes opilio',
+           'Paralithodes platypus',
+           'Paralithodes camtschaticus')
 
 #get files from google drive and set up
 files<-googledrive::drive_find()
@@ -69,7 +69,7 @@ files.2<-googledrive::drive_ls(id.data$id)
 #####################################
 
 #create directory
-dir.create('./Data/Surveys/',showWarnings = FALSE)
+dir.create('./data raw/',showWarnings = FALSE)
 
 #get haul (stations) data
 file<-files.2[grep('haul',files.2$name),]
@@ -77,11 +77,11 @@ file<-files.2[grep('haul',files.2$name),]
 
 #download file
 googledrive::drive_download(file=file$id,
-                            path = paste0('./Data/Surveys/',file$name),
+                            path = paste0('./data raw/',file$name),
                             overwrite = TRUE)
 
 #read csv file
-haul<-readRDS(paste0('./Data/Surveys/',file$name))
+haul<-readRDS(paste0('./data raw/',file$name))
 dim(haul);length(unique(haul$hauljoin))
 
 #get year and month from haul
@@ -93,7 +93,7 @@ haul$year<-year(as.POSIXlt(haul$date, format="%d/%m/%Y"))
 #####################################
  
 #create directory
-dir.create('./Data/Extrapolation Grids/',showWarnings = FALSE)
+dir.create('./extrapolation grids/',showWarnings = FALSE)
 
 #get id shared folder from google drive
 id.bering.folder<-files[which(files$name=='Extrapolation Grids'),'id']
@@ -110,10 +110,10 @@ id.data<-files.1[which(files.1$name %in% grfiles),]
     
     #i=2
    googledrive::drive_download(file=id.data$id[i],
-                               path = paste0('./Data/Extrapolation Grids/',id.data$name[i]),
+                               path = paste0('./extrapolation grids/',id.data$name[i]),
                                overwrite = TRUE)
     
-   gr<-read.csv(paste0('./Data/Extrapolation Grids/',id.data$name[i]))
+   gr<-read.csv(paste0('./extrapolation grids/',id.data$name[i]))
    colnames(gr)[10]<-'Area_km2'
    
    #shapefile name
@@ -141,7 +141,7 @@ grid.ebs<-rbind(EBSshelf_gr,EBSslope_gr,NBS_gr)
 #####################################
 
 #create directory
-dir.create('./Data/Bathymetry/',showWarnings = FALSE)
+dir.create('./bathymetry/',showWarnings = FALSE)
 
 #get raster depth from gebco (https://download.gebco.net/)
 #get id shared folder from google drive
@@ -152,11 +152,11 @@ files.1<-googledrive::drive_ls(id.bering.folder$id)
 id.data<-files.1[which(files.1$name=='gebco_2022_n70.0_s50.0_w-180.0_e-155.0.asc'),]
 
 googledrive::drive_download(file=id.data$id,
-                            path = paste0('./Data/Bathymetry/',id.data$name),
+                            path = paste0('./bathymetry/',id.data$name),
                             overwrite = TRUE)
 
 #read raster
-r<-raster('./Data/Bathymetry/gebco_2022_n70.0_s50.0_w-180.0_e-155.0.asc')
+r<-raster('./bathymetry/gebco_2022_n70.0_s50.0_w-180.0_e-155.0.asc')
 
 #extract depth values for each station of grid
 rr<-extract(r, SpatialPoints(cbind(grid.ebs$Lon,grid.ebs$Lat)))
@@ -166,6 +166,9 @@ grid.ebs$depth_m <- ifelse(is.na(grid.ebs$Depth), grid.ebs$DepthGEBCO, grid.ebs$
 #####################################
 # LOOP OVER YEARS
 #####################################
+
+#create directory
+dir.create('./bering 10k roms/',showWarnings = FALSE)
 
 #get id shared folder from google drive
 id.roms.folder<-files[which(files$name=='Bering 10K ROMS'),'id']
@@ -233,16 +236,16 @@ for (y in sta_y:end_y) {
     file.id<-nc_forfiles[which(nc_forfiles$name==f),'id']} #for year>2020 have to select projection
   
   #if not file, download
-  if (!(f %in% list.files('./Data/Bering 10K ROMS/'))) {
+  if (!(f %in% list.files('./bering 10k roms/'))) {
     
     #download file into temp folder
     googledrive::drive_download(file=file.id$id,
-                                path = paste0('./Data/Bering 10K ROMS/',f),
+                                path = paste0('./bering 10k roms/',f),
                                 overwrite = TRUE)
   }
   
   #open netcdf
-  nc<-nc_open(paste0('./Data/Bering 10K ROMS/',f))
+  nc<-nc_open(paste0('./bering 10k roms/',f))
   
   #dimensions netcdf files
   #258 rows
@@ -359,7 +362,7 @@ for (y in sta_y:end_y) {
 }
 
 #save grid Bering Sea with SBT and depth as dataframe
-saveRDS(grid.ebs_year,'./slope shelf EBS NBS VAST/grid_ebs_covariate_data.rds')
+saveRDS(grid.ebs_year,'./data processed/grid_slope_shelf_EBS_NBS_covariate_data.rds')
 
 #modify survey labels
 st_year$survey_name[st_year$survey_name == "EBSshelf"] <- "Eastern Bering Sea Crab/Groundfish Bottom Trawl Survey"
@@ -367,25 +370,25 @@ st_year$survey_name[st_year$survey_name == "EBSslope"] <- "Eastern Bering Sea Sl
 st_year$survey_name[st_year$survey_name == "NBS"] <- "Northern Bering Sea Crab/Groundfish Survey - Eastern Bering Sea Shelf Survey Extension"
 
 #save grid Bering Sea with SBT and depth as dataframe
-saveRDS(st_year,'./slope shelf EBS NBS VAST/hauls_covariate_data.rds')
+saveRDS(st_year,'./data processed/hauls_slope_shelf_EBS_NBS_covariate_data.rds')
 
 #####################################
 # LOOP OVER SPP
 #####################################
 
 #get species name
-splist<-list.dirs('./slope shelf EBS NBS VAST/',full.names = FALSE,recursive = FALSE)
+splist<-list.dirs('./data processed/',full.names = FALSE,recursive = FALSE)
 
 #loop over species to add SBT to data_geostat
 for (sp in splist) {
 
-  #sp<-splist[2]
+  #sp<-splist[1]
 
   #print species to check progress
   cat(paste(" ############# ", sp, " #############\n"))
   
   #open data_geostat
-  df1<-readRDS(paste0('./slope shelf EBS NBS VAST/',sp,'/data_geostat.rds'))
+  df1<-readRDS(paste0('./data processed/',sp,'/data_geostat.rds'))
   
   #create df to store results
   df1_temp<-data.frame(matrix(nrow=0,
@@ -394,7 +397,7 @@ for (sp in splist) {
 
   for (y in sta_y:end_y) {
     
-    #y<-2020
+    #y<-2019
     
     #print year to check progress
     cat(paste("    ---- year", y, "----\n"))
@@ -463,7 +466,7 @@ for (sp in splist) {
     # }
     
     #open netcdf
-    nc<-nc_open(paste0('./Data/Bering 10K ROMS/',f))
+    nc<-nc_open(paste0('./bering 10k roms/',f))
     
     #dimensions netcdf file
     #258 rows
@@ -533,13 +536,14 @@ for (sp in splist) {
   }
   
   #scale covariates
+  df1_temp$Scalebottom_temp_c<-scale(df1_temp$bottom_temp_c)
   df1_temp$ScaleTemp<-scale(df1_temp$Temp)
   df1_temp$LogDepth<-log(df1_temp$depth_m)
   df1_temp$ScaleLogDepth<-scale(df1_temp$LogDepth)
   
   #save data_geostat with SBT
   saveRDS(df1_temp,
-          paste0('./slope shelf EBS NBS VAST/',sp,'/data_geostat_temp.rds'))
+          paste0('./data processed/',sp,'/data_geostat_temp.rds'))
   
 }
 

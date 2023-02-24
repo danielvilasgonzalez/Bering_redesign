@@ -27,7 +27,7 @@ if (!('pacman' %in% installed.packages())) {
 pacman::p_load(pack_cran,character.only = TRUE)
 
 #setwd
-out_dir<-'D:/UW/Adapting Monitoring to a Changing Seascape/'
+out_dir<-'C:/Users/Daniel.Vilas/Work/Adapting Monitoring to a Changing Seascape/'
 setwd(out_dir)
 
 #range years of data
@@ -35,21 +35,21 @@ sta_y<-1982
 end_y<-2022
 
 #selected species
-spp<-c('Limanda aspera',
-       'Gadus chalcogrammus',
-       'Gadus macrocephalus',
-       'Atheresthes stomias',
-       'Reinhardtius hippoglossoides',
-       'Lepidopsetta polyxystra',
-       'Hippoglossoides elassodon',
-       'Pleuronectes quadrituberculatus',
-       'Hippoglossoides robustus',
-       'Boreogadus saida',
-       'Eleginus gracilis',
-       'Anoplopoma fimbria',
-       'Chionoecetes opilio',
-       'Paralithodes platypus',
-       'Paralithodes camtschaticus')
+splist<-c('Limanda aspera',
+           'Gadus chalcogrammus',
+           'Gadus macrocephalus',
+           'Atheresthes stomias',
+           'Reinhardtius hippoglossoides',
+           'Lepidopsetta polyxystra',
+           'Hippoglossoides elassodon',
+           'Pleuronectes quadrituberculatus',
+           'Hippoglossoides robustus',
+           'Boreogadus saida',
+           'Eleginus gracilis',
+           'Anoplopoma fimbria',
+           'Chionoecetes opilio',
+           'Paralithodes platypus',
+           'Paralithodes camtschaticus')
 
 #get files from google drive and set up
 files<-googledrive::drive_find()
@@ -68,7 +68,7 @@ files.2<-googledrive::drive_ls(id.data$id)
 #####################################
 
 #create directory
-dir.create('./Data/Surveys/',showWarnings = FALSE)
+dir.create('./data raw/',showWarnings = FALSE)
 
 #get haul (stations) data
 file<-files.2[grep('haul',files.2$name),]
@@ -76,11 +76,11 @@ file<-files.2[grep('haul',files.2$name),]
 
 #download file
 googledrive::drive_download(file=file$id,
-                            path = paste0('./Data/Surveys/',file$name),
+                            path = paste0('./data raw/',file$name),
                             overwrite = TRUE)
 
 #read csv file
-haul<-readRDS(paste0('./Data/Surveys/',file$name))
+haul<-readRDS(paste0('./data raw/',file$name))
 dim(haul);length(unique(haul$hauljoin))
 
 #####################################
@@ -93,11 +93,11 @@ file<-files.2[grep('catch',files.2$name),]
 
 #download file
 googledrive::drive_download(file=file$id,
-                            path = paste0('./Data/Surveys/',file$name),
+                            path = paste0('./data raw/',file$name),
                             overwrite = TRUE)
 
 #read csv file
-catch<-readRDS(paste0('./Data/Surveys/',file$name))
+catch<-readRDS(paste0('./data raw/',file$name))
 
 #filter by species
 catch1<-subset(catch,scientific_name %in% spp)
@@ -133,17 +133,17 @@ head(all1)
 #####################################
 
 #create folder
-dir.create('./slope shelf EBS NBS VAST/',showWarnings = FALSE)
+dir.create('./data processed/',showWarnings = FALSE)
 
 #add year and month
 all1$month<-month(as.POSIXlt(all1$date, format="%d/%m/%Y"))
 all1$year<-year(as.POSIXlt(all1$date, format="%d/%m/%Y"))
 
 #save data_geostat file
-saveRDS(all1, paste0('./slope shelf EBS NBS VAST/slope_shelf_ebs_nbs_data_geostat.rds'))
+saveRDS(all1, paste0('./data processed/slope_shelf_EBS_NBS_data_geostat.rds'))
 
 #loop over species to create data_geostat df
-for (sp in spp) {
+for (sp in splist) {
   
   #sp<-sp.list[3]
   
@@ -151,7 +151,7 @@ for (sp in spp) {
   cat(paste("    -----", sp, "-----\n"))
   
   #create folder to store results
-  dir.create(paste0('./slope shelf EBS NBS VAST/',sp),
+  dir.create(paste0('./data processed/',sp),
              showWarnings = FALSE)
   
   #filter by sp
@@ -160,7 +160,7 @@ for (sp in spp) {
   cat(paste("    ----- ", nrow(all2) , "samples -----\n"))
   
   #save data_geostat file
-  saveRDS(all2, paste0('./slope shelf EBS NBS VAST/',sp,'/data_geostat.rds'))
+  saveRDS(all2, paste0('./data processed/',sp,'/data_geostat.rds'))
   
 }
 
