@@ -34,7 +34,7 @@ setwd(out_dir)
 version<-'VAST_v13_1_0'
 
 #number of knots
-knots<-'200' #100
+knots<-'500' #100
 
 #list of sp
 splist<-list.dirs('./data processed/',full.names = FALSE,recursive = FALSE)
@@ -58,8 +58,8 @@ models<-c('null',
                           paste, sep="_")))
 
 #diagnostics df
-diagnostics<-array(dim = c(length(models),5,length(splist)),
-                   dimnames = list(models,c('status','maxgradient','aic','jnll','rmse'),splist))
+diagnostics<-array(dim = c(length(models),7,length(splist)),
+                   dimnames = list(models,c('status','maxgradient','aic','jnll','rmse','dev','pct.dev'),splist))
 
 effects_df<-array(dim = c(length(models),12,length(splist)),
                   dimnames = list(models,c('pres_depth1','pres_depth2','pres_depth3',
@@ -125,7 +125,7 @@ region<-c("bering_sea_slope")
                             knot_method='grid',
                             use_anisotropy=TRUE,
                             #FieldConfig = c("Omega1"="IID", "Epsilon1"="IID", "Omega2"="IID", "Epsilon2"="IID"),
-                            #RhoConfig=c("Beta1"=3,"Beta2"=0,"Epsilon1"=0,"Epsilon2"=0), #RhoConfig=c("Beta1"=1,"Beta2"=0,"Epsilon1"=0,"Epsilon2"=0)
+                            #RhoConfig=c("Beta1"=4,"Beta2"=4,"Epsilon1"=0,"Epsilon2"=0), # Change Beta1 to AR1, to allow linear covariate effect
                             Version = version,
                             #fine_scale=TRUE,
                             ObsModel = c(2,1), #c(1,1) #biomass
@@ -133,43 +133,63 @@ region<-c("bering_sea_slope")
                             Options = c("Calculate_Range" =  F, 
                                         "Calculate_effective_area" = F)) 
   
+  
+   if (m=='null') {
+     
+     # Make settings (turning off bias.correct to save time for example)
+     settings$FieldConfig = matrix( c(0,0,0,0,"IID","IID"), byrow=TRUE, ncol=2 )
+     settings$RhoConfig[c("Beta1","Beta2")] = 3
+     
+   }
+  
   #Kmeans_knots-200
   if (!file.exists(paste(out_dir,fol_region,sp,m,'Kmeans_knots-',knots,'.RData',sep='/')) & m!=models[1]) {
     file.copy(paste(out_dir,fol_region,sp,models[1],'Kmeans_knots-',knots,'.RData',sep='/'),
               paste(out_dir,fol_region,sp,m,'Kmeans_knots-',knots,'.RData',sep='/'))}
   
-  #formula for each model
+  #formula and predictors settings for each model
   if(grepl('depth',m) & grepl('temp',m)){
     
     f1<-ifelse(grepl('depth2d',m),
-               ' ~ bs(ScaleLogDepth, degree=2)',
-               ' ~ bs(ScaleLogDepth, degree=3)')
+               ' ~ bs(ScaleLogDepth, degree=2, intercept=FALSE)',
+               ' ~ bs(ScaleLogDepth, degree=3, intercept=FALSE)')
     f2<-ifelse(grepl('temp2d',m),
-               ' + bs(ScaleBotTemp, degree=2)',
-               ' + bs(ScaleBotTemp, degree=3)')
+               ' + bs(ScaleBotTemp, degree=2, intercept=FALSE)',
+               ' + bs(ScaleBotTemp, degree=3, intercept=FALSE)')
     
     X1_formula<-paste(f1,f2)
+    
+    X1config_cp = array( c(1,1), dim=c(1,2))
   
   } else if (grepl('depth',m)){
     
     X1_formula<-ifelse(grepl('depth2d',m),
-                       ' ~ bs(ScaleLogDepth, degree=2)',
-                       ' ~ bs(ScaleLogDepth, degree=3)')
+                       ' ~ bs(ScaleLogDepth, degree=2, intercept=FALSE)',
+                       ' ~ bs(ScaleLogDepth, degree=3, intercept=FALSE)')
+    
+    X1config_cp = array( c(1,1), dim=c(1,1))
     
   } else if (grepl('temp',m)) {
     
     X1_formula<-ifelse(grepl('temp2d',m),
-                       ' ~ bs(ScaleBotTemp, degree=2)',
-                       ' ~ bs(ScaleBotTemp, degree=3)')
+                       ' ~ bs(ScaleBotTemp, degree=2, intercept=FALSE)',
+                       ' ~ bs(ScaleBotTemp, degree=3, intercept=FALSE)')
+    
+    X1config_cp = array( c(1,1), dim=c(1,1))
     
   } else {
     
     X1_formula<-' ~ 0'
     
+    X1config_cp = NULL
+    
   }
 
   #formula for positive catch rates equal to presence/absence
   X2_formula<-X1_formula
+  
+  #predictor settings
+  X2config_cp = X1config_cp
   
   #modify settings to use 2 or 3 factors on the spatial and spatiotemporal variation
   # if (grepl('IID',m)) {
@@ -181,23 +201,30 @@ region<-c("bering_sea_slope")
   # }
   
   #fit model #### ADD TryCatch{(),}
-  fit <- fit_model(settings=settings,
-                   Lat_i=data_geostat$Lat, 
-                   Lon_i=data_geostat$Lon,
-                   t_i=data_geostat$Year,
-                   b_i=data_geostat$CPUE_kg,
-                   c_iz = as.numeric(factor(data_geostat$Species))-1,
-                   a_i=data_geostat$Effort,
-                   #input_grid=grid.ebs,
-                   getJointPrecision = TRUE,
-                   test_fit=FALSE,
-                   create_strata_per_region = TRUE,  
-                   covariate_data = covariate_data[,c('Year',"Lat","Lon","ScaleLogDepth","LogDepth",'ScaleBotTemp','BotTemp',"CPUE_kg")], 
-                   X1_formula =  X1_formula,
-                   X2_formula = X2_formula, 
-                   #newtonsteps = 0,
-                   #X_gtp = X_gtp,
-                   working_dir = paste(out_dir,fol_region,sp,m,'/',sep='/'))
+  fit <- tryCatch( {fit_model(settings=settings,
+                               Lat_i=data_geostat$Lat, 
+                               Lon_i=data_geostat$Lon,
+                               t_i=data_geostat$Year,
+                               b_i=data_geostat$CPUE_kg,
+                               c_iz = as.numeric(factor(data_geostat$Species))-1,
+                               a_i=data_geostat$Effort/100,
+                               #input_grid=grid.ebs,
+                               getJointPrecision = TRUE,
+                               test_fit=FALSE,
+                               create_strata_per_region = TRUE,  
+                               covariate_data = covariate_data[,c('Year',"Lat","Lon","ScaleLogDepth","LogDepth",'ScaleBotTemp','BotTemp',"CPUE_kg")], 
+                               X1_formula =  X1_formula,
+                               X2_formula = X2_formula, 
+                               newtonsteps = 0,
+                               #X_gtp = X_gtp,
+                               working_dir = paste(out_dir,fol_region,sp,m,'/',sep='/'))},
+      error = function(cond) {
+      message("Did not converge. Here's the original error message:")
+      message(cond)
+      cat(paste(" ERROR MODEL",m,"IS NOT CONVERGING "))  
+      # Choose a return value in case of error
+      return(NULL)
+    })
   
   #plot(fit,
   #     working_dir=paste(out_dir,fol_region,sp,m,'/',sep='/'))
@@ -208,13 +235,18 @@ region<-c("bering_sea_slope")
   #convergence
   diagnostics[m,'status',sp]<-ifelse(test = is.null(fit) == T | is.null(fit$parameter_estimates$max_gradient),"no_convergence","check_gradient")
   #max gradient
+  
+  if (diagnostics[m,'status',sp]=="check_gradient") {
+  
   diagnostics[m,'maxgradient',sp]<-fit$parameter_estimates$max_gradient
   #AIC
   diagnostics[m,'aic',sp]<-round(fit$parameter_estimates$AIC[1],3)
   #JNLL
   diagnostics[m,'jnll',sp]<-round(fit$parameter_estimates$objective[1],3)
   #RMSE
-  diagnostics[m,'rmse',sp]<-round(sqrt(mean((df2$CPUE_kg - fit$Report$D_i)^2)) / mean(df2$CPUE_kg),3)
+  diagnostics[m,'rmse',sp]<-round(sqrt(mean((data_geostat$CPUE_kg - fit$Report$D_i)^2,na.rm = TRUE)) / mean(data_geostat$CPUE_kg,na.rm = TRUE),3)
+  #DEVIANCE EXPLAINED
+  diagnostics[m,'dev',sp]<-round(fit$Report$deviance,3)
 
   #depth effects
   if (grepl('depth',m)) {
@@ -229,28 +261,41 @@ region<-c("bering_sea_slope")
   
   #temp effects
   if (grepl('temp',m)) {
-    effects_df[m,c('pres_temp1','pres_temp2'),sp]<-round(fit$ParHat$gamma1_cp[ ,grepl( "ScaleTemp",names(data.frame(fit$ParHat$gamma1_cp)))][c(1:2)],3)
-    effects_df[m,c('pos_temp1','pos_temp2'),sp]<-round(fit$ParHat$gamma2_cp[ ,grepl( "ScaleTemp",names(data.frame(fit$ParHat$gamma2_cp)))][c(1:2)],3)
+    effects_df[m,c('pres_temp1','pres_temp2'),sp]<-round(fit$ParHat$gamma1_cp[ ,grepl( "ScaleBotTemp",names(data.frame(fit$ParHat$gamma1_cp)))][c(1:2)],3)
+    effects_df[m,c('pos_temp1','pos_temp2'),sp]<-round(fit$ParHat$gamma2_cp[ ,grepl( "ScaleBotTemp",names(data.frame(fit$ParHat$gamma2_cp)))][c(1:2)],3)
     #if 3 degrees
     if (grepl(3,m)) {
-      effects_df[m,'pres_temp3',sp]<-round(fit$ParHat$gamma1_cp[ ,grepl( "ScaleTemp",names(data.frame(fit$ParHat$gamma1_cp)))][3],3)
-      effects_df[m,'pos_temp3',sp]<-round(fit$ParHat$gamma2_cp[ ,grepl( "ScaleTemp",names(data.frame(fit$ParHat$gamma2_cp)))][3],3)
+      effects_df[m,'pres_temp3',sp]<-round(fit$ParHat$gamma1_cp[ ,grepl( "ScaleBotTemp",names(data.frame(fit$ParHat$gamma1_cp)))][3],3)
+      effects_df[m,'pos_temp3',sp]<-round(fit$ParHat$gamma2_cp[ ,grepl( "ScaleBotTemp",names(data.frame(fit$ParHat$gamma2_cp)))][3],3)
     }
+   }
   }
   
   #progress bar
   pctgy <- paste0(round(which(models == m)/length(models) *100, 0), "% completed")
   setWinProgressBar(py, which(models == m), label = pctgy) # The label will override the label set on the
+  
 
   }
 
-#save RDS effects and diagnostics
-saveRDS(effects_df[,,sp],paste(out_dir,fol_region,sp,'effects.RData',sep='/'))
-saveRDS(diagnostics[,,sp],paste(out_dir,fol_region,sp,'diagnostics.RData',sep='/'))
 
-#save Rdata effects and diagnostics
-save(list = "effects_df", file = paste(out_dir,fol_region,sp,'effects.RData'))
-save(list = "diagnostics", file = paste(out_dir,fol_region,sp,'diagnostics.RData'))
+#percent of dev explained
+diagnostics[,'pct.dev',sp]<-(1 - as.numeric(diagnostics[,'dev',sp])/as.numeric(diagnostics['null','dev',sp]))*100
+
+#df diagnostics
+df.diagnostics<-data.frame(diagnostics[,,sp])
+#df.diagnostics[,'pct.dev']<-(1 - as.numeric(df.diagnostics[,'dev'])/as.numeric(df.diagnostics['null','dev']))*100
+#df.diagnostics$pct.dev<-(1 - as.numeric(diagnostics[,'dev',sp])/as.numeric(diagnostics['null','dev',sp]))*100
+
+#df effects
+df.effects<-data.frame(effects_df[,,sp])
+
+#save RDS effects and diagnostics - move out of the loop when end testing pcod
+saveRDS(data.frame(effects_df[,,sp]),paste(out_dir,fol_region,sp,'effects.RData',sep='/'))
+saveRDS(data.frame(df.diagnostics[,,sp]),paste(out_dir,fol_region,sp,'diagnostics.RData',sep='/'))
+
+#save csv file
+write.csv(df.diagnostics,paste(out_dir,fol_region,sp,'diagnostics.csv',sep='/'))
 
 #close process window
 close(py)
