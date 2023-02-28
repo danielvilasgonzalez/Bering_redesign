@@ -27,12 +27,14 @@ if (!('VAST' %in% installed.packages())) {
 pacman::p_load(pack_cran,character.only = TRUE)
 
 #setwd
-out_dir<-'D:/UW/Adapting Monitoring to a Changing Seascape/'
+out_dir<-'C:/Users/Daniel.Vilas/Work/Adapting Monitoring to a Changing Seascape/'
 setwd(out_dir)
 
 #list of sp
-splist<-list.dirs('./slope shelf EBS NBS VAST/',full.names = FALSE,recursive = FALSE)
-splist<-sort(splist[splist!=""])
+splist<-list.dirs('./data processed/',full.names = FALSE,recursive = FALSE)
+
+#folder region
+fol_region<-'slope EBS VAST'
 
 #####################
 # Effects package
@@ -47,45 +49,34 @@ fs<-c('X1','X2')
   sp<-'Gadus macrocephalus'
   
   #check effects
-  load('./slope shelf EBS NBS VAST/Gadus macrocephalus/diagnostics.RData')
+  #load(paste(out_dir,fol_region,sp,'diagnostics.RData',sep='/'))
   
   #load data_geostat to unscale
-  data_geostat<-readRDS(paste0('./slope shelf EBS NBS VAST/',sp,'/data_geostat_temp.rds'))
+  data_geostat<-readRDS(paste(out_dir,fol_region,sp,'/data_geostat_temp.rds',sep='/'))
   
   #list of models
-  models<-list.dirs(paste0('./slope shelf EBS NBS VAST/',sp),full.names = FALSE,recursive = FALSE)
+  models<-list.dirs(paste(out_dir,fol_region,sp,sep = '/'),full.names = FALSE,recursive = FALSE)
   models<-models[models!='null']
 
 #pdf file for each sp  
- pdf(file = paste0(getwd(),'/slope shelf EBS NBS VAST/',sp,'/',sp,'_effects.pdf'),   # The directory you want to save the file in
-     width = 10, # The width of the plot in inches
-     height = 10,
-     onefile = TRUE)
+  pdf(file = paste(out_dir,fol_region,sp,paste0(sp,'_effects.pdf'),sep='/'),   # The directory you want to save the file in
+      width = 10, # The width of the plot in inches
+      height = 10,
+      onefile = TRUE)
   
   #grid list
   grid_list<-list()
 
-  
   for (m in models) {
-    m<-models[6]
+    m<-models[1]
     
     #plot list
     plot_list<-list()
     
     #load fit file
-    load(paste0(getwd(),'/slope shelf EBS NBS VAST/',sp,'/',m,'/fit.RData'))
+    load(paste(out_dir,fol_region,sp,m,'/fit.RData',sep = '/'))
     
-    #plot fit
-    plot(fit=fit,
-              working_dir = paste0(getwd(),'/slope shelf EBS NBS VAST/',sp,'/',m,'/'))
-    plot_maps(fit=fit,
-         working_dir = paste0(getwd(),'/slope shelf EBS NBS VAST/',sp,'/',m,'/'),
-         plot_num=5,PlotDF = mdl$PlotDF,n_cells = 1000,year_labels = c(1982:2022))
-    fit$settings$use_anisotropy=FALSE
-    # Must add data-frames to global environment (hope to fix in future)
-    # covariate_data_full = fit$effects$covariate_data_full
-    # catchability_data_full = fit$effects$catchability_data_full
-
+  
     
     if (grepl('depth',m)) {
       
@@ -139,7 +130,7 @@ fs<-c('X1','X2')
           
           #calculate effect of covariate
           pred = Effect.fit_model( fit,
-                                   focal.predictors = c("ScaleTemp"),
+                                   focal.predictors = c("ScaleBotTemp"),
                                    which_formula = f,
                                    xlevels = 100,
                                    transformation = list(link=identity, inverse=indentity) )
@@ -149,7 +140,7 @@ fs<-c('X1','X2')
                   main=paste(m,'model -',f1),
                   axes=list(grid=TRUE, 
                             x=list(rug=FALSE,
-                                   ScaleTemp=list(lab="Temp (scale °C)")),
+                                   ScaleBotTemp=list(lab="Temp (scale °C)")),
                             y=list(rug=FALSE,
                                    lab="Catch (kg)")))
           
@@ -174,8 +165,7 @@ fs<-c('X1','X2')
     title <- ggdraw()+ 
              draw_label(sp,
                         x = 0,
-                        size = 16,
-                        hjust = -1.1)+
+                        size = 16)+
              theme(plot.margin = margin(0, 0, 0, 7))#;plot(title)
     
     #print plot
@@ -219,14 +209,18 @@ library(marginaleffects)
     
   # Plot 1st linear predictor, but could use `transformation` to apply link function
   quant = function(x) seq(min(x),max(x),length=21)
-  newdata = datagrid( newdata=fit$covariate_data[,'ScaleLogDepth',drop=FALSE], ScaleLogDepth = quant )
-  pred = predictions( fit, newdata=newdata, covariate="X1" )
+  #because of the scale thing is not exactly a column and it comes with additional attributes
+  df<-data.frame(fit$covariate_data$ScaleLogDepth)
+  rownames(df)<-rownames(fit$covariate_data)
+  colnames(df)<-'ScaleLogDepth'
+  newdata = datagrid( newdata=df[,'ScaleLogDepth',drop=FALSE], ScaleLogDepth = quant )
+  pred = predictions( fit, newdata=newdata, covariate="X1",conf_level = 0.95)
   
   library(ggplot2)
   library(gridExtra)
-  ggplot( pred, aes(CPE, predicted)) +
-    geom_line( aes(y=predicted), color="blue", size=1 ) +
-    geom_ribbon( aes( x=CPE, ymin=conf.low, ymax=conf.high), fill=rgb(0,0,1,0.2) ) +
+  ggplot( pred, aes(ScaleLogDepth, predicted)) +
+    geom_line( aes(y=predicted), color="blue", linewidth=1 ) +
+    geom_ribbon( aes( x=ScaleLogDepth, ymin=conf.low, ymax=conf.high), fill=rgb(0,0,1,0.2) ) +
     facet_wrap(vars(category), scales="free", ncol=2) +
     labs(y="Predicted response")
   
@@ -251,54 +245,9 @@ Gammas_2 <- Gammas[[2]] #[i,1,1:2]
 Xlim = range(data_geostat$ScaleLogDepth)
 Xcenter = mean(data_geostat$ScaleLogDepth)
 X = seq(Xlim[1], Xlim[2], length=1e4)
-Y1 = (X-Xcenter)*Gammas_1[1]  + ((X-Xcenter)^2)*Gammas_1[2] + ((X-Xcenter)^3)*Gammas_1[3]
+Y1 = (X-Xcenter)*Gammas_1[1]  + ((X-Xcenter)^2)*Gammas_1[2] #+ ((X-Xcenter)^3)*Gammas_1[3]
 plot( x=X, y=exp(Y1-max(Y1)), col="black", type="l", lty="solid", lwd=2, xlab="Depth",ylab="Response", main=paste0("Occurrence "))
 Y2 = (X-Xcenter)*Gammas_2[1] + (X-Xcenter)*Gammas_2[2]
 plot( x=X, y=exp(Y2-max(Y2)), col=c("black","grey"), type="l", lty="solid", lwd=2, xlab="Depth",ylab="Response", main=paste0("Abundance ",spp.names[i]))
 
 
-#####################
-# Effects package
-#####################
-
-library(effects)  # Used to visualize covariate effects
-
-# Must add data-frames to global environment (hope to fix in future)
-covariate_data_full = fit$effects$covariate_data_full
-catchability_data_full = fit$effects$catchability_data_full
-
-# Plot 1st linear predictor, but could use `transformation` to apply link function
-pred = Effect.fit_model( fit,
-                         focal.predictors = c("CPE"),
-                         which_formula = "X1",
-                         xlevels = 100,
-                         transformation = list(link=identity, inverse=identity) )
-plot(pred)
-
-#####################
-# pdp package
-#####################
-
-library(pdp)
-
-# Make function to interface with pdp
-pred.fun = function( object, newdata ){
-  predict( x=object,
-           Lat_i = object$data_frame$Lat_i,
-           Lon_i = object$data_frame$Lon_i,
-           t_i = object$data_frame$t_i,
-           a_i = object$data_frame$a_i,
-           what = "P1_iz",
-           new_covariate_data = newdata,
-           do_checks = FALSE )
-}
-
-# Run partial
-Partial = partial( object = fit,
-                   pred.var = "CPE",
-                   pred.fun = pred.fun,
-                   train = fit$covariate_data )
-
-# Make plot using ggplot2
-library(ggplot2)
-autoplot(Partial)
