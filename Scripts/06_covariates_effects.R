@@ -74,8 +74,8 @@ fs<-c('X1','X2')
     plot_list<-list()
     
     #load fit file
-    load(paste(out_dir,fol_region,sp,m,'/fit.RData',sep = '/'))
-    
+    #load(paste(out_dir,fol_region,sp,m,'/fit.RData',sep = '/'))
+    #load('C:/Users/Daniel.Vilas/Work/Adapting Monitoring to a Changing Seascape/slope EBS VAST/Gadus macrocephalus/depth3d/fit.RData')
   
     
     if (grepl('depth',m)) {
@@ -84,7 +84,7 @@ fs<-c('X1','X2')
       for (f in fs) {
       
         #formula
-        #f<-'X2'
+        f<-'X2'
         
         #for title purposes
         f1<-ifelse(f=='X1','presence','positive')
@@ -95,17 +95,17 @@ fs<-c('X1','X2')
         
         #calculate effect of covariate
         pred = Effect.fit_model( fit,
-                                 focal.predictors = c("ScaleLogDepth"),
+                                 focal.predictors = c("BotTemp"),
                                  which_formula = f,
                                  xlevels = 100,
                                  transformation = list(link=identity, inverse=indentity) )
         
         #plot response
         p<-plot(pred,
-                main=paste(m,'model -',f1),
+                #main=paste(m,'model -',f1),
                 axes=list(grid=TRUE, 
                           x=list(rug=FALSE,
-                                 ScaleLogDepth=list(lab="Depth (scale log m)")),
+                                 Depth=list(lab="Depth (scale log m)")),
                           y=list(rug=FALSE,
                                  lab="Catch (kg)")))
         
@@ -215,7 +215,7 @@ library(marginaleffects)
   colnames(df)<-'ScaleLogDepth'
   newdata = datagrid( newdata=df[,'ScaleLogDepth',drop=FALSE], ScaleLogDepth = quant )
   pred = predictions( fit, newdata=newdata, covariate="X1",conf_level = 0.95)
-  
+ 
   library(ggplot2)
   library(gridExtra)
   ggplot( pred, aes(ScaleLogDepth, predicted)) +
