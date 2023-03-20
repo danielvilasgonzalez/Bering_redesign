@@ -35,7 +35,7 @@ sta_y<-1982
 end_y<-2022
 
 #selected species
-splist<-c('Limanda aspera',
+spp<-c('Limanda aspera',
            'Gadus chalcogrammus',
            'Gadus macrocephalus',
            'Atheresthes stomias',
@@ -127,6 +127,7 @@ dim(all1)
 #cpue_kgha,cpue_kgkm2,cpue_noha,cpue_nokm2,count,weight_kg columns need to replace NA by 0s
 all1[c('cpue_kgha','cpue_kgkm2','cpue_noha','cpue_nokm2','count','weight_kg')][is.na(all1[c('cpue_kgha','cpue_kgkm2','cpue_noha','cpue_nokm2','count','weight_kg')])] <- 0
 head(all1)
+summary(all1)
 
 #####################################
 # CREATE DATA_GEOSTAT FILE
@@ -145,7 +146,7 @@ saveRDS(all1, paste0('./data processed/slope_shelf_EBS_NBS_data_geostat.rds'))
 #loop over species to create data_geostat df
 for (sp in splist) {
   
-  #sp<-sp.list[3]
+  #sp<-splist[3]
   
   #print species to check progress
   cat(paste("    -----", sp, "-----\n"))
@@ -159,6 +160,8 @@ for (sp in splist) {
   all2<-subset(all2, year %in% sta_y:end_y)
   cat(paste("    ----- ", nrow(all2) , "samples -----\n"))
   
+  #xx<-all2[which(is.na(all2$bottom_temp_c)),]
+  #summary(xx)
   #save data_geostat file
   saveRDS(all2, paste0('./data processed/',sp,'/data_geostat.rds'))
   
