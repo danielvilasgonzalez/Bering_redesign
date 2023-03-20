@@ -15,7 +15,8 @@ xx<-subset(x,survey_name=='Eastern Bering Sea Crab/Groundfish Bottom Trawl Surve
 
 years<-unique(xx$year)
 
-
+ggplot(data=xx)+
+  geom_point(aes(x=year,y=bottom_temp_c,color=depth_m))
 
 for (y in years) {
   
