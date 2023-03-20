@@ -115,7 +115,7 @@ plot_distribution(working_dir = getwd(),model = models)
 # plot covariate effect
 ##############################
 
-
+load(paste(getwd(),sp,'effects.RData',sep='/'))
 
 
 
