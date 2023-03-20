@@ -28,6 +28,7 @@ pacman::p_load(pack_cran,character.only = TRUE)
 
 #set working directory
 out_dir<-'E:/UW/Adapting Monitoring to a Changing Seascape/'
+out_dir<-'C:/Users/Daniel.Vilas/Work//Adapting Monitoring to a Changing Seascape/'
 setwd(out_dir)
 
 # Define plot extent (through trial end error) units km
@@ -50,12 +51,16 @@ ak_sppoly<-as(ebs_layers$akland, 'Spatial')
 #writeRaster(ak_bathy_2,
 #            'E:/UW/Adapting Monitoring to a Changing Seascape/Resources/ak_bathy_NAD83.tiff',overwrite=FALSE)
 
+#get files from google drive and set up
+files<-googledrive::drive_find()
+1 #for dvilasg@uw.edu
+
 #####################################
 # GET DEPTH
 #####################################
 
 #create directory
-dir.create('./Data/Bathymetry/',showWarnings = FALSE)
+dir.create('./bathymetry/',showWarnings = FALSE)
 
 #get id shared folder from google drive
 id.bering.folder<-files[which(files$name=='Bathymetry'),'id']
@@ -66,18 +71,18 @@ id.data<-files.1[which(files.1$name=='ak_bathy_NAD83.tiff'),]
 
 #download file
 googledrive::drive_download(file=id.data$id,
-                            path = paste0('./Data/Bathymetry/',id.data$name),
+                            path = paste0('./bathymetry/',id.data$name),
                             overwrite = TRUE)
 
 #read raster
-ak_bathy_2<-raster('./Data/Bathymetry/ak_bathy_NAD83.tiff')
+ak_bathy_2<-raster('./bathymetry/ak_bathy_NAD83.tiff')
 
 #####################################
 # BERING SHAPEFILES
 #####################################
 
 #create directory
-dir.create('./Data/Shapefiles/',showWarnings = FALSE)
+dir.create('./shapefiles/',showWarnings = FALSE)
 
 #name shapefiles 
 shfiles<-c('EBSshelfThorson','NBSThorson','EBSslopeThorson')
@@ -99,13 +104,13 @@ for (i in shfiles) {
     
     #download data
     googledrive::drive_download(file=id.data$id[j],
-                                path = paste0('./Data/Shapefiles/',id.data$name[j]),
+                                path = paste0('./shapefiles/',id.data$name[j]),
                                 overwrite = TRUE)
     
   }
   
   #shapefile EBS
-  sh<-rgdal::readOGR(dsn='./Data/Shapefiles/',layer = i)
+  sh<-rgdal::readOGR(dsn='./shapefiles/',layer = i)
   
   if (i=='EBSslopeThorson') {
     
@@ -124,15 +129,15 @@ for (i in shfiles) {
 }
 
 #merge shapefiles
-bs_sh<-union(EBSshelf_sh,NBS_sh)
-bs_sh<-union(bs_sh,EBSslope_sh)
+bs_sh1<-union(EBSshelf_sh,NBS_sh)
+bs_sh<-union(bs_sh1,EBSslope_sh)
 
 #####################################
 # GET EEZ
 #####################################
 
 #create directory
-dir.create('./Data/Shapefiles/',showWarnings = FALSE)
+dir.create('./shapefiles/',showWarnings = FALSE)
 
 #get id shared folder from google drive
 id.bering.folder<-files[which(files$name=='EEZ'),'id']
@@ -143,13 +148,13 @@ id.data<-googledrive::drive_ls(id.bering.folder$id)
 for (j in 1:nrow(id.data)) {
   
   googledrive::drive_download(file=id.data$id[j],
-                              path = paste0('./Data/Shapefiles/',id.data$name[j]),
+                              path = paste0('./shapefiles/',id.data$name[j]),
                               overwrite = TRUE)
   
 }
 
 #shapefile EEZ
-eez_sh<-rgdal::readOGR(dsn='./Data/Shapefiles',layer = 'EEZ_Land_v3_202030')
+eez_sh<-rgdal::readOGR(dsn='./shapefiles',layer = 'EEZ_Land_v3_202030')
 
 #clip EEZ
 bbox = c(latN = 70, latS = 50, lonW = -200, lonE = -150)
@@ -178,7 +183,7 @@ ak_bathy_4<--ak_bathy_4
 #####################################
 
 #create directory
-dir.create('./Data/Additional/',showWarnings = FALSE)
+dir.create('./additional/',showWarnings = FALSE)
 
 #get id shared folder from google drive
 id.bering.folder<-files[which(files$name=='Additional'),'id']
@@ -189,11 +194,11 @@ id.data<-files.1[which(files.1$name=='ebs_nbs_temperature_full_area.csv'),]
 
 #download file
 googledrive::drive_download(file=id.data$id,
-                            path = paste0('./Data/Additional/',id.data$name),
+                            path = paste0('./additional/',id.data$name),
                             overwrite = TRUE)
 
 #extract station EBS bottom trawl
-st_EBS<-read.csv('./Data/Additional//ebs_nbs_temperature_full_area.csv')
+st_EBS<-read.csv('./additional//ebs_nbs_temperature_full_area.csv')
 
 #filter 2019 stations, an example year where EBS and NBS surveys were carried out
 st_EBS<-subset(st_EBS,year==2019 ) #& survey_definition_id ==98
