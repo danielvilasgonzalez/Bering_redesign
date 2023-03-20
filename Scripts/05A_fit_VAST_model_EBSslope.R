@@ -3,6 +3,7 @@
 ##    
 ##    fit single sp VAST model for the slope BS using depth and temp (SBT)
 ##    Daniel Vilas (danielvilasgonzalez@gmail.com/dvilasg@uw.edu)
+##    evaluate parameters : https://github.com/James-Thorson-NOAA/VAST/blob/main/R/make_parameters.R
 ##
 ####################################################################
 ####################################################################
@@ -34,7 +35,7 @@ setwd(out_dir)
 version<-'VAST_v13_1_0'
 
 #number of knots
-knots<-'500' #100
+knots<-'200' #100
 
 #list of sp
 splist<-list.dirs('./data processed/',full.names = FALSE,recursive = FALSE)
@@ -84,7 +85,7 @@ py <- winProgressBar(title = paste0(sp, ' (',which(splist == sp),' out of ',leng
 
 #read data_geostat_temp file
 df1<-readRDS(paste0('./data processed/',sp,'/data_geostat_temp.rds'))
-
+#df1<-readRDS(paste0('./data processed/',sp,'/data_geostat_temp.rds'))
 #select rows and rename
 df2<-df1[,c("lat_start","lon_start","year",'scientific_name','weight_kg','effort','depth_m','LogDepth',"ScaleLogDepth",'Scalebottom_temp_c','bottom_temp_c','survey_name')]
 colnames(df2)<-c('Lat','Lon','Year','Species','CPUE_kg','Effort','Depth','LogDepth','ScaleLogDepth','ScaleBotTemp','BotTemp','Region')
@@ -105,9 +106,9 @@ saveRDS(data_geostat,paste(out_dir,fol_region,sp,'data_geostat_temp.rds',sep='/'
 region<-c("bering_sea_slope")
 
   #loop over models
-  for (m in models) {
+  #for (m in models) {
 
-  #m<-models[6]
+  m<-models[4]
 
   
   #print year to check progress
@@ -124,6 +125,7 @@ region<-c("bering_sea_slope")
                             bias.correct=FALSE,
                             knot_method='grid',
                             use_anisotropy=TRUE,
+                            RhoConfig=c("Beta1"=4,"Beta2"=4,"Epsilon1"=4,"Epsilon2"=4), 
                             #FieldConfig = c("Omega1"="IID", "Epsilon1"="IID", "Omega2"="IID", "Epsilon2"="IID"),
                             #RhoConfig=c("Beta1"=4,"Beta2"=4,"Epsilon1"=0,"Epsilon2"=0), # Change Beta1 to AR1, to allow linear covariate effect
                             Version = version,
@@ -134,13 +136,13 @@ region<-c("bering_sea_slope")
                                         "Calculate_effective_area" = F)) 
   
   
-   if (m=='null') {
-     
-     # Make settings (turning off bias.correct to save time for example)
-     settings$FieldConfig = matrix( c(0,0,0,0,"IID","IID"), byrow=TRUE, ncol=2 )
-     settings$RhoConfig[c("Beta1","Beta2")] = 3
-     
-   }
+   # if (m=='null') {
+   #   
+   #   # Make settings (turning off bias.correct to save time for example)
+   #   settings$FieldConfig = matrix( c(0,0,0,0,"IID","IID"), byrow=TRUE, ncol=2 )
+   #   settings$RhoConfig[c("Beta1","Beta2")] = 3
+   #   
+   # }
   
   #Kmeans_knots-200
   if (!file.exists(paste(out_dir,fol_region,sp,m,'Kmeans_knots-',knots,'.RData',sep='/')) & m!=models[1]) {
@@ -215,7 +217,8 @@ region<-c("bering_sea_slope")
                                covariate_data = covariate_data[,c('Year',"Lat","Lon","ScaleLogDepth","LogDepth",'ScaleBotTemp','BotTemp',"CPUE_kg")], 
                                X1_formula =  X1_formula,
                                X2_formula = X2_formula, 
-                               newtonsteps = 0,
+                               newtonsteps = 1,
+                              
                                #X_gtp = X_gtp,
                                working_dir = paste(out_dir,fol_region,sp,m,'/',sep='/'))},
       error = function(cond) {
@@ -276,7 +279,7 @@ region<-c("bering_sea_slope")
   setWinProgressBar(py, which(models == m), label = pctgy) # The label will override the label set on the
   
 
-  }
+ # }
 
 
 #percent of dev explained
@@ -284,7 +287,7 @@ diagnostics[,'pct.dev',sp]<-(1 - as.numeric(diagnostics[,'dev',sp])/as.numeric(d
 
 #df diagnostics
 df.diagnostics<-data.frame(diagnostics[,,sp])
-#df.diagnostics[,'pct.dev']<-(1 - as.numeric(df.diagnostics[,'dev'])/as.numeric(df.diagnostics['null','dev']))*100
+df.diagnostics[,'pct.dev']<-(1 - as.numeric(df.diagnostics[,'dev'])/as.numeric(df.diagnostics['null','dev']))*100
 #df.diagnostics$pct.dev<-(1 - as.numeric(diagnostics[,'dev',sp])/as.numeric(diagnostics['null','dev',sp]))*100
 
 #df effects
@@ -292,7 +295,7 @@ df.effects<-data.frame(effects_df[,,sp])
 
 #save RDS effects and diagnostics - move out of the loop when end testing pcod
 saveRDS(data.frame(effects_df[,,sp]),paste(out_dir,fol_region,sp,'effects.RData',sep='/'))
-saveRDS(data.frame(df.diagnostics[,,sp]),paste(out_dir,fol_region,sp,'diagnostics.RData',sep='/'))
+saveRDS(df.diagnostics,paste(out_dir,fol_region,sp,'diagnostics.RData',sep='/'))
 
 #save csv file
 write.csv(df.diagnostics,paste(out_dir,fol_region,sp,'diagnostics.csv',sep='/'))
@@ -301,3 +304,14 @@ write.csv(df.diagnostics,paste(out_dir,fol_region,sp,'diagnostics.csv',sep='/'))
 close(py)
 
 #}
+
+x<-check_fit(parameter_estimates = fit$parameter_estimates)
+fit$parameter_estimates$par
+fit$parameter_estimates$Convergence_check
+
+
+#project_model example
+project_model(x = fit,n_proj = 5)
+
+
+
