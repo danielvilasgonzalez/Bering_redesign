@@ -38,6 +38,9 @@ version<-'VAST_v13_1_0'
 #number of knots
 knots<-'500' #100
 
+#years
+yrs<-1982:2015
+
 #list of sp
 splist<-list.dirs('./data processed/',full.names = FALSE,recursive = FALSE)
 
@@ -88,20 +91,22 @@ py <- winProgressBar(title = paste0(sp, ' (',which(splist == sp),' out of ',leng
 
 #read data_geostat_temp file
 df1<-readRDS(paste0('./data processed/',sp,'/data_geostat_temp.rds'))
+#df1[which(df1$year==2020),'bottom_temp_c']<-NA
+df2<-subset(df1,year %in% yrs)
 
 #select rows and rename
-df2<-df1[,c("lat_start","lon_start","year",'scientific_name','weight_kg','effort','depth_m','LogDepth',"ScaleLogDepth",'Scalebottom_temp_c','bottom_temp_c','survey_name')]
-colnames(df2)<-c('Lat','Lon','Year','Species','CPUE_kg','Effort','Depth','LogDepth','ScaleLogDepth','ScaleBotTemp','BotTemp','Region')
+df3<-df2[,c("lat_start","lon_start","year",'scientific_name','weight_kg','effort','depth_m','LogDepth',"ScaleLogDepth",'Scalebottom_temp_c','bottom_temp_c','survey_name')]
+colnames(df3)<-c('Lat','Lon','Year','Species','CPUE_kg','Effort','Depth','LogDepth','ScaleLogDepth','ScaleBotTemp','BotTemp','Region')
 
 #data geostat
-df3<-subset(df2,Region %in% c("Eastern Bering Sea Crab/Groundfish Bottom Trawl Survey",
+df4<-subset(df3,Region %in% c("Eastern Bering Sea Crab/Groundfish Bottom Trawl Survey",
                               "Northern Bering Sea Crab/Groundfish Survey - Eastern Bering Sea Shelf Survey Extension"))
-yrs_region<-range(df3$Year)
-data_geostat<-df3[complete.cases(df3$CPUE_kg),]
+
+data_geostat<-df4[complete.cases(df4[,c('CPUE_kg')]),]
 
 #covariate data - filter by year and complete cases for env variables
-covariate_data<-subset(df2,Year>=yrs_region[1] & Year<=yrs_region[2])
-#covariate_data<-covariate_data[complete.cases(covariate_data[,c('ScaleBotTemp','ScaleLogDepth')]),]
+#covariate_data<-subset(df2,Year>=yrs_region[1] & Year<=yrs_region[2])
+covariate_data<-df3[complete.cases(df3[,c('BotTemp')]),] #,'ScaleLogDepth'
 
 #save data
 saveRDS(data_geostat,paste(out_dir,fol_region,sp,'data_geostat_temp.rds',sep='/'))
@@ -112,7 +117,7 @@ region<-c("northern_bering_sea","eastern_bering_sea")
 #loop over models
 #for (m in models) {
   
-  m<-models[1]
+  m<-models[3]
   
   
   #print year to check progress
@@ -130,10 +135,10 @@ region<-c("northern_bering_sea","eastern_bering_sea")
                             knot_method='grid',
                             use_anisotropy=TRUE,
                             #FieldConfig = c("Omega1"="IID", "Epsilon1"="IID", "Omega2"="IID", "Epsilon2"="IID"),
-                            RhoConfig=c("Beta1"=0,"Beta2"=0,"Epsilon1"=4,"Epsilon2"=4), 
+                            RhoConfig=c("Beta1"=2,"Beta2"=2,"Epsilon1"=4,"Epsilon2"=4), 
                             Version = version,
                             #fine_scale=TRUE,
-                            ObsModel = c(2,3), #c(2,3) if encounter 100% year
+                            ObsModel = c(2,1), #c(2,3) if encounter 100% year
                             max_cells = Inf,
                             Options = c("Calculate_Range" =  F, 
                                         "Calculate_effective_area" = F)) 
@@ -177,8 +182,8 @@ region<-c("northern_bering_sea","eastern_bering_sea")
   } else if (grepl('temp',m)) {
     
     X1_formula<-ifelse(grepl('temp2d',m),
-                       ' ~ bs(ScaleBotTemp, degree=2, intercept=FALSE)',
-                       ' ~ bs(ScaleBotTemp, degree=3, intercept=FALSE)')
+                       ' ~ bs(BotTemp, degree=2, intercept=FALSE)',
+                       ' ~ bs(BotTemp, degree=3, intercept=FALSE)')
     
     X1config_cp = array( c(1,1), dim=c(1,1))
     
@@ -235,7 +240,7 @@ region<-c("northern_bering_sea","eastern_bering_sea")
   #     working_dir=paste(out_dir,fol_region,sp,m,'/',sep='/'))
   
   #save fit
-  save(list = "fit", file = paste(out_dir,fol_region,sp,m,'fit.RData',sep='/'))
+  save(list = "fit", file = paste(out_dir,fol_region,sp,m,'b2_19822015fit.RData',sep='/')) #paste(yrs_region,collapse = "")
   
   #convergence
   diagnostics[m,'status',sp]<-ifelse(test = is.null(fit) == T | is.null(fit$parameter_estimates$max_gradient),"no_convergence","check_gradient")
@@ -309,9 +314,7 @@ close(py)
 
 ##################
 
-check_fit(fit)
+cf<-check_fit(fit$parameter_estimates)
 data.frame(fit$parameter_estimates$par)
 
-#################
 
-project_model
