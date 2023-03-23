@@ -2,6 +2,7 @@
 ####################################################################
 ##
 ##    Sampling strata
+##    using devtools::install_github(repo = "zoyafuso-NOAA/SamplingStrata")
 ##    Daniel Vilas (danielvilasgonzalez@gmail.com/dvilasg@uw.edu)
 ##
 ####################################################################
@@ -149,14 +150,6 @@ eez_sh1<-spTransform(eez_sh1,CRSobj = CRS('+proj=aea +lat_1=55 +lat_2=65 +lat_0=
 proj4string(eez_sh2) <- CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0") 
 eez_sh2<-spTransform(eez_sh2,CRSobj = CRS('+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs'))
 
-## crop and mask
-ak_bathy_3 <- crop(ak_bathy_2, extent(bs_sh))
-ak_bathy_4 <- mask(ak_bathy_3, bs_sh)
-
-#positive values equal to zero and convert negative to positive values
-ak_bathy_4[ak_bathy_4>0]<-0 
-ak_bathy_4<--ak_bathy_4 
-
 #####################################
 # GET Stations 
 #####################################
@@ -230,6 +223,7 @@ st_EBS<-as.data.frame(st_EBS)
 
 #load grid data
 #https://github.com/James-Thorson-NOAA/FishStatsUtils/tree/main/data
+#https://github.com/danielvilasgonzalez/Bering_redesign/blob/main/Scripts/04_Bering10K_data.R
 load('./data processed/lastversion_grid_EBS.RData') #grid.ebs_year
 
 #remove slope grid
@@ -239,10 +233,10 @@ grid.ebs_year1<-grid.ebs_year[which(grid.ebs_year$region!='EBSslope'),]
 # SCENARIOS
 ###################################
 
-df_sc<-data.frame(name=c(),
-                  strat_var=c('Lat_Lon','Lat_Depth','Lat_varTemp','Lat_meanTemp','Depth_meanTemp','Depth_varTemp',),
-                  const_var=c(),
-                  n_samples=c())
+# df_sc<-data.frame(name=c(1:8),
+#                   strat_var=c('Lat_Lon','Lat_Depth','Lat_varTemp','Lat_meanTemp','Depth_meanTemp','Depth_varTemp',),
+#                   const_var=c(),
+#                   n_samples=c())
 
 
 
@@ -261,18 +255,15 @@ load('./shelf EBS NBS VAST/Gadus macrocephalus/temp3d/b2_19822015fit.RData')
 #################################################
 
 #reload DLL file from model
-fit<-reload_model(fit)
+#fit<-reload_model(fit)
 
 #simulate data
-sim.data<-simulate_data(fit,
-                        type=1) #1 measurement error or conditional #2 unconditional #3 new fixed and random #4 random effects from MLE
+#sim.data<-simulate_data(fit,
+#                        type=1) #1 measurement error or conditional #2 unconditional #3 new fixed and random #4 random effects from MLE
 
 #################################################
-# ARRANGE SIMULATED DATA
+# ARRANGE SIMULATED or PREDICTED DATA DATA
 #################################################
-
-#get simulate data
-dim.D_gt<-sim.data$D_gct[,1,]
 
 #get predictions for category 1
 D_gt<-fit$Report$D_gct[,1,]
@@ -358,7 +349,7 @@ domain_input<-rep(1, n_cells)
 # stratum_var_input<-data.frame(X1 = D7$varTemp,
 #                               X2 = D7$Lat) #Xspp #set different scenarios and spp ############ TO CHECK
 
-stratum_var_input<-data.frame(X1 = D7$Lat) #Xspp #set different scenarios and spp ############ TO CHECK
+stratum_var_input<-data.frame(X1 = D7$varTemp,D7$Depth) #Xspp #set different scenarios and spp ############ TO CHECK
 
 #target variables
 target_var_input<-data.frame(Y1 = D7$sumDensity) #D7$sqsumDensity #Ynspp #set different scenarios and spp ############ TO CHECK
@@ -444,7 +435,7 @@ ss<-summaryStrata(framenew,outstrata)
 head(ss)
 
 #plot strata 2D
-plotStrata2d(framenew,outstrata,domain=1,vars=c('X1','X2'),labels = c('VarTemp','Lat'))
+plotStrata2d(framenew,outstrata,domain=1,vars=c('X1','X2'),labels = c('VarTemp','Depth'))
 
 ## Organize result outputs
 solution$aggr_strata$STRATO <- as.integer(solution$aggr_strata$STRATO)
