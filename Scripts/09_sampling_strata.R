@@ -538,7 +538,7 @@ df<-rbind(data.frame(Lat=points1$Lat,Lon=points1$Lon,Stations='optimization'),
 
 ggplot()+
   geom_point(data=D8_2, aes(Lon, Lat, fill=Strata, group=NULL),size=1.2, stroke=0,shape=21)+
-  scale_fill_gradientn(colours=pal,guide = guide_legend())+
+  scale_fill_gradientn(colours=pal,guide = guide_legend(),labels=paste0(sort(unique(D8_2$Strata))," (n=",allocations,')'))+
   geom_point(data=df,aes(x=Lon,y=Lat,color=Stations,shape=Stations),size=1.5)+
   scale_color_manual(values = c('optimization'='white',
                                 'current design'='black',
