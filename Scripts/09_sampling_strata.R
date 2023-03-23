@@ -233,12 +233,9 @@ grid.ebs_year1<-grid.ebs_year[which(grid.ebs_year$region!='EBSslope'),]
 # SCENARIOS
 ###################################
 
-# df_sc<-data.frame(name=c(1:8),
-#                   strat_var=c('Lat_Lon','Lat_Depth','Lat_varTemp','Lat_meanTemp','Depth_meanTemp','Depth_varTemp',),
-#                   const_var=c(),
-#                   n_samples=c())
-
-
+df_scn<-expand.grid(strat_var=c('Lat_LonE','Lat_Depth','Lat_varTemp','Lat_meanTempF','Depth_meanTempF','Depth_varTemp'),
+                    const_var=c('sumDensity'), #,'sqsumDensity'
+                    n_samples=c(300,500))
 
 ###################################
 # LOAD FIT OBJECT (from VAST::fit_model()) or VAST::project_model()
@@ -324,7 +321,10 @@ D7<-D6[which(D6$Depth>0),]
 cells<-unique(D7$cell)
 
 #convert SBT into F to get positive values only
-D7$meanTemp_F<-(9/5)*D7$meanTemp + 32
+D7$meanTempF<-(9/5)*D7$meanTemp + 32
+
+#add longitude on eastings to get positive values
+D7$LonE<-D7$Lon+180+180
 
 #removed cells because of depth<0
 rem_cells<-D6[which(D6$Depth<0),'cell']
@@ -345,229 +345,244 @@ n_cells<-length(cells)
 #domain_input
 domain_input<-rep(1, n_cells)
 
-#stratification variables 
-stratum_var_input<-data.frame(X1 = D7$varTemp,
-                              X2 = D7$Depth) #Xspp #set different scenarios and spp ############ TO CHECK
+#create a list to store results
+l<-list()
+plot_l<-list()
 
-#target variables
-target_var_input<-data.frame(Y1 = D7$sumDensity) #D7$sqsumDensity #Ynspp #set different scenarios and spp ############ TO CHECK
+#run loop for each scenario
+for (scn in 1:nrow(df_scn)) {
+  #scn<-1
+  
+  #stratification variables 
+  stratum_var_input<-data.frame(X1 = D7[,sub("\\_.*", "", df_scn[scn,'strat_var'])],
+                                X2 = D7[,sub(".*_", "", df_scn[scn,'strat_var'])]) #Xspp #set different scenarios and spp ############ TO CHECK
+  
+  #target variables
+  target_var_input<-data.frame(Y1 = D7[,df_scn[scn,'const_var']]) #D7$sqsumDensity #Ynspp #set different scenarios and spp ############ TO CHECK
+  
+  #weights
+  #in case add weights based on observed years
+  
+  #create df
+  frame <- data.frame(domainvalue = domain_input,
+                      id = cells,
+                      stratum_var_input,
+                      target_var_input) 
+                      #WEIGHTS if want it WEIGHT=n_years
+  
+  ###################################
+  # SIMPLE RANDOM SAMPLING CV CONSTRAINTS
+  ###################################
+  
+  #Initiate CVs to be those calculated under simple random sampling (SRS)
+  srs_stats <- SamplingStrata::buildStrataDF(dataset = cbind( frame[, -grep(x = names(frame), pattern = "X")],X1 = 1))
+  
+  #number of samples 
+  #520 in 2022 (NBS and EBSshelf)
+  #376 in 2018 (EBSshelf)
+  n_samples <- df_scn[scn,'n_samples']
+  
+  #number of samples
+  srs_n <- as.numeric(n_samples * table(frame$domainvalue) / n_cells)
+  
+  ## SRS statistics
+  srs_var <- srs_stats$S1^2 * (1 - srs_n / n_cells) / srs_n
+  srs_cv <- sqrt(srs_var) / srs_stats$M1
+  
+  #create cv object for constraints
+  cv <- list()
+  cv[["CV1"]] <- srs_cv
+  cv[["DOM"]] <- 1:n_dom
+  cv[["domainvalue"]] <- 1:n_dom
+  cv <- as.data.frame(cv)
+  
+  ###################################
+  # STRATAS
+  ###################################
+  
+  #number of stratas 
+  no_strata<-10
+  
+  #get n_strata from kmean suggestion
+  kmean<-KmeansSolution2(frame=frame,
+                         errors=cv,
+                         maxclusters = 20)
+  
+  #number strata from kmean
+  no_strata<-tapply(kmean$suggestions,
+                    kmean$domainvalue,
+                    FUN=function(x) length(unique(x)))
+  
+  ###################################
+  # RUN OPTIMIZATION
+  ###################################
+  
+  #run optimization
+  solution <- optimStrata(method = "continuous",
+                          errors = cv, 
+                          framesamp = frame,
+                          iter = 50, #300
+                          pops = 10, #100
+                          elitism_rate = 0.1,
+                          mut_chance = 1 / (no_strata[1] + 1),
+                          nStrata = no_strata,
+                          showPlot = T,
+                          writeFiles = T)
+  
+  ###################################
+  # STORE SOLUTIONS
+  ###################################
+  
+  #results
+  framenew<-solution$framenew
+  outstrata<-solution$aggr_strata
+  ss<-summaryStrata(framenew,outstrata)
+  #head(ss)
+  
+  #plot strata 2D
+  #plotStrata2d(framenew,outstrata,domain=1,vars=c('X1','X2'),labels = c('VarTemp','Depth'))
+  
+  ## Organize result outputs
+  solution$aggr_strata$STRATO <- as.integer(solution$aggr_strata$STRATO)
+  solution$aggr_strata <- 
+    solution$aggr_strata[order(solution$aggr_strata$DOM1,
+                               solution$aggr_strata$STRATO), ]
+  
+  sum_stats <- summaryStrata(solution$framenew,
+                             solution$aggr_strata,
+                             progress=FALSE)
+  sum_stats$stratum_id <- 1:nrow(sum_stats)
+  sum_stats$Population <- sum_stats$Population / n_years
+  sum_stats$wh <- sum_stats$Allocation / sum_stats$Population
+  sum_stats$Wh <- sum_stats$Population / n_cells
+  sum_stats <- cbind(sum_stats,
+                     subset(x = solution$aggr_strata,
+                            select = -c(STRATO, N, COST, CENS, DOM1, X1)))
+  
+  #store summary results
+  l[[scn]]<-sum_stats
+  
+  ###################################
+  # CREATE SPATIAL OBJECT BASED ON CELLS STRATA
+  ###################################
+  
+  strata<-rbind(solution$indices,
+                data.frame(ID=rem_cells,X1=NA))
+  colnames(strata)<-c('cell','Strata')
+  
+  dim(strata)
+  
+  D8<-merge(D6,strata,by='cell')
+  
+  #df to spatialpoint df
+  coordinates(D8) <- ~ Lon + Lat
+  crs(D8)<-c(crs="+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
+  
+  #reproject coordinates for plotting purposes
+  D8_1<-spTransform(D8,'+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs')
+  D8_2<-data.frame(D8_1)
+  
+  ###################################
+  # MULTIVARIATE OPTIMAL ALLOCATION
+  ###################################
+  
+  #create df to extract
+  temp_stratif <- solution$aggr_strata
+  temp_stratif$N <- temp_stratif$N / length(yrs)
+  temp_stratif$DOM1 <- 1
+  
+  #run multivariate allocation
+  temp_bethel <- SamplingStrata::bethel(
+    errors = cv,
+    stratif = temp_stratif, 
+    realAllocation = T, 
+    printa = T)
+  temp_n <- sum(ceiling(temp_bethel))
+  
+  #number of samples per strata
+  allocations<-as.integer(temp_bethel)
+  
+  #strata per cell
+  temp_ids<-solution$indices
+  
+  sample_vec <- c()
+  
+  #random sample for each strata
+  for(istrata in 1:length(allocations)) {
+    sample_vec <- c(sample_vec,
+                    sample(x = temp_ids[which(temp_ids$X1==istrata),'ID'], #which(temp_ids == istrata)
+                           size = allocations[istrata]) )
+  }
+  
+  #points dataframe
+  points<-data.frame(cell=sample_vec,
+                     strata=rep(1:length(temp_bethel),allocations))
+  
+  #merge
+  points1<-merge(points,D7,by='cell',all.x=TRUE)
+  
+  #change projection of spatial object 
+  coordinates(points1)<- ~ Lon + Lat
+  
+  #reproject shapefile
+  proj4string(points1) <- CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0") 
+  points1<-spTransform(points1,CRSobj = CRS('+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs'))
+  
+  #to dataframe
+  points1<-as.data.frame(points1)
+  
+  #########################
+  # JOIN POINTS FOR LEGEND PURPOSES
+  #########################
+  
+  df<-rbind(data.frame(Lat=points1$Lat,Lon=points1$Lon,Stations='optimization'),
+            data.frame(Lat=st_EBS$latitude,Lon=st_EBS$longitude,Stations='current design'),
+            data.frame(Lat=st_corners1$latitude,Lon=st_corners1$longitude,Stations='corner crab'))
+  
+  #########################
+  # MAP POINTS
+  #########################
+  
+  p<-ggplot()+
+        geom_point(data=D8_2, aes(Lon, Lat, fill=Strata, group=NULL),size=1.2, stroke=0,shape=21)+
+        scale_fill_gradientn(colours=pal,guide = guide_legend(),breaks=sort(unique(D8_2$Strata)),labels=paste0(sort(unique(D8_2$Strata))," (n=",allocations,')'))+
+        geom_point(data=df,aes(x=Lon,y=Lat,color=Stations,shape=Stations),size=1.5)+
+        scale_color_manual(values = c('optimization'='white',
+                                      'current design'='black',
+                                      'corner crab'='purple'))+
+        scale_shape_manual(values = c('optimization'=20,
+                                      'current design'=4,
+                                      'corner crab'=20))+
+        #geom_point(data=st_EBS,aes(x=longitude,y=latitude),shape=4,size=1)+
+        #geom_point(data=st_corners1,aes(x=longitude,y=latitude),color='red',shape=20,size=1)+
+        geom_polygon(data=ak_sppoly,aes(x=long,y=lat,group=group),fill = 'grey60')+
+        geom_polygon(data=eez_sh33,aes(x=long,y=lat,group=group),fill=NA,color='grey40')+
+        scale_x_continuous(expand = c(0,0),position = 'bottom',
+                           breaks = c(-175,-170,-165,-160,-155),sec.axis = dup_axis())+
+        geom_polygon(data=NBS_sh,aes(x=long,y=lat,group=group),fill=NA,col='black')+
+        geom_polygon(data=EBSshelf_sh,aes(x=long,y=lat,group=group),fill=NA,col='black')+
+        geom_polygon(data=EBSslope_sh,aes(x=long,y=lat,group=group),fill=NA,col='black')+
+        coord_sf(crs = '+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs',
+                 xlim = panel_extent$x,
+                 ylim = panel_extent$y,
+                 label_axes = "-NE-")+
+        theme(aspect.ratio = 1,panel.grid.major = element_line(color = rgb(0, 0, 0,20, maxColorValue = 285), linetype = 'dashed', linewidth =  0.5),
+              panel.background = element_rect(fill = NA),panel.ontop = TRUE,text = element_text(size=10),
+              legend.background =  element_rect(fill = "transparent", colour = "transparent"),legend.key.height= unit(25, 'points'),
+              legend.key.width= unit(25, 'points'),axis.title = element_blank(),legend.position = c(0.12,0.47),
+              panel.border = element_rect(fill = NA, colour = 'black'),legend.key = element_rect(color="black"),
+              axis.text = element_text(color='black'),legend.spacing.y = unit(10, 'points'),
+              axis.text.y.right = element_text(hjust= 0.1 ,margin = margin(0,7,0,-25, unit = 'points'),color='black'),
+              axis.text.x = element_text(vjust = 6, margin = margin(-7,0,7,0, unit = 'points'),color='black'),
+              axis.ticks.length = unit(-5,"points"),plot.title = element_text(size=16,vjust = -10, hjust=0.95))+
+        annotate("text", x = -256559, y = 1354909, label = "Alaska",parse=TRUE,size=7)+
+        annotate("text", x = -1376559, y = 2049090, label = "Russia",parse=TRUE,size=7)+
+        scale_y_continuous(expand = c(0,0),position = 'right',sec.axis = dup_axis())+
+        annotate("text", x = -1376559, y = 744900, label = "italic('Bering Sea')",parse=TRUE,size=9)+
+        guides(fill = guide_legend(override.aes=list(shape = 22,size=8)),
+               color = guide_legend(override.aes=list(size=8)))+
+        labs(title=paste0(df_scn[scn,'strat_var'],' n=',df_scn[scn,'n_samples']))
+  
+  plot_l[[scn]]<-p
 
-#weights
-#in case add weights based on observed years
-
-#create df
-frame <- data.frame(domainvalue = domain_input,
-                    id = cells,
-                    stratum_var_input,
-                    target_var_input) 
-                    #WEIGHTS if want it WEIGHT=n_years
-
-###################################
-# SIMPLE RANDOM SAMPLING CV CONSTRAINTS
-###################################
-
-#Initiate CVs to be those calculated under simple random sampling (SRS)
-srs_stats <- SamplingStrata::buildStrataDF(dataset = cbind( frame[, -grep(x = names(frame), pattern = "X")],X1 = 1))
-
-#number of samples 
-#520 in 2022 (NBS and EBSshelf)
-#376 in 2018 (EBSshelf)
-n_samples <- 376
-
-#number of samples
-srs_n <- as.numeric(n_samples * table(frame$domainvalue) / n_cells)
-
-## SRS statistics
-srs_var <- srs_stats$S1^2 * (1 - srs_n / n_cells) / srs_n
-srs_cv <- sqrt(srs_var) / srs_stats$M1
-
-#create cv object for constraints
-cv <- list()
-cv[["CV1"]] <- srs_cv
-cv[["DOM"]] <- 1:n_dom
-cv[["domainvalue"]] <- 1:n_dom
-cv <- as.data.frame(cv)
-
-###################################
-# STRATAS
-###################################
-
-#number of stratas 
-no_strata<-10
-
-#get n_strata from kmean suggestion
-kmean<-KmeansSolution2(frame=frame,
-                       errors=cv,
-                       maxclusters = 20)
-
-#number strata from kmean
-no_strata<-tapply(kmean$suggestions,
-                  kmean$domainvalue,
-                  FUN=function(x) length(unique(x)))
-
-###################################
-# RUN OPTIMIZATION
-###################################
-
-#run optimization
-solution <- optimStrata(method = "continuous",
-                        errors = cv, 
-                        framesamp = frame,
-                        iter = 50, #300
-                        pops = 10, #100
-                        elitism_rate = 0.1,
-                        mut_chance = 1 / (no_strata[1] + 1),
-                        nStrata = no_strata,
-                        showPlot = T,
-                        writeFiles = T)
-
-###################################
-# STORE SOLUTIONS
-###################################
-
-#results
-framenew<-solution$framenew
-outstrata<-solution$aggr_strata
-ss<-summaryStrata(framenew,outstrata)
-head(ss)
-
-#plot strata 2D
-plotStrata2d(framenew,outstrata,domain=1,vars=c('X1','X2'),labels = c('VarTemp','Depth'))
-
-## Organize result outputs
-solution$aggr_strata$STRATO <- as.integer(solution$aggr_strata$STRATO)
-solution$aggr_strata <- 
-  solution$aggr_strata[order(solution$aggr_strata$DOM1,
-                             solution$aggr_strata$STRATO), ]
-
-sum_stats <- summaryStrata(solution$framenew,
-                           solution$aggr_strata,
-                           progress=FALSE)
-sum_stats$stratum_id <- 1:nrow(sum_stats)
-sum_stats$Population <- sum_stats$Population / n_years
-sum_stats$wh <- sum_stats$Allocation / sum_stats$Population
-sum_stats$Wh <- sum_stats$Population / n_cells
-sum_stats <- cbind(sum_stats,
-                   subset(x = solution$aggr_strata,
-                          select = -c(STRATO, N, COST, CENS, DOM1, X1)))
-
-###################################
-# CREATE RASTER BASED ON CELLS INDECES
-###################################
-
-strata<-rbind(solution$indices,
-              data.frame(ID=rem_cells,X1=NA))
-colnames(strata)<-c('cell','Strata')
-
-dim(strata)
-
-D8<-merge(D6,strata,by='cell')
-
-#df to spatialpoint df
-coordinates(D8) <- ~ Lon + Lat
-crs(D8)<-c(crs="+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
-
-#reproject coordinates for plotting purposes
-D8_1<-spTransform(D8,'+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs')
-D8_2<-data.frame(D8_1)
-
-###################################
-# MULTIVARIATE OPTIMAL ALLOCATION
-###################################
-
-#create df to extract
-temp_stratif <- solution$aggr_strata
-temp_stratif$N <- temp_stratif$N / length(yrs)
-temp_stratif$DOM1 <- 1
-
-#run multivariate allocation
-temp_bethel <- SamplingStrata::bethel(
-  errors = cv,
-  stratif = temp_stratif, 
-  realAllocation = T, 
-  printa = T)
-temp_n <- sum(ceiling(temp_bethel))
-
-#number of samples per strata
-allocations<-as.integer(temp_bethel)
-
-#strata per cell
-temp_ids<-solution$indices
-
-sample_vec <- c()
-
-#random sample for each strata
-for(istrata in 1:length(allocations)) {
-  sample_vec <- c(sample_vec,
-                  sample(x = temp_ids[which(temp_ids$X1==istrata),'ID'], #which(temp_ids == istrata)
-                         size = allocations[istrata]) )
 }
-
-#points dataframe
-points<-data.frame(cell=sample_vec,
-                   strata=rep(1:length(temp_bethel),allocations))
-
-#merge
-points1<-merge(points,D7,by='cell',all.x=TRUE)
-
-#change projection of spatial object 
-coordinates(points1)<- ~ Lon + Lat
-
-#reproject shapefile
-proj4string(points1) <- CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0") 
-points1<-spTransform(points1,CRSobj = CRS('+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs'))
-
-#to dataframe
-points1<-as.data.frame(points1)
-
-#########################
-# JOIN POINTS FOR LEGEND PURPOSES
-#########################
-
-df<-rbind(data.frame(Lat=points1$Lat,Lon=points1$Lon,Stations='optimization'),
-          data.frame(Lat=st_EBS$latitude,Lon=st_EBS$longitude,Stations='current design'),
-          data.frame(Lat=st_corners1$latitude,Lon=st_corners1$longitude,Stations='corner crab'))
-
-#########################
-# MAP POINTS
-#########################
-
-ggplot()+
-  geom_point(data=D8_2, aes(Lon, Lat, fill=Strata, group=NULL),size=1.2, stroke=0,shape=21)+
-  scale_fill_gradientn(colours=pal,guide = guide_legend(),labels=paste0(sort(unique(D8_2$Strata))," (n=",allocations,')'))+
-  geom_point(data=df,aes(x=Lon,y=Lat,color=Stations,shape=Stations),size=1.5)+
-  scale_color_manual(values = c('optimization'='white',
-                                'current design'='black',
-                                'corner crab'='red'))+
-  scale_shape_manual(values = c('optimization'=20,
-                                'current design'=4,
-                                'corner crab'=20))+
-  #geom_point(data=st_EBS,aes(x=longitude,y=latitude),shape=4,size=1)+
-  #geom_point(data=st_corners1,aes(x=longitude,y=latitude),color='red',shape=20,size=1)+
-  geom_polygon(data=ak_sppoly,aes(x=long,y=lat,group=group),fill = 'grey60')+
-  geom_polygon(data=eez_sh33,aes(x=long,y=lat,group=group),fill=NA,color='grey40')+
-  scale_x_continuous(expand = c(0,0),position = 'bottom',
-                     breaks = c(-175,-170,-165,-160,-155),sec.axis = dup_axis())+
-  geom_polygon(data=NBS_sh,aes(x=long,y=lat,group=group),fill=NA,col='black')+
-  geom_polygon(data=EBSshelf_sh,aes(x=long,y=lat,group=group),fill=NA,col='black')+
-  geom_polygon(data=EBSslope_sh,aes(x=long,y=lat,group=group),fill=NA,col='black')+
-  coord_sf(crs = '+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs',
-           xlim = panel_extent$x,
-           ylim = panel_extent$y,
-           label_axes = "-NE-")+
-  theme(aspect.ratio = 1,panel.grid.major = element_line(color = rgb(0, 0, 0,20, maxColorValue = 285), linetype = 'dashed', linewidth =  0.5),
-        panel.background = element_rect(fill = NA),panel.ontop = TRUE,text = element_text(size=10),
-        legend.background =  element_rect(fill = "transparent", colour = "transparent"),legend.key.height= unit(25, 'points'),
-        legend.key.width= unit(25, 'points'),axis.title = element_blank(),legend.position = c(0.12,0.47),
-        panel.border = element_rect(fill = NA, colour = 'black'),legend.key = element_rect(color="black"),
-        axis.text = element_text(color='black'),legend.spacing.y = unit(10, 'points'),
-        axis.text.y.right = element_text(hjust= 0.1 ,margin = margin(0,7,0,-25, unit = 'points'),color='black'),
-        axis.text.x = element_text(vjust = 6, margin = margin(-7,0,7,0, unit = 'points'),color='black'),
-        axis.ticks.length = unit(-5,"points"))+
-  annotate("text", x = -256559, y = 1354909, label = "Alaska",parse=TRUE,size=7)+
-  annotate("text", x = -1376559, y = 2049090, label = "Russia",parse=TRUE,size=7)+
-  scale_y_continuous(expand = c(0,0),position = 'right',sec.axis = dup_axis())+
-  annotate("text", x = -1376559, y = 744900, label = "italic('Bering Sea')",parse=TRUE,size=9)+
-  guides(fill = guide_legend(override.aes=list(shape = 22,size=8)),
-         color = guide_legend(override.aes=list(size=8)))
-
