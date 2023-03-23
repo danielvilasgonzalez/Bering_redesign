@@ -39,7 +39,7 @@ version<-'VAST_v13_1_0'
 knots<-'500' #100
 
 #years
-yrs<-1982:2015
+yrs<-1982:2022
 
 #list of sp
 splist<-list.dirs('./data processed/',full.names = FALSE,recursive = FALSE)
@@ -240,7 +240,7 @@ region<-c("northern_bering_sea","eastern_bering_sea")
   #     working_dir=paste(out_dir,fol_region,sp,m,'/',sep='/'))
   
   #save fit
-  save(list = "fit", file = paste(out_dir,fol_region,sp,m,'b2_19822015fit.RData',sep='/')) #paste(yrs_region,collapse = "")
+  save(list = "fit", file = paste(out_dir,fol_region,sp,m,'b2_19822022fit.RData',sep='/')) #paste(yrs_region,collapse = "")
   
   #convergence
   diagnostics[m,'status',sp]<-ifelse(test = is.null(fit) == T | is.null(fit$parameter_estimates$max_gradient),"no_convergence","check_gradient")
