@@ -245,7 +245,7 @@ grid.ebs_year1<-grid.ebs_year[which(grid.ebs_year$region!='EBSslope'),]
 ###################################
 
 #load fit file
-load('./shelf EBS NBS VAST/Gadus macrocephalus/temp3d/b2_19822015fit.RData')
+load('./shelf EBS NBS VAST/Gadus macrocephalus/temp3d/b2_19822022fit.RData')
 
 #project model example
 #p1<-project_model(x = fit,n_proj = n_proj)
@@ -346,9 +346,6 @@ n_cells<-length(cells)
 domain_input<-rep(1, n_cells)
 
 #stratification variables 
-# stratum_var_input<-data.frame(X1 = D7$varTemp,
-#                               X2 = D7$Lat) #Xspp #set different scenarios and spp ############ TO CHECK
-
 stratum_var_input<-data.frame(X1 = D7$varTemp,
                               X2 = D7$Depth) #Xspp #set different scenarios and spp ############ TO CHECK
 
@@ -370,8 +367,7 @@ frame <- data.frame(domainvalue = domain_input,
 ###################################
 
 #Initiate CVs to be those calculated under simple random sampling (SRS)
-srs_stats <- SamplingStrata::buildStrataDF(dataset = cbind( frame[, -grep(x = names(frame), pattern = "X")],
-                                                            X1 = 1))
+srs_stats <- SamplingStrata::buildStrataDF(dataset = cbind( frame[, -grep(x = names(frame), pattern = "X")],X1 = 1))
 
 #number of samples 
 #520 in 2022 (NBS and EBSshelf)
