@@ -349,7 +349,8 @@ domain_input<-rep(1, n_cells)
 # stratum_var_input<-data.frame(X1 = D7$varTemp,
 #                               X2 = D7$Lat) #Xspp #set different scenarios and spp ############ TO CHECK
 
-stratum_var_input<-data.frame(X1 = D7$varTemp,D7$Depth) #Xspp #set different scenarios and spp ############ TO CHECK
+stratum_var_input<-data.frame(X1 = D7$varTemp,
+                              X2 = D7$Depth) #Xspp #set different scenarios and spp ############ TO CHECK
 
 #target variables
 target_var_input<-data.frame(Y1 = D7$sumDensity) #D7$sqsumDensity #Ynspp #set different scenarios and spp ############ TO CHECK
@@ -495,14 +496,14 @@ temp_n <- sum(ceiling(temp_bethel))
 allocations<-as.integer(temp_bethel)
 
 #strata per cell
-temp_ids<-solution$indices$X1
+temp_ids<-solution$indices
 
 sample_vec <- c()
 
 #random sample for each strata
 for(istrata in 1:length(allocations)) {
   sample_vec <- c(sample_vec,
-                  sample(x = which(temp_ids == istrata),
+                  sample(x = temp_ids[which(temp_ids$X1==istrata),'ID'], #which(temp_ids == istrata)
                          size = allocations[istrata]) )
 }
 
