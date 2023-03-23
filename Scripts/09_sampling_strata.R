@@ -234,7 +234,7 @@ grid.ebs_year1<-grid.ebs_year[which(grid.ebs_year$region!='EBSslope'),]
 ###################################
 
 df_scn<-expand.grid(strat_var=c('Lat_LonE','Lat_Depth','Lat_varTemp','Lat_meanTempF','Depth_meanTempF','Depth_varTemp'),
-                    const_var=c('sumDensity'), #,'sqsumDensity'
+                    target_var=c('sumDensity'), #,'sqsumDensity'
                     n_samples=c(300,500))
 
 ###################################
@@ -350,15 +350,15 @@ l<-list()
 plot_l<-list()
 
 #run loop for each scenario
-for (scn in 1:nrow(df_scn)) {
-  #scn<-1
+#for (scn in 1:nrow(df_scn)) {
+  scn<-1
   
   #stratification variables 
-  stratum_var_input<-data.frame(X1 = D7[,sub("\\_.*", "", df_scn[scn,'strat_var'])],
-                                X2 = D7[,sub(".*_", "", df_scn[scn,'strat_var'])]) #Xspp #set different scenarios and spp ############ TO CHECK
+  stratum_var_input<-data.frame(X1 = D7[,paste0(sub("\\_.*", "", df_scn[scn,'strat_var']))],
+                                X2 = D7[,paste0(sub(".*_", "", df_scn[scn,'strat_var']))]) #Xspp #set different scenarios and spp ############ TO CHECK
   
   #target variables
-  target_var_input<-data.frame(Y1 = D7[,df_scn[scn,'const_var']]) #D7$sqsumDensity #Ynspp #set different scenarios and spp ############ TO CHECK
+  target_var_input<-data.frame(Y1 = D7[,paste0(df_scn[scn,'target_var'])]) #D7$sqsumDensity #Ynspp #set different scenarios and spp ############ TO CHECK
   
   #weights
   #in case add weights based on observed years
@@ -367,7 +367,8 @@ for (scn in 1:nrow(df_scn)) {
   frame <- data.frame(domainvalue = domain_input,
                       id = cells,
                       stratum_var_input,
-                      target_var_input) 
+                      target_var_input,
+                      WEIGHT=n_years) 
                       #WEIGHTS if want it WEIGHT=n_years
   
   ###################################
