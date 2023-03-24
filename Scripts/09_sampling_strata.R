@@ -1,9 +1,9 @@
 ####################################################################
 ####################################################################
 ##
-##    Sampling strata
-##    using devtools::install_github(repo = "zoyafuso-NOAA/SamplingStrata")
-##    Daniel Vilas (danielvilasgonzalez@gmail.com/dvilasg@uw.edu)
+##    Run sampling optimization based on predicted densities from VAST model
+##    (using devtools::install_github(repo = "zoyafuso-NOAA/SamplingStrata"))
+##    Daniel Vilas (daniel.vilas@noaa.gov/dvilasg@uw.edu)
 ##
 ####################################################################
 ####################################################################
@@ -262,8 +262,25 @@ load('./shelf EBS NBS VAST/Gadus macrocephalus/temp3d/b2_19822022fit.RData')
 # ARRANGE SIMULATED or PREDICTED DATA DATA
 #################################################
 
+## Years to use
+year_set <- as.numeric(fit$year_labels)
+years_included <- 1:length(year_set)
+n_years <- length(years_included)
+
+## Scientific and common names used in optimization
+spp<-'Gadus macrocephalus'
+sp<-'Gadus macrocephalus'
+
 #get predictions for category 1
+temp_dens_vals <- array(NA,
+                        dim = c(nrow(fit$extrapolation_list$Data_Extrap),length(spp),length(years_included)),
+                        dimnames = list(1:nrow(fit$extrapolation_list$Data_Extrap),spp,years_included))
+temp_dens_vals[, sp, ] <- fit$Report$D_gct[, 1, years_included]
+
+density_input<-temp_dens_vals
+
 D_gt<-fit$Report$D_gct[,1,]
+#dim(D_gt)
 #D_gt_proj<-D_gt[,paste0(project_yrs)]
 
 #drop units
@@ -318,6 +335,8 @@ D6$sqsumDensity<-(D6$sumDensity)^2
 
 #duplicate object to remove 
 D7<-D6[which(D6$Depth>0),]
+
+#cells including positive depth
 cells<-unique(D7$cell)
 
 #convert SBT into F to get positive values only
@@ -350,15 +369,16 @@ l<-list()
 plot_l<-list()
 
 #run loop for each scenario
-#for (scn in 1:nrow(df_scn)) {
-  scn<-1
+for (scn in 1:nrow(df_scn)) {
+  #scn<-2
   
   #stratification variables 
   stratum_var_input<-data.frame(X1 = D7[,paste0(sub("\\_.*", "", df_scn[scn,'strat_var']))],
                                 X2 = D7[,paste0(sub(".*_", "", df_scn[scn,'strat_var']))]) #Xspp #set different scenarios and spp ############ TO CHECK
   
   #target variables
-  target_var_input<-data.frame(Y1 = D7[,paste0(df_scn[scn,'target_var'])]) #D7$sqsumDensity #Ynspp #set different scenarios and spp ############ TO CHECK
+  target_var_input<-data.frame(Y1 = D7$sumDensity,
+                               Y1_SQ_SUM = D7$sqsumDensity) #D7$sqsumDensity #Ynspp #set different scenarios and spp ############ TO CHECK
   
   #weights
   #in case add weights based on observed years
@@ -367,10 +387,29 @@ plot_l<-list()
   frame <- data.frame(domainvalue = domain_input,
                       id = cells,
                       stratum_var_input,
-                      target_var_input,
-                      WEIGHT=n_years) 
+                      WEIGHT=n_years,
+                      target_var_input) 
                       #WEIGHTS if want it WEIGHT=n_years
   
+  # frame1 <- cbind(
+  #   data.frame(domainvalue = domain_input,
+  #              id = cells,
+  #              stratum_var_input,
+  #              WEIGHT = n_years),
+  #   
+  #   matrix(data = apply(X = density_input,
+  #                       MARGIN = 1,
+  #                       FUN = sum),
+  #          ncol = 1,
+  #          dimnames = list(NULL, paste0("Y1"))),
+  #   
+  #   matrix(data = apply(X = density_input,
+  #                       MARGIN = 1,
+  #                       FUN = function(x) sum(x^2)),
+  #          ncol = 1,
+  #          dimnames = list(NULL, paste0("Y", 1, "_SQ_SUM")))
+  # )
+  # 
   ###################################
   # SIMPLE RANDOM SAMPLING CV CONSTRAINTS
   ###################################
@@ -543,17 +582,23 @@ plot_l<-list()
   #########################
   # MAP POINTS
   #########################
-  
-  p<-ggplot()+
+
+  p<-
+    ggplot()+
         geom_point(data=D8_2, aes(Lon, Lat, fill=Strata, group=NULL),size=1.2, stroke=0,shape=21)+
-        scale_fill_gradientn(colours=pal,guide = guide_legend(),breaks=sort(unique(D8_2$Strata)),labels=paste0(sort(unique(D8_2$Strata))," (n=",allocations,')'))+
+        scale_fill_gradientn(colours=c("#ea5545", "#f46a9b", "#ef9b20", "#edbf33", "#ede15b", "#bdcf32", "#87bc45", "#27aeef", "#b33dc6"),
+                             guide = guide_legend(),breaks=sort(unique(D8_2$Strata)),labels=paste0(sort(unique(D8_2$Strata))," (n=",allocations,')'))+
         geom_point(data=df,aes(x=Lon,y=Lat,color=Stations,shape=Stations),size=1.5)+
         scale_color_manual(values = c('optimization'='white',
                                       'current design'='black',
-                                      'corner crab'='purple'))+
+                                      'corner crab'='black'),
+                           breaks=unique(df$Stations),
+                           labels=paste0(unique(df$Stations)," (n=",c(nrow(points1),nrow(st_EBS),nrow(st_corners1)),')'))+
         scale_shape_manual(values = c('optimization'=20,
                                       'current design'=4,
-                                      'corner crab'=20))+
+                                      'corner crab'=3),
+                           breaks=unique(df$Stations),
+                           labels=paste0(unique(df$Stations)," (n=",c(nrow(points1),nrow(st_EBS),nrow(st_corners1)),')'))+
         #geom_point(data=st_EBS,aes(x=longitude,y=latitude),shape=4,size=1)+
         #geom_point(data=st_corners1,aes(x=longitude,y=latitude),color='red',shape=20,size=1)+
         geom_polygon(data=ak_sppoly,aes(x=long,y=lat,group=group),fill = 'grey60')+
@@ -575,14 +620,14 @@ plot_l<-list()
               axis.text = element_text(color='black'),legend.spacing.y = unit(10, 'points'),
               axis.text.y.right = element_text(hjust= 0.1 ,margin = margin(0,7,0,-25, unit = 'points'),color='black'),
               axis.text.x = element_text(vjust = 6, margin = margin(-7,0,7,0, unit = 'points'),color='black'),
-              axis.ticks.length = unit(-5,"points"),plot.title = element_text(size=16,vjust = -10, hjust=0.95))+
+              axis.ticks.length = unit(-5,"points"),plot.title = element_text(size=12,vjust = -18, hjust=0.95))+
         annotate("text", x = -256559, y = 1354909, label = "Alaska",parse=TRUE,size=7)+
         annotate("text", x = -1376559, y = 2049090, label = "Russia",parse=TRUE,size=7)+
         scale_y_continuous(expand = c(0,0),position = 'right',sec.axis = dup_axis())+
         annotate("text", x = -1376559, y = 744900, label = "italic('Bering Sea')",parse=TRUE,size=9)+
         guides(fill = guide_legend(override.aes=list(shape = 22,size=8)),
-               color = guide_legend(override.aes=list(size=8)))+
-        labs(title=paste0(df_scn[scn,'strat_var'],' n=',df_scn[scn,'n_samples']))
+               color = guide_legend(override.aes=list(size=6)))+
+        labs(title=paste0('Scenario\n',df_scn[scn,'strat_var'],' n=',df_scn[scn,'n_samples']))
   
   plot_l[[scn]]<-p
 
