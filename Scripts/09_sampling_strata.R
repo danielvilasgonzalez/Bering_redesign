@@ -368,7 +368,11 @@ domain_input<-rep(1, n_cells)
 l<-list()
 plot_l<-list()
 
-#run loop for each scenario
+#########################
+# RUN LOOP SCENARIOS
+#########################
+
+#loop through scenarios
 for (scn in 1:nrow(df_scn)) {
   #scn<-2
   
@@ -585,7 +589,7 @@ for (scn in 1:nrow(df_scn)) {
 
   p<-
     ggplot()+
-        geom_point(data=D8_2, aes(Lon, Lat, fill=Strata, group=NULL),size=1.2, stroke=0,shape=21)+
+        geom_point(data=D8_2, aes(Lon, Lat, fill=Strata, group=NULL),size=1, stroke=0,shape=21)+
         scale_fill_gradientn(colours=c("#ea5545", "#f46a9b", "#ef9b20", "#edbf33", "#ede15b", "#bdcf32", "#87bc45", "#27aeef", "#b33dc6"),
                              guide = guide_legend(),breaks=sort(unique(D8_2$Strata)),labels=paste0(sort(unique(D8_2$Strata))," (n=",allocations,')'))+
         geom_point(data=df,aes(x=Lon,y=Lat,color=Stations,shape=Stations),size=1.5)+
@@ -613,22 +617,33 @@ for (scn in 1:nrow(df_scn)) {
                  ylim = panel_extent$y,
                  label_axes = "-NE-")+
         theme(aspect.ratio = 1,panel.grid.major = element_line(color = rgb(0, 0, 0,20, maxColorValue = 285), linetype = 'dashed', linewidth =  0.5),
-              panel.background = element_rect(fill = NA),panel.ontop = TRUE,text = element_text(size=10),
-              legend.background =  element_rect(fill = "transparent", colour = "transparent"),legend.key.height= unit(25, 'points'),
-              legend.key.width= unit(25, 'points'),axis.title = element_blank(),legend.position = c(0.12,0.47),
+              panel.background = element_rect(fill = NA),panel.ontop = TRUE,text = element_text(size=12),
+              legend.background =  element_rect(fill = "transparent", colour = "transparent"),legend.key.height= unit(20, 'points'),
+              legend.key.width= unit(20, 'points'),axis.title = element_blank(),legend.position = c(0.12,0.47),
               panel.border = element_rect(fill = NA, colour = 'black'),legend.key = element_rect(color="black"),
-              axis.text = element_text(color='black'),legend.spacing.y = unit(10, 'points'),
+              axis.text = element_text(color='black'),legend.spacing.y = unit(8, 'points'),
               axis.text.y.right = element_text(hjust= 0.1 ,margin = margin(0,7,0,-25, unit = 'points'),color='black'),
               axis.text.x = element_text(vjust = 6, margin = margin(-7,0,7,0, unit = 'points'),color='black'),
-              axis.ticks.length = unit(-5,"points"),plot.title = element_text(size=12,vjust = -18, hjust=0.95))+
+              axis.ticks.length = unit(-5,"points"),plot.title = element_text(size=12,vjust = -18, hjust=0.95,face="bold"))+
         annotate("text", x = -256559, y = 1354909, label = "Alaska",parse=TRUE,size=7)+
-        annotate("text", x = -1376559, y = 2049090, label = "Russia",parse=TRUE,size=7)+
+        annotate("text", x = -1296559, y = 2049090, label = "Russia",parse=TRUE,size=7)+
         scale_y_continuous(expand = c(0,0),position = 'right',sec.axis = dup_axis())+
-        annotate("text", x = -1376559, y = 744900, label = "italic('Bering Sea')",parse=TRUE,size=9)+
+        annotate("text", x = -1296559, y = 744900, label = "italic('Bering Sea')",parse=TRUE,size=9)+
         guides(fill = guide_legend(override.aes=list(shape = 22,size=8)),
-               color = guide_legend(override.aes=list(size=6)))+
+               color = guide_legend(override.aes=list(size=5)))+
         labs(title=paste0('Scenario\n',df_scn[scn,'strat_var'],' n=',df_scn[scn,'n_samples']))
   
+  #save image
+  print(p)
+  ggsave(paste0('./figures/optimization_',sp,"_",scn[1],'.png'), width = 10, height = 9)
+  
+  #store into the list
   plot_l[[scn]]<-p
-
+  
 }
+
+#save results list
+save(l,file=paste0('./shelf EBS NBS VAST/Gadus macrocephalus/temp3d/optimization_summary_',sp,'.RData'))
+
+#save plot list
+save(plot_l,file=paste0('./shelf EBS NBS VAST/Gadus macrocephalus/temp3d/optimization_plot_',sp,'.RData'))
