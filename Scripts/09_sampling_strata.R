@@ -242,7 +242,7 @@ df_scn<-expand.grid(strat_var=c('Lat_LonE','Lat_Depth','Lat_varTemp','Lat_meanTe
 ###################################
 
 #load fit file
-load('./shelf EBS NBS VAST/Gadus macrocephalus/temp3d/b2_19822022fit.RData')
+load('./shelf EBS NBS VAST/Gadus macrocephalus/temp3d/b0_19822022fit.RData')
 
 #project model example
 #p1<-project_model(x = fit,n_proj = n_proj)
@@ -573,16 +573,11 @@ for (scn in 1:nrow(df_scn)) {
 
   p<-
     ggplot()+
-        geom_point(data=D8_2, aes(Lon, Lat, fill=Strata, group=NULL),size=1, stroke=0,shape=21)+
+        geom_point(data=D8_2, aes(Lon, Lat, fill=Strata, group=NULL),size=2, stroke=0,shape=21)+
         scale_fill_gradientn(colours=c("#ea5545", "#f46a9b", "#ef9b20", "#edbf33", "#ede15b", "#bdcf32", "#87bc45", "#27aeef", "#b33dc6"),
                              guide = guide_legend(),breaks=sort(unique(D8_2$Strata)),labels=paste0(sort(unique(D8_2$Strata))," (n=",allocations,')'))+
-        geom_point(data=df,aes(x=Lon,y=Lat,color=Stations,shape=Stations),size=1.5)+
-        scale_color_manual(values = c('optimization'='white',
-                                      'current design'='black',
-                                      'corner crab'='black'),
-                           breaks=unique(df$Stations),
-                           labels=paste0(unique(df$Stations)," (n=",c(nrow(points1),nrow(st_EBS),nrow(st_corners1)),')'))+
-        scale_shape_manual(values = c('optimization'=20,
+        geom_point(data=df,aes(x=Lon,y=Lat,color=Stations,shape=Stations),fill='white',color='black',size=2)+
+        scale_shape_manual(values = c('optimization'=21,
                                       'current design'=4,
                                       'corner crab'=8),
                            breaks=unique(df$Stations),
@@ -601,7 +596,7 @@ for (scn in 1:nrow(df_scn)) {
                  ylim = panel_extent$y,
                  label_axes = "-NE-")+
         theme(aspect.ratio = 1,panel.grid.major = element_line(color = rgb(0, 0, 0,20, maxColorValue = 285), linetype = 'dashed', linewidth =  0.5),
-              panel.background = element_rect(fill = NA),panel.ontop = TRUE,text = element_text(size=12),
+              panel.background = element_rect(fill = NA),panel.ontop = TRUE,text = element_text(size=14),
               legend.background =  element_rect(fill = "transparent", colour = "transparent"),legend.key.height= unit(20, 'points'),
               legend.key.width= unit(20, 'points'),axis.title = element_blank(),legend.position = c(0.12,0.47),
               panel.border = element_rect(fill = NA, colour = 'black'),legend.key = element_rect(color="black"),
@@ -615,13 +610,13 @@ for (scn in 1:nrow(df_scn)) {
         scale_y_continuous(expand = c(0,0),position = 'right',sec.axis = dup_axis())+
         annotate("text", x = -1296559, y = 744900, label = "italic('Bering Sea')",parse=TRUE,size=9)+
         guides(fill = guide_legend(order=2,override.aes=list(shape = 22,size=8)),
-               color = guide_legend(order=1,override.aes=list(size=5)),
-               shape = guide_legend(order=1))+
+               color = guide_legend(order=1,override.aes=list(size=8)),
+               shape = guide_legend(order=1),override.aes=list(size=8))+
         labs(title=paste0('Scenario\n',df_scn[scn,'strat_var'],' n=',df_scn[scn,'n_samples']))
   
   #save image
   print(p)
-  ggsave(paste0('./figures/optimization_',sp,"_",scn[1],'.png'), width = 9, height = 9)
+  ggsave(paste0('./figures/optimization_',sp,"_",scn,'.png'), width = 9, height = 9)
   
   #store into the list
   plot_l[[scn]]<-p

@@ -36,7 +36,7 @@ setwd(out_dir)
 version<-'VAST_v13_1_0'
 
 #number of knots
-knots<-'500' #100
+knots<-'500' #1000 
 
 #years
 yrs<-1982:2022
@@ -135,10 +135,10 @@ region<-c("northern_bering_sea","eastern_bering_sea")
                             knot_method='grid',
                             use_anisotropy=TRUE,
                             #FieldConfig = c("Omega1"="IID", "Epsilon1"="IID", "Omega2"="IID", "Epsilon2"="IID"),
-                            RhoConfig=c("Beta1"=2,"Beta2"=2,"Epsilon1"=4,"Epsilon2"=4), 
+                            RhoConfig=c("Beta1"=0,"Beta2"=0,"Epsilon1"=4,"Epsilon2"=4), 
                             Version = version,
                             #fine_scale=TRUE,
-                            ObsModel = c(2,1), #c(2,3) if encounter 100% year
+                            ObsModel = c(2,3), #c(2,3) if encounter 100% year
                             max_cells = Inf,
                             Options = c("Calculate_Range" =  F, 
                                         "Calculate_effective_area" = F)) 
@@ -240,7 +240,7 @@ region<-c("northern_bering_sea","eastern_bering_sea")
   #     working_dir=paste(out_dir,fol_region,sp,m,'/',sep='/'))
   
   #save fit
-  save(list = "fit", file = paste(out_dir,fol_region,sp,m,'b2_19822022fit.RData',sep='/')) #paste(yrs_region,collapse = "")
+  save(list = "fit", file = paste(out_dir,fol_region,sp,m,'b0_19822022fit.RData',sep='/')) #paste(yrs_region,collapse = "")
   
   #convergence
   diagnostics[m,'status',sp]<-ifelse(test = is.null(fit) == T | is.null(fit$parameter_estimates$max_gradient),"no_convergence","check_gradient")
