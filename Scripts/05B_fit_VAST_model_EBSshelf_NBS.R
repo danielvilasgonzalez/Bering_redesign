@@ -134,15 +134,19 @@ region<-c("northern_bering_sea","eastern_bering_sea")
                             bias.correct=FALSE,
                             knot_method='grid',
                             use_anisotropy=TRUE,
-                            #FieldConfig = c("Omega1"="IID", "Epsilon1"="IID", "Omega2"="IID", "Epsilon2"="IID"),
-                            RhoConfig=c("Beta1"=0,"Beta2"=0,"Epsilon1"=4,"Epsilon2"=4), 
+                            FieldConfig = matrix( c("IID","IID",0,"Identity", "IID","IID",0,"Identity"), 
+                                                  ncol=2, 
+                                                  nrow=4, 
+                                                  dimnames=list(c("Omega","Epsilon","Beta","Epsilon_year"),c("Component_1","Component_2"))),
+                            #FieldConfig = c("Omega1"="IID", "Epsilon1"="IID", "Omega2"="IID", "Epsilon2"="IID",'Beta1'=0,'Beta2'=0),
+                            RhoConfig=c("Beta1"=2,"Beta2"=2,"Epsilon1"=4,"Epsilon2"=4), 
                             Version = version,
                             #fine_scale=TRUE,
-                            ObsModel = c(2,3), #c(2,3) if encounter 100% year
+                            ObsModel = c(2,1), #c(2,3) if encounter 100% year
                             max_cells = Inf,
                             Options = c("Calculate_Range" =  F, 
                                         "Calculate_effective_area" = F)) 
-  
+
   
   # if (m=='null') {
   #   
