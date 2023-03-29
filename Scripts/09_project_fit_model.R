@@ -109,10 +109,14 @@ ebs_sh<-EBSshelf_sh
 pal<-wesanderson::wes_palette('Zissou1',21,type='continuous')
 
 ##############################
-#FIT PROJECT SETTINGS
+# FIT PROJECT SETTINGS
 #############################
+
+#fit file
+ff<-'b2_19822022fit.RData'
+
 #load fit file
-load('./shelf EBS NBS VAST/Gadus macrocephalus/temp3d/b2_19822022fit.RData')
+load(paste0('./shelf EBS NBS VAST/Gadus macrocephalus/temp3d/',ff))
 
 #add covariate data for the projected years into the fit$covariate_data
 fit$covariate_data
@@ -127,8 +131,105 @@ n_proj<-1
 project_yrs<-(last(yrs)+1):(last(yrs)+n_proj)
 
 ##############################
-# 
+# SBT SCENARIOS
 #############################
+
+#get scenarios
+df_scn<-read.csv('./tables/SBT_scenarios.csv')
+df_scn<-df_scn[,c(1:7)]
+
+#get raster stack
+stack_files<-list.files('./data processed/SBT scenarios/')
+
+#list covariate data for each scenario
+cov_list<-list()
+
+#list projected data for each scenario
+pr_list<-list()
+
+#loop over scenarios
+for (scn in 1:nrow(df_scn)) {
+  
+  scn<-1
+  
+  if (scn!=1) {
+    #load fit file
+    load(paste0('./shelf EBS NBS VAST/Gadus macrocephalus/temp3d/',ff))
+  }
+  
+  
+  st<-stack_files[grepl(paste0('scn',scn),stack_files)][1]
+  st<-stack(paste0('./data processed/SBT scenarios/',st))
+  
+  #reproject shapefile
+  proj4string(st) <- CRS('+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs') 
+  
+  #raster to points
+  points<-data.frame(rasterToPoints(st))
+  
+  #create a df to store
+  points3<-data.frame(matrix(nrow = 0,ncol = ncol(fit$covariate_data)))
+  names(points3)<-names(fit$covariate_data)
+  
+  for (y in project_yrs) {
+    
+    #y<-project_yrs[1]
+    
+    #get points for year
+    points1<-points[,c('x','y',paste0('y',y))]
+    names(points1)<-c('Lon',"Lat",'BotTemp')
+    
+    #reproject df
+    coordinates(points1)<- ~ Lon + Lat
+    proj4string(points1) <- CRS('+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs') 
+    points1<-spTransform(points1,CRSobj = CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"))
+    
+    #create a new df
+    points2<-data.frame(cbind(Year=y,Lat=points1$Lat,Lon=points1$Lon,ScaleLogDepth=NA,LogDepth=NA,ScaleBotTemp=NA,BotTemp=points1$BotTemp,CPUE_kg=NA))
+    
+    #add year
+    points3<-rbind(points3,points2)
+    
+  }
+  
+  
+  #add year to covariate data from fit
+  cov_list[[scn]]<-points3
+  
+  #add to covariate data
+  fit$covariate_data<-rbind(fit$covariate_data,points3)
+
+  #project model example
+  pm<-project_model(x = fit,n_proj = n_proj)
+  
+  #add year to covariate data from fit
+  pr_list[[scn]]<-pm
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+############################
+# OLD
+############################
+
+
+
 
 df_proj<-subset(fit$covariate_data,Year==2022)
 df_proj$BotTemp<-df_proj$BotTemp+0.5
