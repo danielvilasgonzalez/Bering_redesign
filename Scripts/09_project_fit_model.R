@@ -19,9 +19,13 @@ pack_cran<-c("splines")
 if (!('pacman' %in% installed.packages())) {
   install.packages("pacman")}
 
-#install coldpool to extract SBT for the EBS
+#install VAST if necessary
 if (!('VAST' %in% installed.packages())) {
   devtools::install_github("james-thorson/VAST@main", INSTALL_opts="--no-staged-install")};library(VAST)
+
+#install akgfmaps if necessary
+if (!('akgfmaps' %in% installed.packages())) {
+  devtools::install_github("afsc-gap-products/akgfmaps", build_vignettes = TRUE)};library(akgfmaps)
 
 #load/install packages
 pacman::p_load(pack_cran,character.only = TRUE)
@@ -49,6 +53,10 @@ dir.create('./shapefiles/',showWarnings = FALSE)
 
 #name shapefiles 
 shfiles<-c('EBSshelfThorson','NBSThorson','EBSslopeThorson')
+
+#get files from google drive and set up
+files<-googledrive::drive_find()
+1 #for dvilasg@uw.edu
 
 #get id shared folder from google drive
 id.bering.folder<-files[which(files$name=='Shapefiles'),'id']
@@ -104,16 +112,29 @@ pal<-wesanderson::wes_palette('Zissou1',21,type='continuous')
 #FIT PROJECT SETTINGS
 #############################
 #load fit file
-load('./shelf EBS NBS VAST/Gadus macrocephalus/temp3d/b1_19822010fit.RData')
+load('./shelf EBS NBS VAST/Gadus macrocephalus/temp3d/b2_19822022fit.RData')
 
 #add covariate data for the projected years into the fit$covariate_data
 fit$covariate_data
+
+#yrs
+yrs<-as.integer(fit$year_labels)
 
 #how manyt projected years we want
 n_proj<-1
 
 #project_yrs
-project_yrs<-((unique(fit$data_frame$t_i)[length(unique(fit$data_frame$t_i))]+1)):((unique(fit$data_frame$t_i)[length(unique(fit$data_frame$t_i))]+n_proj))
+project_yrs<-(last(yrs)+1):(last(yrs)+n_proj)
+
+##############################
+# 
+#############################
+
+df_proj<-subset(fit$covariate_data,Year==2022)
+df_proj$BotTemp<-df_proj$BotTemp+0.5
+df_proj$Year<- project_yrs
+
+fit$covariate_data<-rbind(fit$covariate_data,df_proj)
 
 #lets add BotTemp for the year 2011 
 ############################
