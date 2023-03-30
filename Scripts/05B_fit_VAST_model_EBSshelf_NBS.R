@@ -244,7 +244,7 @@ region<-c("northern_bering_sea","eastern_bering_sea")
   #     working_dir=paste(out_dir,fol_region,sp,m,'/',sep='/'))
   
   #save fit
-  save(list = "fit", file = paste(out_dir,fol_region,sp,m,'b0_19822022fit.RData',sep='/')) #paste(yrs_region,collapse = "")
+  save(list = "fit", file = paste(out_dir,fol_region,sp,m,'b02_19822022fit.RData',sep='/')) #paste(yrs_region,collapse = "")
   
   #convergence
   diagnostics[m,'status',sp]<-ifelse(test = is.null(fit) == T | is.null(fit$parameter_estimates$max_gradient),"no_convergence","check_gradient")
