@@ -101,7 +101,7 @@ ggplot() +
 ######################################
 
 df_scn<-read.csv('./tables/SBT_scenarios.csv')
-df_scn<-df_scn[,c(1:7)]
+df_scn<-df_scn[,c(1:8)]
 
 #load grid
 load('./extrapolation grids/lastversion_grid_EBS.RData')
@@ -136,9 +136,9 @@ dir.create('./data processed/SBT scenarios/')
 #brksUniv <- seq(-8,10, length.out=numberOfBreaks)
 
 #loop over scenarios and projected years
-for (scn in 1:nrow(df_scn)) {
+for (scn in unique(df_scn$scn_n)) {
 
-  #scn<-2
+  #scn<-3
   
   #create stack
   sbt_stack<-stack()
@@ -156,7 +156,7 @@ for (scn in 1:nrow(df_scn)) {
     #modify raster y2022
     r3<-r2
     names(r3)<-paste0('y',yrs[y])
-    values(r3)<-values(r3)+df_scn[scn,paste0('y',yrs[y])]
+    values(r3)<-values(r3)+df_scn[which(df_scn$scn_n==scn),paste0('y',yrs[y])]
     
     #add layer to stack
     sbt_stack<-addLayer(sbt_stack,r3)
@@ -173,12 +173,12 @@ for (scn in 1:nrow(df_scn)) {
               layout=c(6, 1),
               col.regions=pal,
               main=paste('Scenario',
-                         df_scn[scn,"Scenario"]),
+                         df_scn[which(df_scn$scn_n==scn),"Scenario"]),
               contour=TRUE))
   dev.off()
 }
 
-#modified scenarios (cumulative change)
+#scenarios
 df_scn<-read.csv('./tables/SBT_scenarios.csv')
 df_scn<-df_scn[,1:7]
 
