@@ -38,6 +38,9 @@ setwd(out_dir)
 #version VAST (cpp)
 version<-'VAST_v13_1_0'
 
+#sp
+sp<-'Gadus macrocephalus'
+
 ##############################
 #OBJECTS FOR PLOTTING
 #############################
@@ -241,9 +244,37 @@ df_scn<-expand.grid(strat_var=c('Lat_LonE','Lat_Depth','Lat_varTemp','Lat_meanTe
 # LOAD FIT OBJECT (from VAST::fit_model()) or VAST::project_model()
 ###################################
 
-#load fit file
-load('./shelf EBS NBS VAST/Gadus macrocephalus/temp3d/b0_19822022fit.RData')
+#fit data
+ff<-'b2_19822022fit.RData'
 
+#load fit file
+load(paste0('./shelf EBS NBS VAST/Gadus macrocephalus/temp3d/',ff))
+
+#load list of projections
+load(paste0('./output/',sp,'_projection_data.RData')) #pr_list
+
+#scenarios
+names(pr_list)
+
+#number of scenarios
+n_scn<-length(pr_list)
+
+for (scn in names(pr_list)) {
+  
+  scn<-names(pr_list)[1]
+  
+  #load projected list for scenario
+  fit_pr<-pr_list[[scn]]
+
+  #years fit+projected
+  yrs_all<-as.integer(dimnames(fit_pr$D_gct)[[3]])
+  
+  #yrs fit
+  yrs_fit<-fit_pr$year_set
+  
+  #yrs projection
+  yrs_pr<-setdiff(yrs_all,yrs_fit)
+  
 #project model example
 #p1<-project_model(x = fit,n_proj = n_proj)
 
@@ -263,9 +294,9 @@ load('./shelf EBS NBS VAST/Gadus macrocephalus/temp3d/b0_19822022fit.RData')
 #################################################
 
 ## Years to use
-year_set <- as.numeric(fit$year_labels)
-years_included <- 1:length(year_set)
-n_years <- length(years_included)
+# year_set <- as.numeric(fit$year_labels)
+# years_included <- 1:length(year_set)
+# n_years <- length(years_included)
 
 ## Scientific and common names used in optimization
 spp<-'Gadus macrocephalus'
@@ -273,27 +304,27 @@ sp<-'Gadus macrocephalus'
 
 #get predictions for category 1
 temp_dens_vals <- array(NA,
-                        dim = c(nrow(fit$extrapolation_list$Data_Extrap),length(spp),length(years_included)),
-                        dimnames = list(1:nrow(fit$extrapolation_list$Data_Extrap),spp,years_included))
-temp_dens_vals[, sp, ] <- fit$Report$D_gct[, 1, years_included]
+                        dim = c(fit_pr$n_g,length(spp),length(yrs_all)),
+                        dimnames = list(1:fit_pr$n_g,spp,yrs_all))
+temp_dens_vals[, sp, ] <- fit_pr$D_gct[, 1, as.character(yrs_all)]
 
-density_input<-temp_dens_vals
+#density_input<-temp_dens_vals
 
-D_gt<-fit$Report$D_gct[,1,]
+D_gt<-temp_dens_vals[, sp, ]
 #dim(D_gt)
 #D_gt_proj<-D_gt[,paste0(project_yrs)]
 
 #drop units
-D_gt<-drop_units(D_gt)
+#D_gt<-drop_units(D_gt)
 
 #dataframe of cells with predictions
-D_gt<-data.frame('cell'=c(1:fit$spatial_list$n_g),D_gt)
+D_gt<-data.frame('cell'=c(1:fit_pr$n_g),D_gt)
 
 #remove duplicates just in case
 D_gt<-D_gt[!duplicated(as.list(D_gt))]
 
 #years simulated
-yrs<-as.numeric(fit$year_labels)
+yrs<-as.numeric(yrs_all)
 
 #rename years predictions 
 colnames(D_gt)<-c('cell',yrs) #,project_yrs
@@ -302,7 +333,7 @@ colnames(D_gt)<-c('cell',yrs) #,project_yrs
 D_gt1<-reshape2::melt(D_gt,id=c('cell'))
 
 #get map info
-mdl <- make_map_info(Region = fit$settings$Region,
+mdl <- make_map_info(Region = fit$settings$Region, 
                      spatial_list = fit$spatial_list,
                      Extrapolation_List = fit$extrapolation_list)
 
@@ -317,6 +348,8 @@ grid.ebs_year2<-grid.ebs_year1[which(grid.ebs_year1$Year %in% yrs),]
 
 #merge grid data and predictions
 D1<-merge(D,grid.ebs_year2,by=c('Lat','Lon','Year'))
+
+#subset by year (maybe to change to get for the forecasted ones)
 
 #static sampling so, we want to aggregate annual predictions: mean density, mean temp, and temp var
 D2<-aggregate(cbind(Temp,Density) ~ Lat+Lon+cell+Depth, data = D1, FUN = mean, na.rm = TRUE)
@@ -509,6 +542,17 @@ for (scn in 1:nrow(df_scn)) {
   #reproject coordinates for plotting purposes
   D8_1<-spTransform(D8,'+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs')
   D8_2<-data.frame(D8_1)
+  
+  #x and y cells
+  xycells<-as.integer(sqrt(dim(D8_1)[1]))
+  
+  # create a template raster
+  r1 <- raster(ext=extent(D8_1),ncol=xycells, nrow=xycells) #c(15800,15800) 7000
+  
+  #create raster
+  r2<-rasterize(D8_1, r1 ,field='value')
+  crs(r2) <- CRS('+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs')
+  #plot(r2)
   
   ###################################
   # MULTIVARIATE OPTIMAL ALLOCATION
