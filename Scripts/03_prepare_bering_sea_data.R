@@ -135,24 +135,25 @@ summary(all1)
 
 #create folder
 dir.create('./data processed/',showWarnings = FALSE)
+dir.create('./data processed/species/',showWarnings = FALSE)
 
 #add year and month
 all1$month<-month(as.POSIXlt(all1$date, format="%d/%m/%Y"))
 all1$year<-year(as.POSIXlt(all1$date, format="%d/%m/%Y"))
 
 #save data_geostat file
-saveRDS(all1, paste0('./data processed/slope_shelf_EBS_NBS_data_geostat.rds'))
+saveRDS(all1, paste0('./data processed/species/slope_shelf_EBS_NBS_data_geostat.rds'))
 
 #loop over species to create data_geostat df
-for (sp in splist) {
+for (sp in spp) {
   
-  #sp<-splist[3]
+  #sp<-spp[3]
   
   #print species to check progress
   cat(paste("    -----", sp, "-----\n"))
   
   #create folder to store results
-  dir.create(paste0('./data processed/',sp),
+  dir.create(paste0('./data processed/species/',sp),
              showWarnings = FALSE)
   
   #filter by sp
@@ -163,7 +164,7 @@ for (sp in splist) {
   #xx<-all2[which(is.na(all2$bottom_temp_c)),]
   #summary(xx)
   #save data_geostat file
-  saveRDS(all2, paste0('./data processed/',sp,'/data_geostat.rds'))
+  saveRDS(all2, paste0('./data processed/species/',sp,'/data_geostat.rds'))
   
 }
 
