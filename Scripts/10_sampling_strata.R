@@ -72,7 +72,7 @@ files.1<-googledrive::drive_ls(id.bering.folder$id)
 #loop over shapefiles
 for (i in shfiles) {
   
-  #i=shfiles[1]
+   #i=shfiles[1]
   
   id.data<-files.1[which(grepl(i,files.1$name)),]
   
