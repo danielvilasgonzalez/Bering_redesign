@@ -75,8 +75,9 @@ fs<-c('X1','X2')
     
     #load fit file
     #load(paste(out_dir,fol_region,sp,m,'/fit.RData',sep = '/'))
-    #load('C:/Users/Daniel.Vilas/Work/Adapting Monitoring to a Changing Seascape/slope EBS VAST/Gadus macrocephalus/depth3d/fit.RData')
-  
+    load('C:/Users/Daniel.Vilas/Work/Adapting Monitoring to a Changing Seascape/slope EBS VAST/Gadus macrocephalus/depth3d/fit.RData')
+    load('C:/Users/Daniel.Vilas/Work/Adapting Monitoring to a Changing Seascape/shelf EBS NBS VAST/Gadus macrocephalus/temp3d/b2_19822022fit.RData')
+    
     
     if (grepl('depth',m)) {
       
@@ -84,7 +85,7 @@ fs<-c('X1','X2')
       for (f in fs) {
       
         #formula
-        f<-'X2'
+        f<-'X1'
         
         #for title purposes
         f1<-ifelse(f=='X1','presence','positive')
@@ -105,7 +106,7 @@ fs<-c('X1','X2')
                 #main=paste(m,'model -',f1),
                 axes=list(grid=TRUE, 
                           x=list(rug=FALSE,
-                                 Depth=list(lab="Depth (scale log m)")),
+                                 Depth=list(lab="BotTemp")),
                           y=list(rug=FALSE,
                                  lab="Catch (kg)")))
         
