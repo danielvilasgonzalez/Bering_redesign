@@ -36,7 +36,7 @@ sta_y<-1982
 end_y<-2022
 
 #selected species
-splist<-c('Limanda aspera',
+spp<-c('Limanda aspera',
            'Gadus chalcogrammus',
            'Gadus macrocephalus',
            'Atheresthes stomias',
@@ -615,18 +615,18 @@ save(grid.ebs_year,file='./extrapolation grids/lastversion_grid_EBS.RData')
 #####################################
 
 #get species name
-splist<-list.dirs('./data processed/',full.names = FALSE,recursive = FALSE)
+spp<-list.dirs('./data processed/species/',full.names = FALSE,recursive = FALSE)
 
 #loop over species to add SBT to data_geostat
-for (sp in splist) {
+for (sp in spp) {
 
-  #sp<-splist[3]
+  #sp<-spp[3]
 
   #print species to check progress
   cat(paste(" ############# ", sp, " #############\n"))
   
   #open data_geostat
-  df1<-readRDS(paste0('./data processed/',sp,'/data_geostat.rds'))
+  df1<-readRDS(paste0('./data processed/species/',sp,'/data_geostat.rds'))
   
   #create df to store results
   df1_temp<-data.frame(matrix(nrow=0,
@@ -785,7 +785,7 @@ for (sp in splist) {
   
   #save data_geostat with SBT
   saveRDS(df1_temp,
-          paste0('./data processed/',sp,'/data_geostat_temp.rds'))
+          paste0('./data processed/species/',sp,'/data_geostat_temp.rds'))
   
 }
 
