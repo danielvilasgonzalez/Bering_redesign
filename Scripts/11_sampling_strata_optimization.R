@@ -252,7 +252,8 @@ grid.ebs_year1<-grid.ebs_year[which(grid.ebs_year$region!='EBSslope'),]
 
 samp_df<-expand.grid(strat_var=c('Lat_LonE','Lat_Depth','Lat_varTemp','Lat_meanTempF','Depth_meanTempF','Depth_varTemp'),
                     target_var=c('sumDensity'), #,'sqsumDensity'
-                    n_samples=c(300,500))
+                    n_samples=c(300,500),
+                    n_strata=c(5,10,15))
 
 samp_df$samp_scn<-paste0(paste0('scn',1:nrow(samp_df)))
 
@@ -309,7 +310,7 @@ for (sp in spp) {
   #loop through sbt scenarios scenarios
   for (sbt_scn in dimnames(static_dens_vals)[[3]]) {
     
-    sbt_scn<-'scn1'
+    #sbt_scn<-'scn1'
     
     #df of sbt_scn
     static_df<-data.frame(static_dens_vals[,,sbt_scn])
@@ -380,19 +381,20 @@ for (sp in spp) {
       # STRATAS
       ###################################
       
-      #number of stratas 
-      no_strata<-10
-      
       #get n_strata from kmean suggestion
-      kmean<-KmeansSolution2(frame=frame,
-                             errors=cv,
-                             maxclusters = 20,
-                             showPlot = F)
+      # kmean<-KmeansSolution2(frame=frame,
+      #                        errors=cv,
+      #                        maxclusters = 20,
+      #                        showPlot = F)
+      # 
+      # #number strata from kmean
+      # no_strata<-tapply(kmean$suggestions,
+      #                   kmean$domainvalue,
+      #                   FUN=function(x) length(unique(x)))
+      # 
       
-      #number strata from kmean
-      no_strata<-tapply(kmean$suggestions,
-                        kmean$domainvalue,
-                        FUN=function(x) length(unique(x)))
+      #number of stratas 
+      no_strata<-samp_df[s,'n_strata']
       
       ###################################
       # RUN OPTIMIZATION
@@ -459,6 +461,7 @@ for (sp in spp) {
       D8<-merge(static_df,strata,by='cell',all.x=TRUE)
       D8<-D8[,c("cell","Lat","Lon","Strata")]
       D8$Strata<-as.numeric(D8$Strata)
+      D8$Strata<-ifelse(is.na(D8$Strata),999,D8$Strata)
       
       #df to spatialpoint df
       coordinates(D8) <- ~ Lon + Lat
@@ -474,10 +477,13 @@ for (sp in spp) {
       # create a template raster
       r1 <- raster(ext=extent(D8_1),ncol=xycells, nrow=xycells) #c(15800,15800) 7000
       
+      #NA to 999
+     
+      
       #create raster
       r2<-rasterize(D8_1, r1 ,field='Strata')
       crs(r2) <- CRS('+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs')
-      
+      r2[r2==999] <- NA
       #plot(r2)
       
       ###################################
@@ -528,6 +534,22 @@ for (sp in spp) {
       
       #to dataframe
       points1<-as.data.frame(points1)
+      
+      #add scn 
+      points1$sbt_scn<- sbt_scn
+      points1$samp_scn<- s
+      points1$sp<- sp
+      
+      #save list results por SBTscn and Sampscn
+      result_list <- list(solution = solution,
+                          sum_stats = sum_stats,
+                          #cvs = cv_by_boat,
+                          sample_allocations = allocations,
+                          sol_by_cell = temp_ids,
+                          str_cell = points1)
+      
+      #save plot list
+      save(result_list,file=paste0('./output/species/',sp,'/optimization_results_SBT',gsub('scn','',sbt_scn),'_',samp_df[s,'samp_scn'],'.RData'))
       
       #########################
       # JOIN POINTS FOR LEGEND PURPOSES
@@ -601,12 +623,12 @@ for (sp in spp) {
     
     #save multiplot
     mp<-cowplot::plot_grid(plotlist = plot_list,nrow = 4,ncol = 3)
-    ragg::agg_png(paste0('./figures/species/',sp,'/optimization_',"_",sbt_scn,".png"), width = 14, height = 19, units = "in", res = 300)
+    ragg::agg_png(paste0('./figures/species/',sp,'/optimization_',"_SBT",sbt_scn,".png"), width = 14, height = 19, units = "in", res = 300)
     print(mp)
     dev.off()
 
     #save plot list
-    save(plot_l,file=paste0('./output/species/',sp,'/optimization_plot_SBT',gsub('scn','',sbt_scn),'.RData'))
+    save(plot_list,file=paste0('./output/species/',sp,'/optimization_plot_SBT',gsub('scn','',sbt_scn),'.RData'))
   }
   
   #save locations
@@ -614,4 +636,5 @@ for (sp in spp) {
   
   #save locations
   save(sp_sum_stats,file = paste0('./output/species/',sp,'/optimization_summary_stats.RData'))
+
 }  
