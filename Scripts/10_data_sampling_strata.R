@@ -214,6 +214,7 @@ for (sp in spp) {
       static_dens_vals[,,scn] <- unlist(D6)
     }   
   
+  
     #save results list
     save(static_dens_vals,file=paste0('./output/species/',sp,'/optimization_static_data.RData'))
     
