@@ -130,6 +130,7 @@ df_scn<-read.csv('./tables/SBT_scenarios.csv')
 df_scn<-df_scn[,1:8]
 
 #fit file
+#ff<-'temp3d/b2_19822022fit.RData'
 ff<-'fit.RData'
 
 #create sp folder
@@ -182,7 +183,7 @@ for (sp in spp) {
     #loop over scenarios
     for (scn in unique(df_scn$scn_n)) {
       
-      #scn<-unique(df_scn$scn_n)[2]
+      #scn<-unique(df_scn$scn_n)[9]
       
       #print scenario to check progress
       cat(paste(" #############     PROJECTING    #############\n",
@@ -192,6 +193,7 @@ for (sp in spp) {
       #open stack of rasters
       st<-stack_files[grepl(paste0('scn',scn),stack_files)][1]
       st<-stack(paste0('./data processed/SBT scenarios/',st))
+      #plot(st)
       
       #reproject shapefile
       proj4string(st) <- CRS('+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs') 
@@ -229,10 +231,10 @@ for (sp in spp) {
       cov_list[[scn]]<-points3
       
       #add to covariate data
-      fit$covariate_data<-rbind(fit$covariate_data,points3)
+      new_covariate_data<-rbind(fit$covariate_data,points3)
     
       #project model example
-      pm<-project_model(x = fit,n_proj = n_proj,)
+      pm<-project_model(x = fit,n_proj = n_proj,new_covariate_data = new_covariate_data)
       
       #add year to covariate data from fit
       pr_list[[paste0('scn',scn)]]<-pm
@@ -253,12 +255,7 @@ dir.create('./figures/species/')
 for (sp in spp) {
   
   sp<-'Gadus macrocephalus'
-  
-  #print scenario to check progress
-  cat(paste(" #############      PLOTTING     #############\n",
-            " #############   Species", sp, match(sp,spp), 'out of',length(spp),  "  #############\n",
-            " #############  Scenario", scn, " #############\n"))
-  
+
   #create sp folder
   dir.create(paste0('./figures/species/',sp))
   
@@ -268,6 +265,11 @@ for (sp in spp) {
   for (proj in names(pr_list)) {
     
     #proj<-names(pr_list)[1]
+    
+    #print scenario to check progress
+    cat(paste(" #############      PLOTTING     #############\n",
+              " #############   Species", sp, match(sp,spp), 'out of',length(spp),  "  #############\n",
+              " #############  Scenario", proj, " #############\n"))
     
     #get object
     p<-pr_list[[proj]]
@@ -296,7 +298,7 @@ for (sp in spp) {
     #loop over years
     for (y in project_yrs) {
       
-      #y<-project_yrs[1]
+      #y<-project_yrs[2]
       
       #subset by year
       D1<-subset(D,variable==y)
@@ -329,7 +331,7 @@ for (sp in spp) {
                    ## These settings are necessary to avoid
                    ## overlplotting which is a problem here. May need
                    ## to be tweaked further.
-                   #ize=1.2, stroke=0,shape=16)+ #tune size to remove blanks on the map, depending on the resolution of the tiff
+                   #size=1.2, stroke=0,shape=16)+ #tune size to remove blanks on the map, depending on the resolution of the tiff
         geom_polygon(data=ak_sppoly,aes(x=long,y=lat,group=group),fill = 'grey60')+
         scale_x_continuous(expand = c(0,0),
                            breaks = c(-175,-170,-165,-160))+
@@ -378,7 +380,7 @@ for (sp in spp) {
     
     #save multiplot
     mp<-cowplot::plot_grid(plotlist = plot_list,nrow = 1,ncol = n_proj)
-    ragg::agg_png(paste0('./figures/species/sp/projection_',proj,".png"), width = 20, height = 4.6, units = "in", res = 300)
+    ragg::agg_png(paste0('./figures/species/',sp,'/projection_',proj,".png"), width = 20, height = 4.6, units = "in", res = 300)
     print(
         plot_grid(
         title, mp,
@@ -389,3 +391,30 @@ for (sp in spp) {
     
   }  
 }  
+
+
+#save projection list
+load( file = paste0("./output/species/",sp,'/fit_projection.RData')) #pr_list
+load()
+ind<-data.frame(matrix(nrow = 0,ncol=3))
+colnames(ind)<-c('year','value','scn')
+
+for (i in names(pr_list)) {
+  
+  #i<-names(pr_list)[1]
+  pr<-pr_list[[i]]
+  df<-pr['Index_ctl']
+  df1<-data.frame(year=1982:2027,
+                  value=as.vector(df$Index_ctl[1,,1]),
+                  scn=i)
+  ind<-rbind(ind,df1)
+
+}
+
+
+
+ggplot()+
+  geom_line(data=subset(ind,year %in% 2022:2027),aes(x=year,y=value/1000,color=scn))+
+  labs(y='t',color='SBT scn')+
+  theme_bw()
+  
