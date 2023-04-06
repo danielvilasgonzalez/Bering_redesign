@@ -2,6 +2,12 @@
 ####################################################################
 ##
 ##    Run sampling optimization based on predicted densities from VAST model
+##
+##    by best stratification, we mean the stratification that ensures the minimum sample cost, 
+##    sufficient to satisfy precision constraints set on the accuracy of the estimates of the survey target variables Y’s
+##    constraints expressed as maximum allowable coefficients of variation in the different domains of interest
+##
+##    https://cran.r-project.org/web/packages/SamplingStrata/vignettes/SamplingStrata.html
 ##    (using devtools::install_github(repo = "zoyafuso-NOAA/SamplingStrata"))
 ##    Daniel Vilas (daniel.vilas@noaa.gov/dvilasg@uw.edu)
 ##
@@ -14,7 +20,8 @@ rm(list = ls(all.names = TRUE))
 gc() 
 
 #libraries from cran to call or install/load
-pack_cran<-c("splines",'SamplingStrata','wesanderson','dplyr','sp','rasterVis','rgeos','scales','rnaturalearth','grid','ggplot2')
+pack_cran<-c("splines",'SamplingStrata','wesanderson','dplyr','sp',
+             'sf','maptools','parallel','rasterVis','rgeos','scales','rnaturalearth','grid','ggplot2','spatstat')
 
 #install pacman to use p_load function - call library and if not installed, then install
 if (!('pacman' %in% installed.packages())) {
@@ -30,6 +37,9 @@ if (!('VAST' %in% installed.packages())) {
 
 #load/install packages
 pacman::p_load(pack_cran,character.only = TRUE)
+
+#call function distance points buffer
+source('C:/Users/Daniel.Vilas/Work/GitHub/Bering_redesign/Scripts/genRandomPnts.R')
 
 #setwd
 out_dir<-'C:/Users/Daniel.Vilas/Work/Adapting Monitoring to a Changing Seascape/'
@@ -147,7 +157,6 @@ for (j in 1:nrow(id.data)) {
   googledrive::drive_download(file=id.data$id[j],
                               path = paste0('./shapefiles/',id.data$name[j]),
                               overwrite = TRUE)
-  
 }
 
 #shapefile EEZ
@@ -250,10 +259,10 @@ grid.ebs_year1<-grid.ebs_year[which(grid.ebs_year$region!='EBSslope'),]
 # SCENARIOS
 ###################################
 
-samp_df<-expand.grid(strat_var=c('Lat_LonE','Lat_Depth','Lat_varTemp','Lat_meanTempF','Depth_meanTempF','Depth_varTemp'),
+samp_df<-expand.grid(strat_var=c('Lat_varTemp','Lat_meanTempF','Depth_meanTempF','Depth_varTemp','meanTempF','varTemp','Depth'),
                     target_var=c('sumDensity'), #,'sqsumDensity'
-                    n_samples=c(300,500),
-                    n_strata=c(5,10,15))
+                    n_samples=c(500), #c(300,500)
+                    n_strata=c(10)) #c(5,10,15)
 
 samp_df$samp_scn<-paste0(paste0('scn',1:nrow(samp_df)))
 
@@ -270,10 +279,8 @@ for (sp in spp) {
   
   #save results list
   load(paste0('./output/species/',sp,'/optimization_static_data.RData')) #static_dens_vals
-  #dir.create('./output/species/')
-  #dir.create(paste0('./output/species/',sp))
-  #save(static_dens_vals,file=paste0('./output/species/',sp,'/optimization_static_data.RData'))
-  
+  load(paste0('./output/species/',sp,'/projection_data.RData')) #temp_dens_vals
+
   #removed cells because of depth
   rem<-data.frame(static_dens_vals[,,1])
   rem_cells<-rem[which(rem$include==0),'cell']
@@ -310,7 +317,7 @@ for (sp in spp) {
   #loop through sbt scenarios scenarios
   for (sbt_scn in dimnames(static_dens_vals)[[3]]) {
     
-    #sbt_scn<-'scn1'
+    sbt_scn<-'scn1'
     
     #df of sbt_scn
     static_df<-data.frame(static_dens_vals[,,sbt_scn])
@@ -326,30 +333,34 @@ for (sp in spp) {
     #loop through sampling scenarios
     for (s in 1:nrow(samp_df)) {
       
-      #s<-1
+      s<-1
       
       #print scenario to check progress
       cat(paste(" #############   Species", sp, match(sp,spp), 'out of',length(spp),  "  #############\n",
                 " #############  SBT Scenario", sbt_scn, " #############\n",
                 " #############  Sampling Scenario", samp_df[s,"samp_scn"], " #############\n"))
       
-      #stratification variables 
-      stratum_var_input<-data.frame(X1 = static_df1[,paste0(sub("\\_.*", "", samp_df[s,'strat_var']))],
-                                    X2 = static_df1[,paste0(sub(".*_", "", samp_df[s,'strat_var']))]) #Xspp #set different scenarios and spp ############ TO CHECK
       
+      
+      if (grepl('_',samp_df[s,'strat_var'])) {
+        #stratification variables 
+        stratum_var_input<-data.frame(X1 = static_df1[,paste0(sub("\\_.*", "", samp_df[s,'strat_var']))],
+                                      X2 = static_df1[,paste0(sub(".*_", "", samp_df[s,'strat_var']))]) #Xspp #set different scenarios and spp ############ TO CHECK
+      } else {
+        stratum_var_input<-data.frame(X1 = static_df1[,paste0(sub("\\_.*", "", samp_df[s,'strat_var']))]) #Xspp #set different scenarios and spp ############ TO CHECK
+        
+      }
+
       #target variables
       target_var_input<-data.frame(Y1 = static_df1$sumDensity,
                                    Y1_SQ_SUM = static_df1$sqsumDensity) #D7$sqsumDensity #Ynspp #set different scenarios and spp ############ TO CHECK
       
-      #weights
-      #in case add weights based on observed years
-      
       #create df
-      frame <- data.frame(domainvalue = domain_input,
-                          id = static_df1$cell,
-                          stratum_var_input,
-                          WEIGHT=n_years,
-                          target_var_input) 
+      frame <- data.frame(domainvalue = domain_input, #domain
+                          id = static_df1$cell, #id as cells
+                          stratum_var_input, #Stratification variables
+                          WEIGHT=n_years, #weight for spp depending on the presence of years
+                          target_var_input) #target variables 
       
       ###################################
       # SIMPLE RANDOM SAMPLING CV CONSTRAINTS
@@ -367,7 +378,7 @@ for (sp in spp) {
       srs_n <- as.numeric(n_samples * table(frame$domainvalue) / n_cells)
       
       ## SRS statistics
-      srs_var <- srs_stats$S1^2 * (1 - srs_n / n_cells) / srs_n
+      srs_var <- srs_stats$S1^2 * (1 - srs_n / n_cells) / srs_n #M1<- mean; S1<-SD
       srs_cv <- sqrt(srs_var) / srs_stats$M1
       
       #create cv object for constraints
@@ -402,10 +413,10 @@ for (sp in spp) {
       
       #run optimization
       solution <- optimStrata(method = "continuous",
-                              errors = cv, 
+                              errors = cv,  #maximum allowable coefficient of variation set by the RandomSampling
                               framesamp = frame,
                               iter = 50, #300
-                              pops = 10, #100
+                              pops = 20, #100
                               elitism_rate = 0.1,
                               mut_chance = 1 / (no_strata[1] + 1),
                               nStrata = no_strata,
@@ -490,47 +501,118 @@ for (sp in spp) {
       # MULTIVARIATE OPTIMAL ALLOCATION
       ###################################
       
-      #create df to extract
+      temp_frame <- frame
+      temp_frame$domainvalue <- n_dom
+      srs_stats <- SamplingStrata::buildStrataDF(
+        dataset = cbind( temp_frame[, -grep(x = names(temp_frame), 
+                                            pattern = "X")],
+                         X1 = 1))
+      srs_n <- as.numeric(n_samples * table(temp_frame$domainvalue) / n_cells)
+      
+      ## SRS statistics
+      srs_var <- srs_stats$S1^2 * (1 - srs_n / n_cells) / srs_n
+      srs_cv <- sqrt(srs_var) / srs_stats$M1
+      
+      error_df <- data.frame("DOM" = "DOM1",
+                             "CV1" = srs_cv,
+                             "domainvalue"  = 1)
+      
       temp_stratif <- solution$aggr_strata
-      temp_stratif$N <- temp_stratif$N / length(yrs_all)
+      temp_stratif$N <- temp_stratif$N / n_years
       temp_stratif$DOM1 <- 1
       
       #run multivariate allocation
       temp_bethel <- SamplingStrata::bethel(
-        errors = cv,
+        errors = error_df,
         stratif = temp_stratif, 
         realAllocation = T, 
         printa = T)
+      
+      
       temp_n <- sum(ceiling(temp_bethel))
+      
+      error_df$CV1 <- 
+        as.numeric(attributes(temp_bethel)$outcv[, "ACTUAL CV"])
+      
+      #run multivariate allocation
+      temp_bethel <- SamplingStrata::bethel(stratif = temp_stratif,
+                                            errors = error_df, 
+                                            printa = TRUE)
       
       #number of samples per strata
       allocations<-as.integer(temp_bethel)
       
+      #cv
+      cv_temp <- data.frame( 
+        PLANNED_CV=as.numeric(attributes(temp_bethel)$outcv[, "PLANNED CV "]),
+        ACTUAL_CV=as.numeric(attributes(temp_bethel)$outcv[, "ACTUAL CV"]))
+      
       #strata per cell
       temp_ids<-solution$indices
       
-      sample_vec <- c()
+      #iterations for samples
+      n_iter<-100
       
-      #random sample for each strata
-      for(istrata in 1:length(allocations)) {
-        sample_vec <- c(sample_vec,
-                        sample(x = temp_ids[which(temp_ids$X1==istrata),'ID'], #which(temp_ids == istrata)
-                               size = allocations[istrata]) )
+      #to store samples
+      all_points<-array(NA,dim = list(sum(allocations),3,n_iter),
+                        dimnames = list(c(1:sum(allocations)),c('Lon','Lat','cell'),c(1:n_iter)))
+      
+      #loop over iterations
+      for (iter in 1:n_iter) {
+      #iter<-1
+        sample_vec <- c()
+        
+        #to store points
+        dfpoints<-data.frame(matrix(NA,nrow=0,ncol=3))
+        colnames(dfpoints)<-c('Lon','Lat','cell')
+        
+        #random sample for each strata wit distance constrains
+        for(istrata in 1:length(allocations)) {
+          #istrata<-1
+          
+          #subset cells for strata
+          df<-subset(as.data.frame(D8_1),Strata==istrata)
+          
+          #ratio of available cells and samples to take
+          ratio<-dim(df)[1]/allocations[istrata]
+          
+          #select samples with buffer
+          xy.buff<-buffer.f(data.frame(x=df$Lon,y=df$Lat,cell=df$cell),
+                               buffer = ratio*250, #30000
+                               reps = 1,
+                               n=allocations[istrata])
+          colnames(xy.buff)[1:2]<-c("Lon",'Lat')
+          
+          
+          dfpoints<-rbind(dfpoints,xy.buff)
+            
+          sample_vec<-c(sample_vec,xy.buff$cell)
+          # sample_vec <- c(sample_vec,
+          #                 sample(x = temp_ids[which(temp_ids$X1==istrata),'ID'], #which(temp_ids == istrata)
+          #                        size = allocations[istrata]) )
+        }
+        
+        #append points
+        all_points[,,iter]<-unlist(dfpoints)
+        
       }
       
-      #points dataframe
-      points<-data.frame(cell=sample_vec,
-                         strata=rep(1:length(temp_bethel),allocations))
+      #save sample selection
+      save(all_points,file=paste0('./output/species/',sp,'/samples_optimization_SBT',gsub('scn','',sbt_scn),'_',samp_df[s,'samp_scn'],'.RData'))
       
-      #merge
-      points1<-merge(points,static_df1,by='cell',all.x=TRUE)
-      
+      # #points dataframe
+      # points<-data.frame(cell=sample_vec,
+      #                    strata=rep(1:length(temp_bethel),allocations))
+      # 
+      # #merge
+      # points1<-merge(points,static_df1,by='cell',all.x=TRUE)
+   
       #change projection of spatial object 
-      coordinates(points1)<- ~ Lon + Lat
+      coordinates(dfpoints)<- ~ Lon + Lat
       
       #reproject shapefile
-      proj4string(points1) <- CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0") 
-      points1<-spTransform(points1,CRSobj = CRS('+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs'))
+      #proj4string(dfpoints) <- CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0") 
+      #points1<-spTransform(dfpoints,CRSobj = CRS('+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs'))
       
       #to dataframe
       points1<-as.data.frame(points1)
@@ -539,11 +621,11 @@ for (sp in spp) {
       points1$sbt_scn<- sbt_scn
       points1$samp_scn<- s
       points1$sp<- sp
-      
+
       #save list results por SBTscn and Sampscn
       result_list <- list(solution = solution,
                           sum_stats = sum_stats,
-                          #cvs = cv_by_boat,
+                          cvs = cv_temp,
                           sample_allocations = allocations,
                           sol_by_cell = temp_ids,
                           str_cell = points1)
@@ -576,8 +658,10 @@ for (sp in spp) {
             geom_raster(data=as.data.frame(r2, xy = TRUE),aes(x=x,y=y,fill=layer))+
             #geom_point(data=D8_2, aes(Lon, Lat, fill=Strata, group=NULL),size=2, stroke=0,shape=21)+
             scale_fill_gradientn(colours=c("#ea5545", "#f46a9b", "#ef9b20", "#edbf33", "#ede15b", "#bdcf32", "#87bc45", "#27aeef", "#b33dc6"),
-                                 guide = guide_legend(),na.value = 'white',breaks=sort(unique(D8_1$Strata)),
-                                 labels=paste0(sort(unique(D8_1$Strata))," (n=",allocations,')'))+ #,,
+                                 #guide = guide_legend(),na.value = 'white',breaks=sort(unique(D8_1$Strata)),
+                                 #labels=paste0(sort(unique(D8_1$Strata))," (n=",allocations,')'))+ #,,
+                                  guide = guide_legend(),na.value = 'white',breaks=sort(na.omit(unique(values(r2)))),
+                                  labels=paste0(sort(na.omit(unique(values(r2))))," (n=",allocations,')'))+ #,,
             #geom_point(data=st_EBS,aes(x=longitude,y=latitude),shape=4,size=1)+
             #geom_point(data=st_corners1,aes(x=longitude,y=latitude),color='red',shape=20,size=1)+
             geom_polygon(data=ak_sppoly,aes(x=long,y=lat,group=group),fill = 'grey60')+
