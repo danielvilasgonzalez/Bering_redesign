@@ -150,7 +150,10 @@ for (sp in spp) {
 
   #load fit file
   load(paste0('./shelf EBS NBS VAST/',sp,'/',ff))
+  #fit<-reload_model(fit)
   
+  #check fit
+  check_fit(fit$parameter_estimates)
   #add covariate data for the projected years into the fit$covariate_data
   #fit$covariate_data
   
@@ -183,7 +186,7 @@ for (sp in spp) {
     #loop over scenarios
     for (scn in unique(df_scn$scn_n)) {
       
-      #scn<-unique(df_scn$scn_n)[9]
+      #scn<-unique(df_scn$scn_n)[1]
       
       #print scenario to check progress
       cat(paste(" #############     PROJECTING    #############\n",
@@ -193,10 +196,11 @@ for (sp in spp) {
       #open stack of rasters
       st<-stack_files[grepl(paste0('scn',scn),stack_files)][1]
       st<-stack(paste0('./data processed/SBT scenarios/',st))
-      #plot(st)
+      plot(st)
+      #title(main='x')
       
       #reproject shapefile
-      proj4string(st) <- CRS('+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs') 
+      #proj4string(st) <- CRS('+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs') 
       
       #raster to points
       points<-data.frame(rasterToPoints(st))
@@ -262,6 +266,10 @@ for (sp in spp) {
   #save projection list
   load(paste0("./output/species/",sp,'/fit_projection.RData')) #pr_list
   
+  # index_all<-array(NA,
+  #                  dim=list(length(names(pr_list)),length(1982:2027),length(spp)),
+  #                  dimnames = list(names(pr_list),c(1982:2027),spp))
+  
   for (proj in names(pr_list)) {
     
     #proj<-names(pr_list)[1]
@@ -271,8 +279,23 @@ for (sp in spp) {
               " #############   Species", sp, match(sp,spp), 'out of',length(spp),  "  #############\n",
               " #############  Scenario", proj, " #############\n"))
     
+    
     #get object
     p<-pr_list[[proj]]
+    
+  #   sum(p$Index_gctl)
+  #   
+  #   index<-p$Index_gctl[,1,,]
+  #   i<-colSums(index)
+  #   
+  #   index_all[proj,,sp]<-i
+  # }
+  #   
+  # x<-reshape2::melt(index_all[,,sp])
+  # 
+  # ggplot()+
+  #   geom_line(data=x,aes(x=Var2,y=value,color=Var1))+
+  #   facet_wrap(~Var1)
     
     #load fit file
     load(paste0('./shelf EBS NBS VAST/',sp,'/',ff))
@@ -281,7 +304,9 @@ for (sp in spp) {
     D_gt<-p$D_gct[,1,]
     #D_gt_proj<-D_gt[,paste0(project_yrs)]
     D_gt<-drop_units(D_gt)
-    D_gt<-data.frame('cell'=c(1:fit$spatial_list$n_g),D_gt)
+    D_gt<-data.frame('cell'=c(1:p$n_g),D_gt)
+    
+    #p$
     
     colnames(D_gt)<-c('cell',c(fit$year_labels,project_yrs))
     D_gt1<-reshape2::melt(D_gt,id=c('cell'))
@@ -295,10 +320,13 @@ for (sp in spp) {
     #plot list to store plots
     plot_list<-list()
     
+    #create stack
+    proj_stack<-stack()
+    
     #loop over years
     for (y in project_yrs) {
       
-      #y<-project_yrs[2]
+      #y<-project_yrs[1]
       
       #subset by year
       D1<-subset(D,variable==y)
@@ -323,6 +351,8 @@ for (sp in spp) {
       crs(r2) <- CRS('+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs')
       #plot(r2)
      
+      proj_stack<-raster::addLayer(proj_stack,r2)
+      
       #plot density map
       p<-
         ggplot() +
@@ -365,6 +395,9 @@ for (sp in spp) {
       
     }
     
+    #save raster stack
+    writeRaster(proj_stack, paste0('output/species/',sp,'/biomass_projection_',proj,'.grd'),overwrite=TRUE)
+    
     #scenario
     scn<-gsub('scn','',proj)
     
@@ -394,27 +427,26 @@ for (sp in spp) {
 
 
 #save projection list
-load( file = paste0("./output/species/",sp,'/fit_projection.RData')) #pr_list
-load()
-ind<-data.frame(matrix(nrow = 0,ncol=3))
-colnames(ind)<-c('year','value','scn')
-
-for (i in names(pr_list)) {
-  
-  #i<-names(pr_list)[1]
-  pr<-pr_list[[i]]
-  df<-pr['Index_ctl']
-  df1<-data.frame(year=1982:2027,
-                  value=as.vector(df$Index_ctl[1,,1]),
-                  scn=i)
-  ind<-rbind(ind,df1)
-
-}
-
-
-
-ggplot()+
-  geom_line(data=subset(ind,year %in% 2022:2027),aes(x=year,y=value/1000,color=scn))+
-  labs(y='t',color='SBT scn')+
-  theme_bw()
+# load( file = paste0("./output/species/",sp,'/fit_projection.RData')) #pr_list
+# ind<-data.frame(matrix(nrow = 0,ncol=3))
+# colnames(ind)<-c('year','value','scn')
+# 
+# for (i in names(pr_list)) {
+#   
+#   #i<-names(pr_list)[1]
+#   pr<-pr_list[[i]]
+#   df<-pr['Index_ctl']
+#   df1<-data.frame(year=1982:2027,
+#                   value=as.vector(df$Index_ctl[1,,1]),
+#                   scn=i)
+#   ind<-rbind(ind,df1)
+# 
+# }
+# 
+# 
+# 
+# ggplot()+
+#   geom_line(data=subset(ind,year %in% 2022:2027),aes(x=year,y=value/1000,color=scn))+
+#   labs(y='t',color='SBT scn')+
+#   theme_bw()
   
