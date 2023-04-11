@@ -105,9 +105,9 @@ fs<-c('X1','X2')
         p<-plot(pred,
                 #main=paste(m,'model -',f1),
                 axes=list(grid=TRUE, 
-                          x=list(rug=FALSE,
+                          x=list(rug=TRUE,
                                  Depth=list(lab="BotTemp")),
-                          y=list(rug=FALSE,
+                          y=list(rug=TRUE,
                                  lab="Catch (kg)")))
         
         #add plot to list
