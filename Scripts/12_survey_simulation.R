@@ -61,12 +61,133 @@ spp<-c('Limanda aspera',
        'Paralithodes platypus',
        'Paralithodes camtschaticus')
 
-load('C:/Users/Daniel.Vilas/Work/Adapting Monitoring to a Changing Seascape/shelf EBS NBS VAST/Gadus macrocephalus/fit.RData')
-load('C:/Users/Daniel.Vilas/Work/Adapting Monitoring to a Changing Seascape/data processed/lastversion_grid_EBS.RData')
-grid.ebs_year
 load('./extrapolation grids/northern_bering_sea_grid.rda')
 load('./extrapolation grids/eastern_bering_sea_grid.rda')
 grid<-as.data.frame(rbind(data.frame(northern_bering_sea_grid,region='NBS'),data.frame(eastern_bering_sea_grid,region='EBS')))
+grid$cell<-1:nrow(grid)
+  
+  
+######################
+# GET ANNUAL PREDICTIONS (2023-2027) SBT-
+######################
+
+for (sp in spp) {
+  
+  sp<-"Gadus macrocephalus"
+  
+  lf<-list.files(path = paste0('./output/species/',sp,'/'),pattern = 'samples_optimization_')
+  lf1<-gsub('samples_optimization_','',lf)
+  lf2<-gsub('.RData','',lf1)
+  load( file = paste0("./output/species/",sp,'/fit_projection.RData')) #pr_list
+  
+  for (samp in lf2) {
+    
+    samp_proj<-list()
+    load(file=paste0('./output/species/',sp,'/samples_optimization_',samp,'.RData')) #all_points
+    for (sbt in names(pr_list)) {
+      
+      #print scenario to check progress
+      cat(paste(" #############     PROJECTING    #############\n",
+                " #############   Species", sp, match(sp,spp), 'out of',length(spp),  "  #############\n",
+                " #############  Sampling ", samp, " #############\n",
+                " #############  SBT ", sbt, " #############\n"))
+   
+    #sbt<-names(pr_list)[1]  
+    #samp<-lf2[1]
+    
+
+    bio_proj<-stack(paste0('./output/species/',sp,'/biomass_projection_',sbt,'.grd'))
+    names(bio_proj)<-paste0('y',c(2023:2027))
+    #all_points[which(all_points[,'strata',]==1),,1:2]
+    
+    points2<-data.frame(matrix(nrow = 0,ncol = 10))
+    colnames(points2)<-c(dimnames(all_points)[[2]],names(bio_proj),'iter')
+    
+    for (iter in dimnames(all_points)[[3]]) {
+      #iter<-'1'
+      
+      points<-data.frame(all_points[,,iter])
+
+      coordinates(points)<- ~ Lon + Lat
+      
+      points1<-data.frame(data.frame(all_points[,,iter]),raster::extract(bio_proj,points))
+      points1$iter<-iter
+      points2<-rbind(points2,points1)
+      
+      
+    }
+    
+    samp_proj[[paste0('SBT',sbt)]]<-points2
+    
+    }
+    
+    save(samp_proj, file = paste0("./output/species/",sp,'/projections_survey_',samp,'.RData'))
+    
+  }
+  
+}
+
+
+#####################
+# GET km2 for each cell
+#####################
+
+for (sp in spp) {
+  
+  sp<-"Gadus macrocephalus"
+  
+  #get samples scenarios
+  lf<-list.files(path = paste0('./output/species/',sp,'/'),pattern = 'samples_optimization_')
+  lf1<-gsub('samples_optimization_','',lf)
+  lf2<-gsub('.RData','',lf1)
+
+  
+  for (samp in lf2) {
+    
+    samp<-lf2[1]
+    
+    #load survey samples
+    load( file = paste0("./output/species/",sp,'/projections_survey_',samp,'.RData')) #samp_proj
+    #load optimization results
+    load(paste0('./output/species/',sp,'/optimization_results_',samp,'.RData')) #result_list
+    
+    result_list$solution$
+      
+    for (sbt in names(samp_proj)) {
+      
+    x<-samp_proj[[sbt]]
+    
+    #merge biomass samples of survey with grid
+    y<-merge(x,grid,by='cell')
+    
+    #strata data
+    survey_detail <- data.frame("Stratum" = result_list$solution$aggr_strata$STRATO,
+                                "nh" = result_list$sample_allocations)
+    
+    #weight of strata for each
+    survey_detail$wh<-survey_detail$nh/sum(survey_detail$nh)
+    
+    # Calculate stratum area
+    strata_areas <- aggregate(cell_areas ~ solution, 
+                              FUN = sum,
+                              data = with(input, data.frame(solution, 
+                                                            cell_areas)))
+    strata_areas <- subset(strata_areas, solution %in% survey_detail$Stratum)
+    
+    coordinates(x)<- ~ Lon + Lat
+    proj4string(x) <- CRS('+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs') 
+    x<-spTransform(x,CRSobj = CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"))
+    y<-data.frame(x)
+    #merge(x,grid,by='cell')
+    
+    
+    }
+  }
+}
+    
+    
+grid.ebs_year
+
 mdl <- make_map_info(Region = fit$settings$Region,
                      spatial_list = fit$spatial_list,
                      Extrapolation_List = fit$extrapolation_list)
