@@ -259,15 +259,15 @@ grid.ebs_year1<-grid.ebs_year[which(grid.ebs_year$region!='EBSslope'),]
 # SCENARIOS
 ###################################
 
-samp_df<-expand.grid(strat_var=c('Lat_varTemp','Lat_meanTempF','Depth_meanTempF','Depth_varTemp','meanTempF','varTemp','Depth'),
+samp_df<-expand.grid(strat_var=c('Lat_varTemp','Lat_meanTempF','Depth_meanTempF','Depth_varTemp','meanTempF_varTemp','meanTempF','varTemp','Depth'),
                     target_var=c('sumDensity'), #,'sqsumDensity'
-                    n_samples=c(500), #c(300,500)
+                    n_samples=c(350), #c(300,500) 520 (EBS+NBS+CRAB);26 (CRAB); 350 (EBS-CRAB); 494 (NBS-CRAB)
                     n_strata=c(10)) #c(5,10,15)
 
 samp_df$samp_scn<-paste0(paste0('scn',1:nrow(samp_df)))
 
 #yrs
-yrs_all<-1982:2027
+yrs<-1982:2022
 
 #########################
 # RUN LOOP SPECIES
@@ -278,13 +278,13 @@ for (sp in spp) {
   sp<-'Gadus macrocephalus'
   
   #save results list
-  load(paste0('./output/species/',sp,'/optimization_static_data.RData')) #static_dens_vals
-  load(paste0('./output/species/',sp,'/projection_data.RData')) #temp_dens_vals
-
+  load(paste0('./output/species/',sp,'/optimization_static_data.RData')) #D6
+  #load(paste0('./output/species/',sp,'/projection_data.RData')) #temp_dens_vals
+  load(paste0('./shelf EBS NBS VAST/',sp,'/fit.RData'))
+  
   #removed cells because of depth
-  rem<-data.frame(static_dens_vals[,,1])
-  rem_cells<-rem[which(rem$include==0),'cell']
-  ok_cells<-rem[which(rem$include==1),'cell']
+  rem_cells<-D6[which(D6$include==FALSE),'cell']
+  ok_cells<-D6[which(D6$include==1),'cell']
     
   #load data_geostat file
   data_geostat<-readRDS(paste0('./data processed/species/',sp,'/','data_geostat_temp.rds')) #fit
@@ -308,20 +308,13 @@ for (sp in spp) {
   #df summary
   sp_sum_stats<-data.frame(matrix(nrow = 0,ncol=18))
   names(sp_sum_stats)<- c("Domain","Stratum","Population","Allocation","SamplingRate","Lower_X1","Upper_X1","Lower_X2","Upper_X2",
-                           "stratum_id","wh","Wh","M1","S1","SOLUZ","sbt_scn","samp_scn","sp")
+                           "stratum_id","wh","Wh","M1","S1","SOLUZ","samp_scn","sp")
   
   #df locations
-  sp_loc<-data.frame(matrix(nrow = 0,ncol=6))
-  names(sp_loc)<- c("Lat","Lon","Stations","SBTscn","samp_scn","sp")
+  sp_loc<-data.frame(matrix(nrow = 0,ncol=5))
+  names(sp_loc)<- c("Lat","Lon","Stations","samp_scn","sp")
   
-  #loop through sbt scenarios scenarios
-  for (sbt_scn in dimnames(static_dens_vals)[[3]]) {
-    
-    sbt_scn<-'scn1'
-    
-    #df of sbt_scn
-    static_df<-data.frame(static_dens_vals[,,sbt_scn])
-    static_df1<-subset(static_df,cell %in% ok_cells)
+    static_df1<-subset(D6,cell %in% ok_cells)
     
     #create a list to store results
     plot_list<-list()
@@ -333,11 +326,11 @@ for (sp in spp) {
     #loop through sampling scenarios
     for (s in 1:nrow(samp_df)) {
       
-      s<-1
+      #s<-1
       
       #print scenario to check progress
       cat(paste(" #############   Species", sp, match(sp,spp), 'out of',length(spp),  "  #############\n",
-                " #############  SBT Scenario", sbt_scn, " #############\n",
+                #" #############  SBT Scenario", sbt_scn, " #############\n",
                 " #############  Sampling Scenario", samp_df[s,"samp_scn"], " #############\n"))
       
       
@@ -454,9 +447,16 @@ for (sp in spp) {
                                 select = -c(STRATO, N, COST, CENS, DOM1, X1)))
       
       #add scn and sp
-      sum_stats$sbt_scn<-sbt_scn
+
       sum_stats$samp_scn<-samp_df[s,'samp_scn']
       sum_stats$sp<-sp
+      
+      if (!grepl('_',samp_df[s,'strat_var'])) {
+        
+        sum_stats<-data.frame(sum_stats[,c("Domain","Stratum","Population","Allocation","SamplingRate","Lower_X1","Upper_X1")],
+                             "Lower_X2"=NA,"Upper_X2"=NA,
+                             sum_stats[,c("stratum_id","wh","Wh","M1","S1","SOLUZ","samp_scn","sp")])
+      }
       
       sp_sum_stats<-rbind(sp_sum_stats,sum_stats)
       
@@ -469,7 +469,7 @@ for (sp in spp) {
       
       #dim(strata)
       
-      D8<-merge(static_df,strata,by='cell',all.x=TRUE)
+      D8<-merge(D6,strata,by='cell',all.x=TRUE)
       D8<-D8[,c("cell","Lat","Lon","Strata")]
       D8$Strata<-as.numeric(D8$Strata)
       D8$Strata<-ifelse(is.na(D8$Strata),999,D8$Strata)
@@ -554,8 +554,8 @@ for (sp in spp) {
       n_iter<-100
       
       #to store samples
-      all_points<-array(NA,dim = list(sum(allocations),3,n_iter),
-                        dimnames = list(c(1:sum(allocations)),c('Lon','Lat','cell'),c(1:n_iter)))
+      all_points<-array(NA,dim = list(sum(allocations),4,n_iter),
+                        dimnames = list(c(1:sum(allocations)),c('Lon','Lat','cell','strata'),c(1:n_iter)))
       
       #loop over iterations
       for (iter in 1:n_iter) {
@@ -563,8 +563,8 @@ for (sp in spp) {
         sample_vec <- c()
         
         #to store points
-        dfpoints<-data.frame(matrix(NA,nrow=0,ncol=3))
-        colnames(dfpoints)<-c('Lon','Lat','cell')
+        dfpoints<-data.frame(matrix(NA,nrow=0,ncol=4))
+        colnames(dfpoints)<-c('Lon','Lat','cell','strata')
         
         #random sample for each strata wit distance constrains
         for(istrata in 1:length(allocations)) {
@@ -578,15 +578,15 @@ for (sp in spp) {
           
           #select samples with buffer
           xy.buff<-buffer.f(data.frame(x=df$Lon,y=df$Lat,cell=df$cell),
-                               buffer = ratio*250, #30000
+                               buffer = ratio*100, #30000
                                reps = 1,
                                n=allocations[istrata])
           colnames(xy.buff)[1:2]<-c("Lon",'Lat')
+          xy.buff1<-data.frame(xy.buff,strata=istrata)
           
-          
-          dfpoints<-rbind(dfpoints,xy.buff)
+          dfpoints<-rbind(dfpoints,xy.buff1)
             
-          sample_vec<-c(sample_vec,xy.buff$cell)
+          #sample_vec<-c(sample_vec,xy.buff$cell)
           # sample_vec <- c(sample_vec,
           #                 sample(x = temp_ids[which(temp_ids$X1==istrata),'ID'], #which(temp_ids == istrata)
           #                        size = allocations[istrata]) )
@@ -598,7 +598,7 @@ for (sp in spp) {
       }
       
       #save sample selection
-      save(all_points,file=paste0('./output/species/',sp,'/samples_optimization_SBT',gsub('scn','',sbt_scn),'_',samp_df[s,'samp_scn'],'.RData'))
+      save(all_points,file=paste0('./output/species/',sp,'/samples_optimization_',samp_df[s,'samp_scn'],'.RData'))
       
       # #points dataframe
       # points<-data.frame(cell=sample_vec,
@@ -611,14 +611,13 @@ for (sp in spp) {
       coordinates(dfpoints)<- ~ Lon + Lat
       
       #reproject shapefile
-      #proj4string(dfpoints) <- CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0") 
+      proj4string(dfpoints) <- CRS('+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs')
       #points1<-spTransform(dfpoints,CRSobj = CRS('+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs'))
       
       #to dataframe
-      points1<-as.data.frame(points1)
+      points1<-as.data.frame(dfpoints)
       
       #add scn 
-      points1$sbt_scn<- sbt_scn
       points1$samp_scn<- s
       points1$sp<- sp
 
@@ -631,7 +630,7 @@ for (sp in spp) {
                           str_cell = points1)
       
       #save plot list
-      save(result_list,file=paste0('./output/species/',sp,'/optimization_results_SBT',gsub('scn','',sbt_scn),'_',samp_df[s,'samp_scn'],'.RData'))
+      save(result_list,file=paste0('./output/species/',sp,'/optimization_results_',samp_df[s,'samp_scn'],'.RData'))
       
       #########################
       # JOIN POINTS FOR LEGEND PURPOSES
@@ -641,7 +640,6 @@ for (sp in spp) {
                       data.frame(Lat=st_EBS$latitude,Lon=st_EBS$longitude,Stations='current design'),
                       data.frame(Lat=st_corners1$latitude,Lon=st_corners1$longitude,Stations='corner crab'))
       
-      loc_sur$SBTscn<-sbt_scn
       loc_sur$samp_scn<-samp_df[s,'samp_scn']
       loc_sur$sp<-sp
       
@@ -690,8 +688,8 @@ for (sp in spp) {
                   axis.text = element_text(color='black'),legend.spacing.y = unit(8, 'points'),
                   axis.text.y.right = element_text(hjust= 0.1 ,margin = margin(0,0,0,-28, unit = 'points'),color='black'),
                   axis.text.x.bottom = element_text(vjust = 6, margin = margin(-5,0,0,0, unit = 'points'),color='black'),
-                  axis.ticks.length = unit(-5,"points"),plot.title = element_text(size=11,vjust = -15, hjust=0.95,face="bold"),
-                  plot.margin=margin(c(-15,0,0,-15)),legend.title = element_text(size = 12))+
+                  axis.ticks.length = unit(-5,"points"),plot.title = element_text(size=11,vjust = -10, hjust=0.95,face="bold"),
+                  plot.margin=margin(c(-10,0,0,-10)),legend.title = element_text(size = 12))+
                 #annotate("text", x = -256559, y = 1354909, label = "Alaska",parse=TRUE,size=7)+
                 #annotate("text", x = -1296559, y = 2049090, label = "Russia",parse=TRUE,size=7)+
                 scale_y_continuous(expand = c(0,0),position = 'right',sec.axis = dup_axis())+
@@ -699,21 +697,21 @@ for (sp in spp) {
                 guides(fill = guide_legend(order=2,override.aes=list(size=4),title="Strata"),
                        color = guide_legend(order=1,override.aes=list(size=8)),
                        shape = guide_legend(order=1),override.aes=list(size=8))+
-                labs(title=paste0('SBT ',sbt_scn,'\n','',samp_df[s,'strat_var'],' n=',samp_df[s,'n_samples']))
+                labs(title=paste0(samp_df[s,'strat_var'],' n=',samp_df[s,'n_samples']))
 
         #store into the list
         plot_list[[s]]<-p  
    }
     
     #save multiplot
-    mp<-cowplot::plot_grid(plotlist = plot_list,nrow = 4,ncol = 3)
-    ragg::agg_png(paste0('./figures/species/',sp,'/optimization_',"_SBT",sbt_scn,".png"), width = 14, height = 19, units = "in", res = 300)
+    mp<-cowplot::plot_grid(plotlist = plot_list,nrow = 3,ncol = 3)
+    ragg::agg_png(paste0('./figures/species/',sp,'/optimization_sampling.png'), width = 14, height = 14, units = "in", res = 300)
     print(mp)
     dev.off()
 
     #save plot list
-    save(plot_list,file=paste0('./output/species/',sp,'/optimization_plot_SBT',gsub('scn','',sbt_scn),'.RData'))
-  }
+    save(plot_list,file=paste0('./output/species/',sp,'/optimization_plots.RData'))
+  
   
   #save locations
   save(sp_loc,file = paste0('./output/species/',sp,'/optimization_locations.RData'))
