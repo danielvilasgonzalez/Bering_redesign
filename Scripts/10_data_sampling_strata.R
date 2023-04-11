@@ -66,6 +66,21 @@ load('./data processed/lastversion_grid_EBS.RData') #grid.ebs_year
 #remove slope grid
 grid.ebs_year1<-grid.ebs_year[which(grid.ebs_year$region!='EBSslope'),]
 
+#build array for temporal array to store results
+temp_dens_vals <- array(NA,
+                        dim = c(ncells,
+                                length(yrs),
+                                length(spp)),
+                        dimnames = list(1:ncells,yrs,spp))
+
+#build array for static array
+static_dens_vals <- array(NA,
+                          dim = c(ncells,
+                                  length(c('Lat','Lon','cell','Depth','meanTemp','meanDensity','varTemp','varDensity','sumDensity','sqsumDensity',"include","meanTempF","LonE")),
+                                  length(spp)),
+                          dimnames = list(1:ncells,
+                                          c('Lat','Lon','cell','Depth','meanTemp','meanDensity','varTemp','varDensity','sumDensity','sqsumDensity',"include","meanTempF","LonE"),
+                                          spp))
 
 # ###################################
 # # LOOP OVER SPECIES
@@ -76,6 +91,8 @@ for (sp in spp) {
   
   sp<-'Gadus macrocephalus'
   
+  #print scenario to check progress
+  cat(paste(" #############   Species", sp, match(sp,spp), 'out of',length(spp),  "  #############\n"))
   
   ###################################
   # LOAD FIT OBJECTS (fit<-from VAST::fit_model()) and pr_list<-VAST::project_model()
@@ -84,51 +101,19 @@ for (sp in spp) {
   load(paste0('./shelf EBS NBS VAST/',sp,'/',ff)) #fit
 
   #load list of projections
-  load(paste0('./output/species/',sp,'/fit_projection.RData')) #pr_list
+  #load(paste0('./output/species/',sp,'/fit_projection.RData')) #pr_list
   
   #n cells
-  ncells<-pr_list$scn1$n_g
+  ncells<-fit$spatial_list$n_g
   
   #how manyt projected years we want
-  yrs_all<-as.integer(dimnames(pr_list$scn1$D_gct)[[3]])
+  yrs<-as.integer(dimnames(fit$Report$D_gct)[[3]])
   
-  #build array for temporal array
-  temp_dens_vals <- array(NA,
-                          dim = c(ncells,
-                                  length(yrs_all),
-                                  length(names(pr_list))),
-                          dimnames = list(1:ncells,yrs_all,names(pr_list)))
-  
-  #build array for static array
-  static_dens_vals <- array(NA,
-                            dim = c(ncells,
-                                    length(c('Lat','Lon','cell','Depth','meanTemp','meanDensity','varTemp','varDensity','sumDensity','sqsumDensity',"include","meanTempF","LonE")),
-                                    length(names(pr_list))),
-                            dimnames = list(1:ncells,
-                                            c('Lat','Lon','cell','Depth','meanTemp','meanDensity','varTemp','varDensity','sumDensity','sqsumDensity',"include","meanTempF","LonE"),
-                                            names(pr_list)))
-  
-    #loop over SBT scenarios
-    for (scn in names(pr_list)) {
-      
-      #print scenario to check progress
-      cat(paste(" #############   Species", sp, match(sp,spp), 'out of',length(spp),  "  #############\n",
-                " #############  Scenario", scn, " #############\n"))
-      
       #scn<-names(pr_list)[1]
       
-      #load projected list for scenario
-      fit_pr<-pr_list[[scn]]
-    
       #years fit+projected
-      yrs_all<-as.integer(dimnames(fit_pr$D_gct)[[3]])
-      
-      #yrs fit
-      yrs_fit<-fit_pr$year_set
-      
-      #yrs projection
-      yrs_pr<-setdiff(yrs_all,yrs_fit)
-    
+      yrs<-as.integer(dimnames(fit$Report$D_gct)[[3]])
+
       #################################################
       # SIMULATE DATA
       #################################################
@@ -145,10 +130,10 @@ for (sp in spp) {
       #################################################
       
       #get predictions for sp
-      temp_dens_vals[,,scn] <- unlist(fit_pr$D_gct[, 1, as.character(yrs_all)])
+      temp_dens_vals[,,sp] <- unlist(fit$Report$D_gct[, 1, as.character(yrs)])
       
       #density_input<-temp_dens_vals
-      D_gt<-fit_pr$D_gct[, 1, as.character(yrs_all)]
+      D_gt<-unlist(fit$Report$D_gct[, 1, as.character(yrs)])
       #dim(D_gt)
       #D_gt_proj<-D_gt[,paste0(project_yrs)]
       
@@ -156,13 +141,13 @@ for (sp in spp) {
       #D_gt<-drop_units(D_gt)
       
       #dataframe of cells with predictions
-      D_gt<-data.frame('cell'=c(1:fit_pr$n_g),D_gt)
+      D_gt<-data.frame('cell'=c(1:fit$spatial_list$n_g),D_gt)
       
       #years simulated
-      yrs<-as.numeric(yrs_all)
+      yrs<-as.numeric(yrs)
       
       #rename years predictions 
-      colnames(D_gt)<-c('cell',yrs_all) #,project_yrs
+      colnames(D_gt)<-c('cell',yrs) #,project_yrs
       
       #reshape
       D_gt1<-reshape2::melt(D_gt,id=c('cell'))
@@ -211,13 +196,13 @@ for (sp in spp) {
       D6$LonE<-D6$Lon+180+180
       
       #get predictions for sp
-      static_dens_vals[,,scn] <- unlist(D6)
-    }   
-  
+      static_dens_vals[,,sp] <- unlist(D6)
+    
+      tdf<-temp_dens_vals[,,sp]
   
     #save results list
-    save(static_dens_vals,file=paste0('./output/species/',sp,'/optimization_static_data.RData'))
+    save(D6,file=paste0('./output/species/',sp,'/optimization_static_data.RData'))
     
     #save results list
-    save(temp_dens_vals,file=paste0('./output/species/',sp,'/projection_data.RData'))
+    save(tdf,file=paste0('./output/species/',sp,'/fit_temporal_data.RData'))
 }
