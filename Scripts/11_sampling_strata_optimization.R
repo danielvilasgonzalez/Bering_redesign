@@ -2,6 +2,7 @@
 ####################################################################
 ##
 ##    Run sampling optimization based on predicted densities from VAST model
+##    and get samples from each strata for each sampling design
 ##
 ##    by best stratification, we mean the stratification that ensures the minimum sample cost, 
 ##    sufficient to satisfy precision constraints set on the accuracy of the estimates of the survey target variables Y’s
@@ -21,7 +22,8 @@ gc()
 
 #libraries from cran to call or install/load
 pack_cran<-c("splines",'SamplingStrata','wesanderson','dplyr','sp',
-             'sf','maptools','parallel','rasterVis','rgeos','scales','rnaturalearth','grid','ggplot2','spatstat')
+             'sf','maptools','parallel','rasterVis','rgeos','scales',
+             'rnaturalearth','grid','ggplot2','spatstat')
 
 #install pacman to use p_load function - call library and if not installed, then install
 if (!('pacman' %in% installed.packages())) {
@@ -259,27 +261,29 @@ grid.ebs_year1<-grid.ebs_year[which(grid.ebs_year$region!='EBSslope'),]
 # SCENARIOS
 ###################################
 
+#sampling scenarios
 samp_df<-expand.grid(strat_var=c('Lat_varTemp','Lat_meanTempF','Depth_meanTempF','Depth_varTemp','meanTempF_varTemp','meanTempF','varTemp','Depth'),
                     target_var=c('sumDensity'), #,'sqsumDensity'
                     n_samples=c(350), #c(300,500) 520 (EBS+NBS+CRAB);26 (CRAB); 350 (EBS-CRAB); 494 (NBS-CRAB)
                     n_strata=c(10)) #c(5,10,15)
 
+#add scenario number
 samp_df$samp_scn<-paste0(paste0('scn',1:nrow(samp_df)))
-
-#yrs
-yrs<-1982:2022
 
 #########################
 # RUN LOOP SPECIES
 #########################
-#loop through scenarios
+
+#loop over species
 for (sp in spp) {
   
   sp<-'Gadus macrocephalus'
   
-  #save results list
+  #load optimization data
   load(paste0('./output/species/',sp,'/optimization_static_data.RData')) #D6
   #load(paste0('./output/species/',sp,'/projection_data.RData')) #temp_dens_vals
+  
+  #load fit OM
   load(paste0('./shelf EBS NBS VAST/',sp,'/fit.RData'))
   
   #removed cells because of depth
@@ -314,260 +318,255 @@ for (sp in spp) {
   sp_loc<-data.frame(matrix(nrow = 0,ncol=5))
   names(sp_loc)<- c("Lat","Lon","Stations","samp_scn","sp")
   
-    static_df1<-subset(D6,cell %in% ok_cells)
+  #subset cells with appropiate depth
+  static_df1<-subset(D6,cell %in% ok_cells)
     
-    #create a list to store results
-    plot_list<-list()
+  #create a list to store results
+  plot_list<-list()
     
-    #########################
-    # RUN LOOP SAMPLING SCENARIOS
-    #########################
+  #########################
+  # RUN LOOP SAMPLING SCENARIOS
+  #########################
 
-    #loop through sampling scenarios
-    for (s in 1:nrow(samp_df)) {
+  #loop through sampling scenarios
+  for (s in 1:nrow(samp_df)) {
       
-      #s<-1
+    #s<-1
       
-      #print scenario to check progress
-      cat(paste(" #############   Species", sp, match(sp,spp), 'out of',length(spp),  "  #############\n",
-                #" #############  SBT Scenario", sbt_scn, " #############\n",
-                " #############  Sampling Scenario", samp_df[s,"samp_scn"], " #############\n"))
-      
-      
-      
-      if (grepl('_',samp_df[s,'strat_var'])) {
-        #stratification variables 
-        stratum_var_input<-data.frame(X1 = static_df1[,paste0(sub("\\_.*", "", samp_df[s,'strat_var']))],
-                                      X2 = static_df1[,paste0(sub(".*_", "", samp_df[s,'strat_var']))]) #Xspp #set different scenarios and spp ############ TO CHECK
-      } else {
-        stratum_var_input<-data.frame(X1 = static_df1[,paste0(sub("\\_.*", "", samp_df[s,'strat_var']))]) #Xspp #set different scenarios and spp ############ TO CHECK
-        
-      }
+    #print scenario to check progress
+    cat(paste(" #############   Species", sp, match(sp,spp), 'out of',length(spp),  "  #############\n",
+              #" #############  SBT Scenario", sbt_scn, " #############\n",
+              " #############  Sampling Scenario", samp_df[s,"samp_scn"], " #############\n"))
+    
+    #if scenario includes two stratifying factors
+    if (grepl('_',samp_df[s,'strat_var'])) {
+      #stratification variables 
+      stratum_var_input<-data.frame(X1 = static_df1[,paste0(sub("\\_.*", "", samp_df[s,'strat_var']))],
+                                      X2 = static_df1[,paste0(sub(".*_", "", samp_df[s,'strat_var']))]) 
+    } else {
+      stratum_var_input<-data.frame(X1 = static_df1[,paste0(sub("\\_.*", "", samp_df[s,'strat_var']))])
+    }
 
-      #target variables
-      target_var_input<-data.frame(Y1 = static_df1$sumDensity,
-                                   Y1_SQ_SUM = static_df1$sqsumDensity) #D7$sqsumDensity #Ynspp #set different scenarios and spp ############ TO CHECK
+    #target variables
+    target_var_input<-data.frame(Y1 = static_df1$sumDensity,
+                                 Y1_SQ_SUM = static_df1$sqsumDensity) #D7$sqsumDensity #Ynspp #set different scenarios and spp ############ TO CHECK
       
-      #create df
-      frame <- data.frame(domainvalue = domain_input, #domain
-                          id = static_df1$cell, #id as cells
-                          stratum_var_input, #Stratification variables
-                          WEIGHT=n_years, #weight for spp depending on the presence of years
-                          target_var_input) #target variables 
+    #create df
+    frame <- data.frame(domainvalue = domain_input, #domain
+                        id = static_df1$cell, #id as cells
+                        stratum_var_input, #Stratification variables
+                        WEIGHT=n_years, #weight for spp depending on the presence of years
+                        target_var_input) #target variables 
       
-      ###################################
-      # SIMPLE RANDOM SAMPLING CV CONSTRAINTS
-      ###################################
+    ###################################
+    # SIMPLE RANDOM SAMPLING CV CONSTRAINTS
+    ###################################
       
-      #Initiate CVs to be those calculated under simple random sampling (SRS)
-      srs_stats <- SamplingStrata::buildStrataDF(dataset = cbind( frame[, -grep(x = names(frame), pattern = "X")],X1 = 1))
+    #Initiate CVs to be those calculated under simple random sampling (SRS)
+    srs_stats <- SamplingStrata::buildStrataDF(dataset = cbind( frame[, -grep(x = names(frame), pattern = "X")],X1 = 1))
       
-      #number of samples 
-      #520 in 2022 (NBS and EBSshelf)
-      #376 in 2018 (EBSshelf)
-      n_samples <- samp_df[s,'n_samples']
+    #number of samples (maximum)
+    #520 in 2022 (NBS and EBSshelf)
+    #376 in 2018 (EBSshelf)
+    n_samples <- samp_df[s,'n_samples']
+    
+    #number of samples
+    srs_n <- as.numeric(n_samples * table(frame$domainvalue) / n_cells)
       
-      #number of samples
-      srs_n <- as.numeric(n_samples * table(frame$domainvalue) / n_cells)
+    #SRS statistics
+    srs_var <- srs_stats$S1^2 * (1 - srs_n / n_cells) / srs_n #M1<- mean; S1<-SD
+    srs_cv <- sqrt(srs_var) / srs_stats$M1
       
-      ## SRS statistics
-      srs_var <- srs_stats$S1^2 * (1 - srs_n / n_cells) / srs_n #M1<- mean; S1<-SD
-      srs_cv <- sqrt(srs_var) / srs_stats$M1
+    #create cv object for constraints
+    cv <- list()
+    cv[["CV1"]] <- srs_cv
+    cv[["DOM"]] <- 1:n_dom
+    cv[["domainvalue"]] <- 1:n_dom
+    cv <- as.data.frame(cv)
       
-      #create cv object for constraints
-      cv <- list()
-      cv[["CV1"]] <- srs_cv
-      cv[["DOM"]] <- 1:n_dom
-      cv[["domainvalue"]] <- 1:n_dom
-      cv <- as.data.frame(cv)
+    ###################################
+    # STRATAS
+    ###################################
       
-      ###################################
-      # STRATAS
-      ###################################
+    #get n_strata from kmean suggestion
+    # kmean<-KmeansSolution2(frame=frame,
+    #                        errors=cv,
+    #                        maxclusters = 20,
+    #                        showPlot = F)
+    # 
+    # #number strata from kmean
+    # no_strata<-tapply(kmean$suggestions,
+    #                   kmean$domainvalue,
+    #                   FUN=function(x) length(unique(x)))
+    # 
       
-      #get n_strata from kmean suggestion
-      # kmean<-KmeansSolution2(frame=frame,
-      #                        errors=cv,
-      #                        maxclusters = 20,
-      #                        showPlot = F)
-      # 
-      # #number strata from kmean
-      # no_strata<-tapply(kmean$suggestions,
-      #                   kmean$domainvalue,
-      #                   FUN=function(x) length(unique(x)))
-      # 
+    #number of stratas 
+    no_strata<-samp_df[s,'n_strata']
       
-      #number of stratas 
-      no_strata<-samp_df[s,'n_strata']
+    ###################################
+    # RUN OPTIMIZATION
+    ###################################
       
-      ###################################
-      # RUN OPTIMIZATION
-      ###################################
+    #run optimization
+    solution <- optimStrata(method = "continuous", #continous variables
+                            errors = cv,  #precision level - maximum allowable coefficient of variation set by the simple random sampling 
+                            framesamp = frame, #df of input variables
+                            iter = 50, #300 #aximum number of iterations
+                            pops = 20, #100  #dimension of each generations
+                            elitism_rate = 0.2, #0.1
+                            mut_chance = 1 / (no_strata[1] + 1), #mutation chance
+                            nStrata = no_strata,
+                            showPlot = FALSE,
+                            writeFiles = FALSE)
       
-      #run optimization
-      solution <- optimStrata(method = "continuous",
-                              errors = cv,  #maximum allowable coefficient of variation set by the RandomSampling
-                              framesamp = frame,
-                              iter = 50, #300
-                              pops = 20, #100
-                              elitism_rate = 0.1,
-                              mut_chance = 1 / (no_strata[1] + 1),
-                              nStrata = no_strata,
-                              showPlot = FALSE,
-                              writeFiles = FALSE)
+    ###################################
+    # STORE SOLUTIONS
+    ###################################
       
-      ###################################
-      # STORE SOLUTIONS
-      ###################################
+    #results from optimization
+    framenew<-solution$framenew
+    outstrata<-solution$aggr_strata
+    ss<-summaryStrata(framenew,outstrata)
+    #head(ss)
       
-      #results
-      framenew<-solution$framenew
-      outstrata<-solution$aggr_strata
-      ss<-summaryStrata(framenew,outstrata)
-      #head(ss)
+    #plot strata 2D
+    #plotStrata2d(framenew,outstrata,domain=1,vars=c('X1','X2'),labels = c('VarTemp','Depth'))
       
-      #plot strata 2D
-      #plotStrata2d(framenew,outstrata,domain=1,vars=c('X1','X2'),labels = c('VarTemp','Depth'))
-      
-      ## Organize result outputs
-      solution$aggr_strata$STRATO <- as.integer(solution$aggr_strata$STRATO)
-      solution$aggr_strata <- 
-        solution$aggr_strata[order(solution$aggr_strata$DOM1,
-                                   solution$aggr_strata$STRATO), ]
-      
-      sum_stats <- summaryStrata(solution$framenew,
-                                 solution$aggr_strata,
-                                 progress=FALSE)
-      sum_stats$stratum_id <- 1:nrow(sum_stats)
-      sum_stats$Population <- sum_stats$Population / n_years
-      sum_stats$wh <- sum_stats$Allocation / sum_stats$Population
-      sum_stats$Wh <- sum_stats$Population / n_cells
-      sum_stats <- cbind(sum_stats,
+    #organize result outputs
+    solution$aggr_strata$STRATO <- as.integer(solution$aggr_strata$STRATO)
+    solution$aggr_strata <- 
+    solution$aggr_strata[order(solution$aggr_strata$DOM1,
+                               solution$aggr_strata$STRATO), ]
+    
+    #save optimization stats  
+    sum_stats <- summaryStrata(solution$framenew,
+                               solution$aggr_strata,
+                               progress=FALSE)
+    sum_stats$stratum_id <- 1:nrow(sum_stats)
+    sum_stats$Population <- sum_stats$Population / n_years
+    sum_stats$wh <- sum_stats$Allocation / sum_stats$Population
+    sum_stats$Wh <- sum_stats$Population / n_cells
+    sum_stats <- cbind(sum_stats,
                          subset(x = solution$aggr_strata,
                                 select = -c(STRATO, N, COST, CENS, DOM1, X1)))
       
-      #add scn and sp
-
-      sum_stats$samp_scn<-samp_df[s,'samp_scn']
-      sum_stats$sp<-sp
-      
-      if (!grepl('_',samp_df[s,'strat_var'])) {
+    #add scn and sp
+    sum_stats$samp_scn<-samp_df[s,'samp_scn']
+    sum_stats$sp<-sp
+    
+    #if one stratifying factor add columns  
+    if (!grepl('_',samp_df[s,'strat_var'])) {
         
-        sum_stats<-data.frame(sum_stats[,c("Domain","Stratum","Population","Allocation","SamplingRate","Lower_X1","Upper_X1")],
-                             "Lower_X2"=NA,"Upper_X2"=NA,
-                             sum_stats[,c("stratum_id","wh","Wh","M1","S1","SOLUZ","samp_scn","sp")])
-      }
+      sum_stats<-data.frame(sum_stats[,c("Domain","Stratum","Population","Allocation","SamplingRate","Lower_X1","Upper_X1")],
+                           "Lower_X2"=NA,"Upper_X2"=NA,
+                           sum_stats[,c("stratum_id","wh","Wh","M1","S1","SOLUZ","samp_scn","sp")])
+    }
+    
+    #append stat results  
+    sp_sum_stats<-rbind(sp_sum_stats,sum_stats)
       
-      sp_sum_stats<-rbind(sp_sum_stats,sum_stats)
+    ###################################
+    # CREATE SPATIAL OBJECT BASED ON CELLS STRATA
+    ###################################
+    
+    #strata by cell  
+    strata<-solution$indices
+    colnames(strata)<-c('cell','Strata')
       
-      ###################################
-      # CREATE SPATIAL OBJECT BASED ON CELLS STRATA
-      ###################################
+    #add a strata value to each cell
+    D8<-merge(D6,strata,by='cell',all.x=TRUE)
+    D8<-D8[,c("cell","Lat","Lon","Strata")]
+    D8$Strata<-as.numeric(D8$Strata)
+    D8$Strata<-ifelse(is.na(D8$Strata),999,D8$Strata)
       
-      strata<-solution$indices
-      colnames(strata)<-c('cell','Strata')
+    #df to spatialpoint df
+    coordinates(D8) <- ~ Lon + Lat
+    crs(D8)<-c(crs="+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
       
-      #dim(strata)
+    #reproject coordinates for plotting purposes
+    D8_1<-spTransform(D8,'+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs')
+    #D8_2<-data.frame(D8_1)
       
-      D8<-merge(D6,strata,by='cell',all.x=TRUE)
-      D8<-D8[,c("cell","Lat","Lon","Strata")]
-      D8$Strata<-as.numeric(D8$Strata)
-      D8$Strata<-ifelse(is.na(D8$Strata),999,D8$Strata)
+    #x and y cells
+    xycells<-as.integer(sqrt(dim(D8_1)[1]))
       
-      #df to spatialpoint df
-      coordinates(D8) <- ~ Lon + Lat
-      crs(D8)<-c(crs="+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
+    # create a template raster
+    r1 <- raster(ext=extent(D8_1),ncol=xycells, nrow=xycells) #c(15800,15800) 7000
       
-      #reproject coordinates for plotting purposes
-      D8_1<-spTransform(D8,'+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs')
-      #D8_2<-data.frame(D8_1)
+    #create raster
+    r2<-rasterize(D8_1, r1 ,field='Strata')
+    crs(r2) <- CRS('+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs')
+    r2[r2==999] <- NA
+    #plot(r2)
       
-      #x and y cells
-      xycells<-as.integer(sqrt(dim(D8_1)[1]))
+    ###################################
+    # MULTIVARIATE OPTIMAL ALLOCATION
+    ###################################
       
-      # create a template raster
-      r1 <- raster(ext=extent(D8_1),ncol=xycells, nrow=xycells) #c(15800,15800) 7000
-      
-      #NA to 999
-     
-      
-      #create raster
-      r2<-rasterize(D8_1, r1 ,field='Strata')
-      crs(r2) <- CRS('+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs')
-      r2[r2==999] <- NA
-      #plot(r2)
-      
-      ###################################
-      # MULTIVARIATE OPTIMAL ALLOCATION
-      ###################################
-      
-      temp_frame <- frame
-      temp_frame$domainvalue <- n_dom
-      srs_stats <- SamplingStrata::buildStrataDF(
-        dataset = cbind( temp_frame[, -grep(x = names(temp_frame), 
-                                            pattern = "X")],
-                         X1 = 1))
-      srs_n <- as.numeric(n_samples * table(temp_frame$domainvalue) / n_cells)
-      
-      ## SRS statistics
-      srs_var <- srs_stats$S1^2 * (1 - srs_n / n_cells) / srs_n
-      srs_cv <- sqrt(srs_var) / srs_stats$M1
-      
-      error_df <- data.frame("DOM" = "DOM1",
-                             "CV1" = srs_cv,
-                             "domainvalue"  = 1)
-      
-      temp_stratif <- solution$aggr_strata
-      temp_stratif$N <- temp_stratif$N / n_years
-      temp_stratif$DOM1 <- 1
-      
-      #run multivariate allocation
-      temp_bethel <- SamplingStrata::bethel(
-        errors = error_df,
-        stratif = temp_stratif, 
-        realAllocation = T, 
-        printa = T)
+    temp_frame <- frame
+    temp_frame$domainvalue <- n_dom
+    srs_stats <- SamplingStrata::buildStrataDF(
+    dataset = cbind( temp_frame[, -grep(x = names(temp_frame), 
+                                          pattern = "X")],
+                       X1 = 1))
+    srs_n <- as.numeric(n_samples * table(temp_frame$domainvalue) / n_cells)
+    
+    #srs statistics
+    srs_var <- srs_stats$S1^2 * (1 - srs_n / n_cells) / srs_n
+    srs_cv <- sqrt(srs_var) / srs_stats$M1
+    
+    error_df <- data.frame("DOM" = "DOM1",
+                           "CV1" = srs_cv,
+                           "domainvalue"  = 1)
+    
+    temp_stratif <- solution$aggr_strata
+    temp_stratif$N <- temp_stratif$N / n_years
+    temp_stratif$DOM1 <- 1
+    
+    #run multivariate allocation
+    temp_bethel <- SamplingStrata::bethel(errors = error_df,
+                                          stratif = temp_stratif,
+                                          realAllocation = T,
+                                          printa = T)
       
       
-      temp_n <- sum(ceiling(temp_bethel))
+    temp_n <- sum(ceiling(temp_bethel))
       
-      error_df$CV1 <- 
-        as.numeric(attributes(temp_bethel)$outcv[, "ACTUAL CV"])
+    error_df$CV1 <- as.numeric(attributes(temp_bethel)$outcv[, "ACTUAL CV"])
       
-      #run multivariate allocation
-      temp_bethel <- SamplingStrata::bethel(stratif = temp_stratif,
-                                            errors = error_df, 
-                                            printa = TRUE)
+    #run multivariate allocation
+    temp_bethel <- SamplingStrata::bethel(stratif = temp_stratif,
+                                          errors = error_df, 
+                                          printa = TRUE)
       
-      #number of samples per strata
-      allocations<-as.integer(temp_bethel)
+    #number of samples per strata
+    allocations<-as.integer(temp_bethel)
       
-      #cv
-      cv_temp <- data.frame( 
-        PLANNED_CV=as.numeric(attributes(temp_bethel)$outcv[, "PLANNED CV "]),
-        ACTUAL_CV=as.numeric(attributes(temp_bethel)$outcv[, "ACTUAL CV"]))
+    #cv
+    cv_temp <- data.frame(PLANNED_CV=as.numeric(attributes(temp_bethel)$outcv[, "PLANNED CV "]),
+                          ACTUAL_CV=as.numeric(attributes(temp_bethel)$outcv[, "ACTUAL CV"]))
       
-      #strata per cell
-      temp_ids<-solution$indices
+    #strata per cell
+    temp_ids<-solution$indices
       
-      #iterations for samples
-      n_iter<-100
+    #iterations for samples
+    n_iter<-100
       
-      #to store samples
-      all_points<-array(NA,dim = list(sum(allocations),4,n_iter),
+    #to store samples
+    all_points<-array(NA,dim = list(sum(allocations),4,n_iter),
                         dimnames = list(c(1:sum(allocations)),c('Lon','Lat','cell','strata'),c(1:n_iter)))
       
-      #loop over iterations
-      for (iter in 1:n_iter) {
+    #loop over iterations
+    for (iter in 1:n_iter) {
+      
       #iter<-1
-        sample_vec <- c()
         
-        #to store points
-        dfpoints<-data.frame(matrix(NA,nrow=0,ncol=4))
-        colnames(dfpoints)<-c('Lon','Lat','cell','strata')
+      #to store points
+      dfpoints<-data.frame(matrix(NA,nrow=0,ncol=4))
+      colnames(dfpoints)<-c('Lon','Lat','cell','strata')
         
-        #random sample for each strata wit distance constrains
-        for(istrata in 1:length(allocations)) {
+      #random sample for each strata wit distance constrains
+      for(istrata in 1:length(allocations)) {
           #istrata<-1
           
           #subset cells for strata
@@ -578,9 +577,9 @@ for (sp in spp) {
           
           #select samples with buffer
           xy.buff<-buffer.f(data.frame(x=df$Lon,y=df$Lat,cell=df$cell),
-                               buffer = ratio*100, #30000
-                               reps = 1,
-                               n=allocations[istrata])
+                                       buffer = ratio*100, #30000
+                                       reps = 1,
+                                       n=allocations[istrata])
           colnames(xy.buff)[1:2]<-c("Lon",'Lat')
           xy.buff1<-data.frame(xy.buff,strata=istrata)
           
@@ -599,14 +598,7 @@ for (sp in spp) {
       
       #save sample selection
       save(all_points,file=paste0('./output/species/',sp,'/samples_optimization_',samp_df[s,'samp_scn'],'.RData'))
-      
-      # #points dataframe
-      # points<-data.frame(cell=sample_vec,
-      #                    strata=rep(1:length(temp_bethel),allocations))
-      # 
-      # #merge
-      # points1<-merge(points,static_df1,by='cell',all.x=TRUE)
-   
+
       #change projection of spatial object 
       coordinates(dfpoints)<- ~ Lon + Lat
       
