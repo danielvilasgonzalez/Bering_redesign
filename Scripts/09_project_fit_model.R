@@ -196,7 +196,7 @@ for (sp in spp) {
       #open stack of rasters
       st<-stack_files[grepl(paste0('scn',scn),stack_files)][1]
       st<-stack(paste0('./data processed/SBT scenarios/',st))
-      plot(st)
+      #plot(st)
       #title(main='x')
       
       #reproject shapefile
@@ -235,17 +235,30 @@ for (sp in spp) {
       cov_list[[scn]]<-points3
       
       #add to covariate data
-      new_covariate_data<-rbind(fit$covariate_data,points3)
-    
-      #project model example
-      pm<-project_model(x = fit,n_proj = n_proj,new_covariate_data = new_covariate_data)
+      new_data<-rbind(fit$covariate_data,points3)
+      #new_data<-points3
       
+      fit1<-fit
+      fit1$covariate_data<-rbind(fit1$covariate_data,new_covariate_data)
+      
+      #project model example
+      pm<-project_model(x = fit1,
+                        n_proj = n_proj,n_samples = 1,#,
+                        new_covariate_data = NULL)
+      
+      pm$D_gct[,1,as.character(c(2022:2025))]
+      out$D_gct[,1,as.character(c(2022:2025))]
+      out$Index_gctl[,1,as.character(c(2022:2025)),1]
+      
+      # pm[[1]]$D_gct[,1,as.character(c(1982:1983))]
+      # pm[[2]]$D_gct[,1,as.character(c(1982:1983))]
+       
       #add year to covariate data from fit
       pr_list[[paste0('scn',scn)]]<-pm
     }
   
   #save projection list
-  save(pr_list, file = paste0("./output/species/",sp,'/fit_projection.RData'))
+  #save(pr_list, file = paste0("./output/species/",sp,'/fit_projection.RData'))
 }
 
 ##############################
@@ -425,28 +438,50 @@ for (sp in spp) {
   }  
 }  
 
+###################################
+# CHECK INDICES
+##################################
 
-#save projection list
-# load( file = paste0("./output/species/",sp,'/fit_projection.RData')) #pr_list
-# ind<-data.frame(matrix(nrow = 0,ncol=3))
-# colnames(ind)<-c('year','value','scn')
-# 
-# for (i in names(pr_list)) {
-#   
-#   #i<-names(pr_list)[1]
-#   pr<-pr_list[[i]]
-#   df<-pr['Index_ctl']
-#   df1<-data.frame(year=1982:2027,
-#                   value=as.vector(df$Index_ctl[1,,1]),
-#                   scn=i)
-#   ind<-rbind(ind,df1)
-# 
-# }
-# 
-# 
-# 
-# ggplot()+
-#   geom_line(data=subset(ind,year %in% 2022:2027),aes(x=year,y=value/1000,color=scn))+
-#   labs(y='t',color='SBT scn')+
-#   theme_bw()
+#true
+load(paste0('./shelf EBS NBS VAST/',sp,'/',ff)) #fit
+true_ind<-data.frame('year'= as.integer(names(fit$Report$Index_ctl[,,1])),
+                     'value'=as.vector(fit$Report$Index_ctl[,,1]),
+                     'scn'='true')
+#projection list
+ load( file = paste0("./output/species/",sp,'/fit_projection.RData')) #pr_list
+ ind<-data.frame(matrix(nrow = 0,ncol=3))
+ colnames(ind)<-c('year','value','scn')
+ 
+ for (i in names(pr_list)) {
+   
+   #i<-names(pr_list)[1]
+   pr<-pr_list[[i]]
+   df<-pr['Index_ctl']
+   df1<-data.frame(year=1982:2027,
+                   value=as.vector(df$Index_ctl[1,,1]),
+                   scn=i)
+   ind<-rbind(ind,df1)
+ 
+ }
+ 
+ #plot comparison
+ ggplot()+
+   geom_line(data=ind,aes(x=year,y=value/1000,color=scn),linewidth=1,alpha=0.8)+
+   geom_point(data=true_ind,aes(x=year,y=value/1000,fill=scn))+
+   labs(y='t',color='projection',fill='fitted')+
+   scale_x_continuous(breaks=c(1982:2027),limits = c(1982,2027))+
+   theme_bw()+
+   theme(axis.text.x = element_text(angle=90,vjust = 0.5),panel.grid.minor.x = element_blank())
+ 
+ #plot comparison zoom in
+ ggplot()+
+   geom_line(data=ind,aes(x=year,y=value/1000,color=scn),linewidth=1,alpha=0.8)+
+   #geom_point(data=true_ind,aes(x=year,y=value/1000,fill=scn))+
+   labs(y='t',color='projection',fill='fitted')+
+   scale_x_continuous(breaks=c(1982:2027),limits = c(2023,2027))+
+   scale_y_continuous(limits = c(300000,1000000))+
+   scale_color_discrete(labels=paste0('scn',1:9,'_',c("status quo","gradually cold","gradually warm","medium variation I","medium variation II","high variation I","high variation II",   
+                               "extreme variation I","extreme variation II")))+
+   theme_bw()+
+   theme(axis.text.x = element_text(angle=90,vjust = 0.5),panel.grid.minor.x = element_blank())
   
