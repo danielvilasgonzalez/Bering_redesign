@@ -83,7 +83,7 @@ for (sp in spp) {
     #get station locations for each sampling design
     load(file=paste0('./output/species/',sp,'/samples_optimization_',samp,'.RData')) #all_points
     
-    #loop over SBT scenarios
+    #loop over SBT projections
     for (sbt in names(pr_list)) {
       
       #sbt<-names(pr_list)[1]
@@ -95,7 +95,7 @@ for (sp in spp) {
                 " #############  SBT ", sbt, " #############\n"))
    
       
-      #get raster stack for each SBT scenario
+      #get raster stack for each SBT projection
       bio_proj<-stack(paste0('./output/species/',sp,'/biomass_projection_',sbt,'.grd'))
       names(bio_proj)<-paste0('y',c(2023:2027))
       
@@ -157,6 +157,23 @@ for (sp in spp) {
     #load optimization results
     load(paste0('./output/species/',sp,'/optimization_results_',samp,'.RData')) #result_list
 
+    #area
+    area_cell<-merge(result_list$solution$indices, grid, by.x='ID',by.y='cell')
+    
+    #area by strata
+    strata_areas <- aggregate(Area_in_survey_km2 ~ X1, 
+                              FUN = sum,
+                              data = area_cell)
+    
+    #strata data
+    survey_detail <- data.frame("Stratum" = result_list$solution$aggr_strata$STRATO, #strata
+                                'Nh' = as.integer(table(result_list$solution$indices$X1)), #number of cells
+                                "nh" = result_list$sample_allocations) #number of sample allocations
+    
+    #weight of strata for each
+    survey_detail$Wh <- survey_detail$Nh / sum(survey_detail$Nh)
+    survey_detail$wh <- with(survey_detail, nh/Nh)
+    
     #subset by sampling design
     sum_stats<-subset(sp_sum_stats,samp_scn==samp)
     
@@ -189,22 +206,12 @@ for (sp in spp) {
         
         #catch to CPUE
         #cpue<-y[,year]/y[,"Area_in_survey_km2"] 
-        y$cpue<-y[,year]*y[,"Area_in_survey_km2"] 
-        cpue<-y[,year]*y[,"Area_in_survey_km2"] 
+        #cpue<-y[,year]*y[,"Area_in_survey_km2"] 
+        cpue<-y[,year]
         
-         # ggplot()+
+        # ggplot()+
         #   geom_point(data=yy,aes(x=Lon.x,y=Lat.x,size=cpue,color=cpue))
         
-        
-        #strata data
-        survey_detail <- data.frame("Stratum" = result_list$solution$aggr_strata$STRATO, #strata
-                                    'Nh' = as.integer(table(result_list$solution$indices$X1)), #number of cells
-                                    "nh" = result_list$sample_allocations) #number of sample allocations
-        
-        #weight of strata for each
-        survey_detail$Wh <- survey_detail$Nh / sum(survey_detail$Nh)
-        survey_detail$wh <- with(survey_detail, nh/Nh)
-  
         #mean by strata
         strata_means<-aggregate(x=cpue,
                                 by=list(iter=y$iter,strata=y$strata),
@@ -214,20 +221,15 @@ for (sp in spp) {
                                 by=list(iter=y$iter,strata=y$strata),
                                 FUN=var, na.rm=T)
         
-        #area by strata
-        strata_areas <- aggregate(Area_in_survey_km2 ~ strata + iter, 
-                                  FUN = sum,
-                                  data = y)
-      
         #loop over iterations
-        for (iters in sort(as.integer(unique(strata_areas$iter)))) {
+        for (iters in sort(as.integer(unique(strata_means$iter)))) {
           
           #iters<-1
           
           #subset by iter
           strata_means1<-subset(strata_means,iter==iters)
-          strata_areas1<-subset(strata_areas,iter==iters)
           strata_vars1<-subset(strata_vars,iter==iters)
+          #strata_areas1<-subset(strata_areas,iter==iters)
           
           #calculate STRS mean and variance of density and CV
           index_array[iters,'STRS_mean',year,sbt,samp,sp] <- STRS_mean <- sum(strata_means1$x * survey_detail$Wh)
@@ -235,7 +237,8 @@ for (sp in spp) {
           index_array[iters,'cv',year,sbt,samp,sp] <- sqrt(STRS_var) / STRS_mean
           
           # Calculate total index
-          index_array[iters,'index',year,sbt,samp,sp] <- sum(strata_areas1$Area_in_survey_km2 * strata_means1$x) * 0.001
+          #index_array[iters,'index',year,sbt,samp,sp] <- sum(strata_areas1$Area_in_survey_km2 * strata_means1$x) * 0.001
+          index_array[iters,'index',year,sbt,samp,sp] <- sum(strata_areas$Area_in_survey_km2 * strata_means1$x) / 1000
         }
       }
     }
