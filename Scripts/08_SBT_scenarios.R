@@ -14,7 +14,7 @@ rm(list = ls(all.names = TRUE))
 gc() 
 
 #libraries from cran to call or install/load
-pack_cran<-c('ncdf4','raster','FNN','lubridate','rgeos','scales','rnaturalearth','grid','ggplot2')
+pack_cran<-c('ncdf4','raster','FNN','lubridate','rgeos','scales','rnaturalearth','grid','ggplot2','rasterVis')
 
 #install pacman to use p_load function - call library and if not installed, then install
 if (!('pacman' %in% installed.packages())) {
@@ -169,14 +169,14 @@ dir.create('./figures/SBT/')
 #loop over scenarios and projected years
 for (scn in unique(df_scn$scn_n)) {
 
-  #scn<-3
+  #scn<-1
   
   #create stack
   sbt_stack<-stack()
   
   #add layer to stack
   sbt_stack<-addLayer(sbt_stack,r2)
-  names(sbt_stack)<-'y2002'
+  names(sbt_stack)<-'y2022'
   
   for (y in 1:5) {
     #y<-1
@@ -194,6 +194,9 @@ for (scn in unique(df_scn$scn_n)) {
     
   }
 
+  #sbt remove 2022
+  sbt_stack<-sbt_stack[[paste0('y',2023:2027)]]
+  
   #save raster
   writeRaster(sbt_stack, paste0('data processed/SBT scenarios/SBT_scn',scn,'_',paste0(range(yrs)[1],'-',range(yrs)[2]),'.grd'),overwrite=TRUE)
   
@@ -211,6 +214,7 @@ for (scn in unique(df_scn$scn_n)) {
 
 #scenarios
 df_scn<-read.csv('./tables/SBT_scenarios.csv')
+df_scn$Scenario<-paste0('SBT',1:9,'_',df_scn$Scenario)
 df_scn<-df_scn[,1:7]
 
 #reshape df
