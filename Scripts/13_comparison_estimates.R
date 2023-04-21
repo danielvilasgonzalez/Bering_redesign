@@ -58,9 +58,11 @@ for (sp in spp) {
   
   #load projections
   load( file = paste0("./output/species/",sp,'/fit_projection.RData')) #pr_list
+  
   #to store index
   df_index<-data.frame(matrix(NA,nrow = 0,ncol = 4))
   colnames(df_index)<-c('sbt','scn','year','index')
+  
   #to store the true index
   df_true<-data.frame(matrix(NA,nrow = 0,ncol = 4))
   colnames(df_true)<-c('sbt','scn','year','index')
@@ -107,10 +109,20 @@ for (sp in spp) {
   }
   
   #check indices for each SBT and scenario
+  df_true1<-subset(df_true,year %in% 2023:2027)
+  df_true1<-df_true1[!duplicated(df_true1),]
+  df_true1$dummy<-''
+  
+  df_true1$sbt<-gsub('scn','',df_true1$sbt)
+  df_index$sbt<-gsub('scn','',df_index$sbt)
+  
   ggplot()+
-    geom_boxplot(data=df_index,aes(x=factor(year),y=index*10,color=scn))+
-    geom_line(data=subset(df_true,year %in% 2023:2027),aes(x=factor(year),y=index/1000,group=sbt),color='black')+
-    facet_wrap(~sbt)#+  
+    geom_boxplot(data=df_index,aes(x=factor(year),y=index,color=scn),position = position_dodge(width = 0.9))+
+    geom_point(data=df_true1,aes(x=factor(year),y=index/1000,group=scn,shape=dummy),color='black',alpha=0.5,position = position_dodge(width = 0.9))+
+    facet_wrap(~sbt)+
+    theme_bw()+
+    theme()+
+    labs(color='design-based',shape='model-based',x='year',y='index (t)')#+  
     #scale_y_continuous(limits = c(0,25000))
 
 }
