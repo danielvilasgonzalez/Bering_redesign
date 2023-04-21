@@ -112,7 +112,7 @@ for (sp in spp) {
       #scn<-names(pr_list)[1]
       
       #years fit+projected
-      yrs<-as.integer(dimnames(fit$Report$D_gct)[[3]])
+      #yrs<-as.integer(dimnames(fit$Report$D_gct)[[3]])
 
       #################################################
       # SIMULATE DATA
