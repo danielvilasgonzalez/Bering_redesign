@@ -126,8 +126,7 @@ ebs_sh<-EBSshelf_sh
 pal<-wesanderson::wes_palette('Zissou1',21,type='continuous')
 
 #scenarios file
-df_scn<-read.csv('./tables/SBT_scenarios.csv')
-df_scn<-df_scn[,1:8]
+load('./tables/SBT_projection.RData') #df_sbt
 
 #load grid of NBS and EBS
 load('./extrapolation grids/northern_bering_sea_grid.rda')
@@ -176,12 +175,8 @@ for (sp in spp) {
 # PROJECT THROUGH SBT SCENARIOS
 #############################
 
-  #get scenarios
-  df_scn<-read.csv('./tables/SBT_scenarios.csv')
-  df_scn<-df_scn[,c(1:8)]
-  
   #get raster stack
-  stack_files<-list.files('./data processed/SBT scenarios/')
+  stack_files<-list.files('./data processed/SBT projections/')
   
   #list covariate data for each scenario
   cov_list<-list()
@@ -190,18 +185,18 @@ for (sp in spp) {
   pr_list<-list()
 
     #loop over scenarios
-    for (scn in unique(df_scn$scn_n)) {
+    for (sbt in unique(df_sbt$sbt_n)) {
       
-      #scn<-unique(df_scn$scn_n)[2]
+      #sbt<-unique(df_sbt$sbt_n)[2]
       
       #print scenario to check progress
       cat(paste(" #############     PROJECTING    #############\n",
                 " #############   Species", sp, match(sp,spp), 'out of',length(spp),  "  #############\n",
-                " #############  Scenario", scn, " #############\n"))
+                " #############  SBT", sbt, " #############\n"))
 
       #open stack of rasters
-      st<-stack_files[grepl(paste0('scn',scn),stack_files)][1]
-      st<-stack(paste0('./data processed/SBT scenarios/',st))
+      st<-stack_files[grepl(paste0('SBT_',sbt),stack_files)][1]
+      st<-stack(paste0('./data processed/SBT projections/',st))
       #plot(st)
       #title(main='x')
       
@@ -241,7 +236,7 @@ for (sp in spp) {
       
       
       #add year to covariate data from fit
-      cov_list[[scn]]<-points3
+      cov_list[[sbt]]<-points3
       
       #add covariate data
       new_data<-rbind(fit$covariate_data,points3)
@@ -258,7 +253,7 @@ for (sp in spp) {
       dyn.unload('C:/Program Files/R/R-4.2.2/library/VAST/executables/VAST_v13_1_0_TMBad.dll')
       
       #add year to covariate data from fit
-      pr_list[[paste0('scn',scn)]]<-pm
+      pr_list[[paste0('SBT',sbt)]]<-pm
     }
   
   #save projection list
@@ -267,13 +262,13 @@ for (sp in spp) {
 
 #check if index projectionmatch index fit
 df<-data.frame(matrix(NA,0,3))
-colnames(df)<-c('year','index','scn')
+colnames(df)<-c('year','index','sbt')
 
-for (scn in 1:9) {
+for (sbt in 1:length(names(pr_list))) {
 
- pm<-pr_list[[paste0('scn',scn)]]
+ pm<-pr_list[[paste0('SBT',sbt)]]
 
- ipr<-data.frame(year=1982:2027,index=pm$Index_ctl[,1:46,1],scn=paste0('SBT',scn))
+ ipr<-data.frame(year=1982:2027,index=pm$Index_ctl[,1:46,1],sbt=paste0('SBT',sbt))
  df<-rbind(df,ipr)
  
  ifit<-data.frame(year=1982:2022,index=fit$Report$Index_ctl[,,1])
@@ -287,11 +282,12 @@ for (scn in 1:9) {
 
 df$output<-'projection'
 ifit$output<-'fit'
+df$sbt<-factor(df$sbt,levels = names(pr_list))
 
 ggplot()+
   geom_line(data=df,aes(x=year,y=index,color=output))+
   geom_line(data=ifit,aes(x=year,y=index,color=output))+
-  facet_wrap(~scn)
+  facet_wrap(~sbt)
 
 ##############################
 # PLOT MAP PROJECTIONS
@@ -322,7 +318,7 @@ for (sp in spp) {
     #print scenario to check progress
     cat(paste(" #############      PLOTTING     #############\n",
               " #############   Species", sp, match(sp,spp), 'out of',length(spp),  "  #############\n",
-              " #############  Scenario", proj, " #############\n"))
+              " #############  ", proj, " #############\n"))
     
     
     #get object
@@ -444,21 +440,21 @@ for (sp in spp) {
     writeRaster(proj_stack, paste0('output/species/',sp,'/biomass_projection_',proj,'.grd'),overwrite=TRUE)
     
     #scenario
-    scn<-gsub('scn','SBT',proj)
+    #sbt<-gsub('sbt','SBT',proj)
     
     #scenario name
-    scn_name<-df_scn[which(grepl(scn,df_scn$Scenario)),'Scenario']
+    sbt_name<-df_sbt[which(grepl(paste0(sbt,'\\>'),paste0('SBT',df_sbt$sbt_n))),'Scenario']
     
     # now add the title
     title <- ggdraw() + 
       draw_label(
-        paste0("Scn",scn,' - ',scn_name),
+        paste0(sbt,' - ',sbt_name),
         fontface = 'bold',hjust=0.5,size=16,vjust=0.7
       ) 
     
     #save multiplot
     mp<-cowplot::plot_grid(plotlist = plot_list,nrow = 1,ncol = n_proj)
-    ragg::agg_png(paste0('./figures/species/',sp,'/projection_SBT',proj,".png"), width = 20, height = 4.6, units = "in", res = 300)
+    ragg::agg_png(paste0('./figures/species/',sp,'/projection_',proj,".png"), width = 20, height = 4.6, units = "in", res = 300)
     print(
         plot_grid(
         title, mp,
@@ -484,7 +480,7 @@ grid$cell<-1:nrow(grid)
 load(paste0('./shelf EBS NBS VAST/',sp,'/',ff)) #fit
 true_ind<-data.frame('year'= as.integer(names(fit$Report$Index_ctl[,,1])),
                      'value'=as.vector(fit$Report$Index_ctl[,,1]),
-                     'scn'='true')
+                     'sbt'='true')
 
 
 
@@ -498,7 +494,7 @@ bio_df<-data.frame(bio_t=colSums(bio)/1000,year=1982:2022)
 #projection list
  load( file = paste0("./output/species/",sp,'/fit_projection.RData')) #pr_list
  ind<-data.frame(matrix(nrow = 0,ncol=3))
- colnames(ind)<-c('year','value','scn')
+ colnames(ind)<-c('year','value','sbt')
  ind_area<-ind
  
  for (i in names(pr_list)) {
@@ -508,14 +504,14 @@ bio_df<-data.frame(bio_t=colSums(bio)/1000,year=1982:2022)
    df<-pr['Index_ctl']
    df1<-data.frame(year=1982:2027,
                    value=as.vector(df$Index_ctl[1,,1]),
-                   scn=i)
+                   sbt=i)
    ind<-rbind(ind,df1)
  
    dens_pr<-pr$D_gct[,1,]
    bio_pr<-sweep(dens_pr, 2, area, FUN="*")
    df1_pr<-data.frame(year=1982:2027,
                       value=as.vector(colSums(bio_pr)),
-                      scn=i)
+                      sbt=i)
    
    ind_area<-rbind(ind_area,df1_pr)
  }
@@ -527,11 +523,11 @@ bio_df<-data.frame(bio_t=colSums(bio)/1000,year=1982:2022)
  #plot comparison
  ggplot()+
    geom_line(data=bio_df,aes(x=1982:2022,y=bio_t),color='black',linetype='dashed')+
-   geom_line(data=ind1,aes(x=year,y=value/1000,color=scn,linetype=output),alpha=0.8)+
+   geom_line(data=ind1,aes(x=year,y=value/1000,color=sbt,linetype=output),alpha=0.8)+
    ggrepel::geom_text_repel(data = subset(ind1, year == "2022" & output =='Index_fit'), 
-                            aes(label = scn, colour = scn, x = 2022, y = value/1000), 
+                            aes(label = sbt, colour = sbt, x = 2022, y = value/1000), 
                             box.padding = 0.5, max.overlaps = Inf) +
-   #geom_line(data=ind_area,aes(x=year,y=value,color=scn),linetype='dashed',alpha=0.8)+
+   #geom_line(data=ind_area,aes(x=year,y=value,color=sbt),linetype='dashed',alpha=0.8)+
    geom_line(data=true_ind,aes(x=year,y=value/1000),color='black')+
    labs(y='t',x='year',color='SBT projections',fill='fit',linetype='output')+
    scale_x_continuous(breaks=c(1982:2027),limits = c(1982,2027))+
@@ -540,12 +536,12 @@ bio_df<-data.frame(bio_t=colSums(bio)/1000,year=1982:2022)
  
  #plot comparison zoom in
  ggplot()+
-   geom_line(data=ind,aes(x=year,y=value/1000,color=scn),linewidth=1,alpha=0.8)+
-   #geom_point(data=true_ind,aes(x=year,y=value/1000,fill=scn))+
+   geom_line(data=ind,aes(x=year,y=value/1000,color=sbt),linewidth=1,alpha=0.8)+
+   #geom_point(data=true_ind,aes(x=year,y=value/1000,fill=sbt))+
    labs(y='t',color='projection',fill='fitted')+
    scale_x_continuous(breaks=c(1982:2027),limits = c(2023,2027))+
    scale_y_continuous(limits = c(300000,1000000))+
-   scale_color_discrete(labels=paste0('scn',1:9,'_',c("status quo","gradually cold","gradually warm","medium variation I","medium variation II","high variation I","high variation II",   
+   scale_color_discrete(labels=paste0('sbt',1:9,'_',c("status quo","gradually cold","gradually warm","medium variation I","medium variation II","high variation I","high variation II",   
                                "extreme variation I","extreme variation II")))+
    theme_bw()+
    theme(axis.text.x = element_text(angle=90,vjust = 0.5),panel.grid.minor.x = element_blank())
