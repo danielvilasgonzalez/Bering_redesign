@@ -15,7 +15,7 @@ rm(list = ls(all.names = TRUE))
 gc() 
 
 #libraries from cran to call or install/load
-pack_cran<-c('ggplot2')
+pack_cran<-c('ggplot2','units')
 
 #install pacman to use p_load function - call library and if not installed, then install
 if (!('pacman' %in% installed.packages())) {
@@ -62,10 +62,7 @@ for (sp in spp) {
   #to store index
   df_index<-data.frame(matrix(NA,nrow = 0,ncol = 4))
   colnames(df_index)<-c('sbt','scn','year','index')
-  
-  #to store the true index
-  df_true<-data.frame(matrix(NA,nrow = 0,ncol = 4))
-  colnames(df_true)<-c('sbt','scn','year','index')
+  diff_index<-df_true<-df_index
   
   #loop over sbt
   for (sbt in names(pr_list)) {
@@ -76,7 +73,7 @@ for (sp in spp) {
     cat(paste(" #############     PROJECTING    #############\n",
               " #############   Species", sp, match(sp,spp), 'out of',length(spp),  "  #############\n",
               #" #############  Sampling ", samp, " #############\n",
-              " #############  SBT ", sbt, " #############\n"))
+              " #############  ", sbt, " #############\n"))
   
     #get projection
     pr<-pr_list[[sbt]]
@@ -92,17 +89,17 @@ for (sp in spp) {
         
         #get index from projection
         df_true<-rbind(df_true,
-                       data.frame(sbt=paste0('SBT',sbt),
+                       data.frame(sbt=sbt,
                                   scn=scn,
                                   year=1982:2027,
                                   index=drop_units(pr$Index_ctl[1,,1]),row.names = NULL))
         
         #get index from stratified random sampling
         df_index<-rbind(df_index,
-                        data.frame(sbt=paste0('SBT',sbt),
+                        data.frame(sbt=sbt,
                                    scn=scn,
                                    year=as.integer(gsub('y','',year)),
-                                   index=sp_index[,'index',year,paste0('SBT',sbt),scn]))
+                                   index=sp_index[,'index',year,sbt,scn]))
 
       }
     }
@@ -113,8 +110,14 @@ for (sp in spp) {
   df_true1<-df_true1[!duplicated(df_true1),]
   df_true1$dummy<-''
   
-  df_true1$sbt<-gsub('scn','',df_true1$sbt)
-  df_index$sbt<-gsub('scn','',df_index$sbt)
+  
+  df_true1$sbt<-factor(df_true1$sbt,
+                       levels = paste0('SBT',1:12))
+  df_index$sbt<-factor(df_index$sbt,
+                       levels = paste0('SBT',1:12))
+  
+  #df_true1$sbt<-gsub('scn','',df_true1$sbt)
+  #df_index$sbt<-gsub('scn','',df_index$sbt)
   
   ggplot()+
     geom_boxplot(data=df_index,aes(x=factor(year),y=index,color=scn),position = position_dodge(width = 0.9))+
@@ -124,6 +127,50 @@ for (sp in spp) {
     theme()+
     labs(color='design-based',shape='model-based',x='year',y='index (t)')#+  
     #scale_y_continuous(limits = c(0,25000))
-
+  
+  df_index1<-aggregate(df_index$index,by=list(year=df_index$year,
+                                   scn=df_index$scn,
+                                   sbt=df_index$sbt),
+                       FUN=mean)
+  
+  for (sbt in unique(df_index1$sbt)) {
+    for (scn in unique(df_index1$scn)) {
+      for (y in unique(df_index1$year)) {
+        
+      #sbt<-unique(df_index1$sbt)[1];scn<-unique(df_index1$scn)[1];y<-unique(df_index1$year)[1]
+        
+      true_i<-df_true1[which(df_true1$sbt==sbt & df_true1$scn == scn & df_true1$year==y),'index']/1000
+      samp_i<-df_index1[which(df_index1$sbt==sbt & df_index1$scn == scn & df_index1$year==y),'x']
+      
+      
+      diff_index<-rbind(diff_index,
+                        data.frame(sbt=paste0(sbt),
+                                   scn=scn,
+                                   year=y,
+                                   index=true_i-samp_i))  
+      
+      }
+    }
+  }
+  
+  
+  diff_index$sbt<-factor(diff_index$sbt,
+                       levels = paste0('SBT',1:12))
+  
+  ggplot()+
+    geom_linerange(data=diff_index,aes(x=factor(year),ymin=0,ymax=index,color=scn),position = position_dodge(width = 0.5))+
+    geom_point(data=diff_index,aes(x=factor(year),y=index,fill=scn),position = position_dodge(width = 0.5),shape=21,color='black')+
+    geom_hline(yintercept=0,linetype='dashed')+
+    #geom_point(data=df_true1,aes(x=factor(year),y=index/1000,group=scn,shape=dummy),color='black',alpha=0.5,position = position_dodge(width = 0.9))+
+    facet_wrap(~sbt)+
+    theme_bw()+
+    theme()+
+    labs(color='design-based',fill='design-based',shape='model-based',x='year',y='mean difference model-design index (t)')#+  
+    #scale_y_continuous(limits = c(0,25000))
+  
+  
+  
+  
+  
 }
       
