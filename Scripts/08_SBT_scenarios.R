@@ -14,7 +14,7 @@ rm(list = ls(all.names = TRUE))
 gc() 
 
 #libraries from cran to call or install/load
-pack_cran<-c('ncdf4','raster','FNN','lubridate','rgeos','scales','rnaturalearth','grid','ggplot2','rasterVis')
+pack_cran<-c('ncdf4','raster','FNN','lubridate','rgeos','scales','rnaturalearth','grid','ggplot2','rasterVis','ggthemes')
 
 #install pacman to use p_load function - call library and if not installed, then install
 if (!('pacman' %in% installed.packages())) {
@@ -122,11 +122,25 @@ files.2<-googledrive::drive_ls(id.data$id)
 
 
 ######################################
-# SBT SCENARIOS
+# SBT PROJECTIONS
 ######################################
 
-df_scn<-read.csv('./tables/SBT_scenarios.csv')
-df_scn<-df_scn[,c(1:8)]
+#create SBT projections
+df_sbt<-data.frame(y2022=c(0,0,0,0,0,0,0,0,0,0,0,0),
+                   y2023=c(0,-0.5,0.5,1,1,-1,2,-2,3,-3,4,5),
+                   y2024=c(0,-1,1,2,0,0,0,0,0,0,0,0),
+                   y2025=c(0,-1.5,1.5,3,1,-1,2,-2,3,-3,4,5),
+                   y2026=c(0,-2,2,4,0,0,0,0,0,0,0,0),
+                   y2027=c(0,-2.5,2.5,5,1,-1,2,-2,3,-3,4,5),
+                   Scenario=c('status quo','gradually cold','gradually warm','severe gradually warm',
+                              'warm low variation','cold low variation','warm moderate variation',
+                              'cold moderate variation','warm high variation','cold high variation',
+                              'warm very high variation','warm extreme variation'))
+  
+df_sbt$sbt_n<-1:nrow(df_sbt)
+
+#save SBT table
+save(df_sbt,file = './tables/SBT_projection.RData')
 
 #load grid
 load('./extrapolation grids/lastversion_grid_EBS.RData')
@@ -157,7 +171,7 @@ pal<-wesanderson::wes_palette('Zissou1',21,type='continuous')
 yrs<-2023:2027
 
 #dir.create
-dir.create('./data processed/SBT scenarios/')
+dir.create('./data processed/SBT projections/')
 
 #create folder
 dir.create('./figures/SBT/')
@@ -167,9 +181,9 @@ dir.create('./figures/SBT/')
 #brksUniv <- seq(-8,10, length.out=numberOfBreaks)
 
 #loop over scenarios and projected years
-for (scn in unique(df_scn$scn_n)) {
+for (sbt in unique(df_sbt$sbt_n)) {
 
-  #scn<-1
+  #sbt<-1
   
   #create stack
   sbt_stack<-stack()
@@ -182,12 +196,12 @@ for (scn in unique(df_scn$scn_n)) {
     #y<-1
     
     #print species to check progress
-    cat(paste(" #############  Scenario", scn, "year",y, " #############\n"))
+    cat(paste(" #############  Scenario", sbt, "year",y, " #############\n"))
     
     #modify raster y2022
     r3<-r2
     names(r3)<-paste0('y',yrs[y])
-    values(r3)<-values(r3)+df_scn[which(df_scn$scn_n==scn),paste0('y',yrs[y])]
+    values(r3)<-values(r3)+df_sbt[which(df_sbt$sbt_n==sbt),paste0('y',yrs[y])]
     
     #add layer to stack
     sbt_stack<-addLayer(sbt_stack,r3)
@@ -198,41 +212,40 @@ for (scn in unique(df_scn$scn_n)) {
   sbt_stack<-sbt_stack[[paste0('y',2023:2027)]]
   
   #save raster
-  writeRaster(sbt_stack, paste0('data processed/SBT scenarios/SBT_scn',scn,'_',paste0(range(yrs)[1],'-',range(yrs)[2]),'.grd'),overwrite=TRUE)
+  writeRaster(sbt_stack, paste0('data processed/SBT projections/SBT_',sbt,'_',paste0(range(yrs)[1],'-',range(yrs)[2]),'.grd'),overwrite=TRUE)
   
   #save plot
-  ragg::agg_png(paste0('./figures/SBT/sbt_scenario_',scn,'.png'), width = 20, height = 4.6, units = "in", res = 300)
+  ragg::agg_png(paste0('./figures/SBT/SBT_',sbt,'.png'), width = 20, height = 4.6, units = "in", res = 300)
   print(
     levelplot(sbt_stack,
               layout=c(6, 1),
               col.regions=pal,
               main=paste('Scenario',
-                         df_scn[which(df_scn$scn_n==scn),"Scenario"]),
+                         df_sbt[which(df_sbt$sbt_n==sbt),"Scenario"]),
               contour=TRUE))
   dev.off()
 }
 
-#scenarios
-df_scn<-read.csv('./tables/SBT_scenarios.csv')
-df_scn$Scenario<-paste0('SBT',1:9,'_',df_scn$Scenario)
-df_scn<-df_scn[,1:7]
+#projection name
+df_sbt$Scenario<-paste0('SBT',1:nrow(df_sbt),'_',df_sbt$Scenario)
 
 #reshape df
-df_scn1<-reshape2::melt(df_scn,id='Scenario')
-df_scn1$Scenario <- factor(df_scn1$Scenario, levels = df_scn$Scenario)
+df_sbt1<-reshape2::melt(df_sbt[,1:7],id='Scenario')
+df_sbt1$Scenario <- factor(df_sbt1$Scenario, levels = df_sbt$Scenario)
 
 #plot
 p<-
   ggplot()+
-  geom_line(data=df_scn1,aes(x=variable,y=value,group=Scenario,color=Scenario))+
-  scale_color_manual(values=c("#ea5545", "#f46a9b", "#ef9b20", "#edbf33", "#ede15b", "#bdcf32", "#87bc45", "#27aeef", "#b33dc6"))+
+  geom_line(data=df_sbt1,aes(x=variable,y=value,group=Scenario,color=Scenario))+
+  scale_color_tableau(palette = 'Tableau 20')+
+  #scale_color_manual(values=c("#ea5545", "#f46a9b", "#ef9b20", "#edbf33", "#ede15b", "#bdcf32", "#87bc45", "#27aeef", "#b33dc6"))+
   theme_bw()+
   scale_x_discrete(labels=c(2022:2027))+
-  labs(color='Scenarios',x='Year',y='SBT change (°C)')
+  labs(color='SBT projections',x='Year',y='SBT change (°C)')
 
 
 #Table  
-colnames(df_scn)<-c(2022:2027,'Scenario')
-df_scn<-df_scn[order(df_scn$Scenario),]
-table<-ggpubr::ggtexttable(df_scn, rows = NULL)
+colnames(df_sbt)<-c(2022:2027,'Scenario')
+df_sbt<-df_sbt[order(df_sbt$Scenario),]
+table<-ggpubr::ggtexttable(df_sbt, rows = NULL)
 
