@@ -92,7 +92,7 @@ for (sp in spp) {
       cat(paste(" #############     PROJECTING    #############\n",
                 " #############   Species", sp, match(sp,spp), 'out of',length(spp),  "  #############\n",
                 " #############  Sampling ", samp, " #############\n",
-                " #############  SBT ", sbt, " #############\n"))
+                " #############  ", sbt, " #############\n"))
    
       
       #get raster stack for each SBT projection
@@ -121,7 +121,7 @@ for (sp in spp) {
       }
     
       #append biomass samples
-      samp_proj[[paste0('SBT',sbt)]]<-points2
+      samp_proj[[paste0(sbt)]]<-points2
     }
     #save biomass samples list
     save(samp_proj, file = paste0("./output/species/",sp,'/projections_survey_',samp,'.RData'))
