@@ -44,3 +44,6 @@ plot(df$extent, log(df$area_lte2_km2))
 abline(m_lte2)
 
 # TODO: separate by outer/inner/middle domain boxes from stratum shapefile and calculate extent specific to each?
+ice <- ice_df %>% filter(Seaice >= 0.15)
+ice_sf <- st_as_sf(ice, coords = c("Longitude", "Latitude"))
+st_crs(ice_sf) <- 3411
