@@ -10,7 +10,7 @@ library("ggplot2")
 # Data downloaded by FTP 2023-04-25: ftp://sidads.colorado.edu/pub/DATASETS/NOAA/G02135/
 # More information: https://nsidc.org/data/g02135/versions/3
 ice_ras <- read.csv("Data/Sea_ice_data/NSIDC.csv")
-#TODO: replace with same product for full range of latitudes and redo
+#TODO: replace with same product for full range of latitudes and redo (these data are cut off halfway through EBS)
 
 # filter data by region, time, sea ice cover (only available from 1988 onward for March in this version and need lower latitudes)
 #Latitude <= 73,
@@ -49,12 +49,16 @@ abline(m_lte2)
 # TODO: separate by outer/inner/middle domain boxes from stratum shapefile and calculate extent specific to each?
 ice <- ice_df %>% filter(Seaice >= 0.15)
 ice_sf <- st_as_sf(ice, coords = c("Longitude", "Latitude"))
-st_crs(ice_sf) <- 3411
+st_crs(ice_sf) <- 4326
 
-ebs <- akgfmaps::get_base_layers("ebs", "EPSG:3411")
+ebs <- akgfmaps::get_base_layers("ebs", "EPSG:4326")
+
+# TODO: use bathymetry to define inner/outer/middle and then do spatial join between areas and ice_sf
+# Note that there may be complications as bathymetry includes geometries for islands and no inner boundary for land
 ggplot() +
   geom_sf(data = ebs$akland) +
   geom_sf(data = ebs$bathymetry) +
+  geom_sf(data = ice_sf, color = "red") +
   geom_sf(data = ebs$graticule, color = "grey70", alpha = 0.5) +
   coord_sf(xlim = ebs$plot.boundary$x,
            ylim = ebs$plot.boundary$y) +
@@ -63,5 +67,5 @@ ggplot() +
   scale_y_continuous(name = "Latitude",
                      breaks = ebs$lat.breaks) +
   theme_bw()
-# TODO: use bathymetry to define inner/outer/middle and then do spatial join between areas and ice_sf
-# Note that there may be complications as bathymetry includes geometries for islands and no inner boundary for land
+
+#st_filter(ice_sf, ebs$bathymetry) #could use this if make bathymetry into polygon with 0 depth/land
