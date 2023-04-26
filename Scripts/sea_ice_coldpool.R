@@ -1,5 +1,6 @@
 library("sf")
 library("dplyr")
+library("akgfmaps")
 
 # API
 #ice_poly <- st_read("https://nsidc.org/api/mapservices/NSIDC/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=NSIDC:g02135_polyline_n") # &filter=time@filter_from=1982-03
@@ -19,6 +20,7 @@ ice_df <- ice_ras %>% filter(Month == 3,
                       na.omit()
 
 # Minimum latitude by year
+# TODO: try Seaice >= 0.1
 ice_ext <- ice_df %>% filter(Seaice >= 0.15) %>% group_by(Year) %>% summarise(Extent = min(Latitude))
 colnames(ice_ext) <- tolower(colnames(ice_ext))
 
@@ -47,3 +49,16 @@ abline(m_lte2)
 ice <- ice_df %>% filter(Seaice >= 0.15)
 ice_sf <- st_as_sf(ice, coords = c("Longitude", "Latitude"))
 st_crs(ice_sf) <- 3411
+
+# ebs <- akgfmaps::get_base_layers("ebs", "EPSG:3411")
+# ggplot() +
+#   geom_sf(data = ebs$akland) +
+#   geom_sf(data = ebs$bathymetry) +
+#   geom_sf(data = ebs$graticule, color = "grey70", alpha = 0.5) +
+#   coord_sf(xlim = ebs$plot.boundary$x, 
+#            ylim = ebs$plot.boundary$y) +
+#   scale_x_continuous(name = "Longitude", 
+#                      breaks = ebs$lon.breaks) + 
+#   scale_y_continuous(name = "Latitude", 
+#                      breaks = ebs$lat.breaks) + 
+#   theme_bw()
