@@ -1,6 +1,7 @@
 library("sf")
 library("dplyr")
 library("akgfmaps")
+library("ggplot2")
 
 # API
 #ice_poly <- st_read("https://nsidc.org/api/mapservices/NSIDC/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=NSIDC:g02135_polyline_n") # &filter=time@filter_from=1982-03
@@ -28,12 +29,12 @@ colnames(ice_ext) <- tolower(colnames(ice_ext))
 coldpool <- coldpool:::cold_pool_index
 colnames(coldpool) <- tolower(colnames(coldpool))
 
-df <- left_join(ice_ext, coldpool)
+df <- left_join(ice_ext, coldpool) %>% na.omit()
 
 m_lte2 <- lm(log(area_lte2_km2) ~ extent, df)
-m_lte1 <- lm(log(area_lte1_km2) ~ extent, df)
-m_lte0 <- lm(log(area_lte0_km2) ~ extent, df)
-m_lteminus1 <- lm(log(area_lteminus1_km2) ~ extent, df)
+m_lte1 <- lm(area_lte1_km2 ~ log(extent), df)
+m_lte0 <- lm(area_lte0_km2 ~ log(extent), df)
+m_lteminus1 <- lm(area_lteminus1_km2 ~ log(extent), df)
 
 print(summary(m_lte2))
 print(summary(m_lte1))
@@ -50,15 +51,17 @@ ice <- ice_df %>% filter(Seaice >= 0.15)
 ice_sf <- st_as_sf(ice, coords = c("Longitude", "Latitude"))
 st_crs(ice_sf) <- 3411
 
-# ebs <- akgfmaps::get_base_layers("ebs", "EPSG:3411")
-# ggplot() +
-#   geom_sf(data = ebs$akland) +
-#   geom_sf(data = ebs$bathymetry) +
-#   geom_sf(data = ebs$graticule, color = "grey70", alpha = 0.5) +
-#   coord_sf(xlim = ebs$plot.boundary$x, 
-#            ylim = ebs$plot.boundary$y) +
-#   scale_x_continuous(name = "Longitude", 
-#                      breaks = ebs$lon.breaks) + 
-#   scale_y_continuous(name = "Latitude", 
-#                      breaks = ebs$lat.breaks) + 
-#   theme_bw()
+ebs <- akgfmaps::get_base_layers("ebs", "EPSG:3411")
+ggplot() +
+  geom_sf(data = ebs$akland) +
+  geom_sf(data = ebs$bathymetry) +
+  geom_sf(data = ebs$graticule, color = "grey70", alpha = 0.5) +
+  coord_sf(xlim = ebs$plot.boundary$x,
+           ylim = ebs$plot.boundary$y) +
+  scale_x_continuous(name = "Longitude",
+                     breaks = ebs$lon.breaks) +
+  scale_y_continuous(name = "Latitude",
+                     breaks = ebs$lat.breaks) +
+  theme_bw()
+# TODO: use bathymetry to define inner/outer/middle and then do spatial join between areas and ice_sf
+# Note that there may be complications as bathymetry includes geometries for islands and no inner boundary for land
