@@ -69,3 +69,5 @@ ggplot() +
   theme_bw()
 
 #st_filter(ice_sf, ebs$bathymetry) #could use this if make bathymetry into polygon with 0 depth/land
+
+# TODO: Could also calculate probability of temp being below 2, 1, 0 etc given ice extent for each grid cell of current survey or finer spatial scale?
