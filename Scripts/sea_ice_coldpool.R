@@ -13,9 +13,6 @@ ice_ras <- read.csv("Data/Sea_ice_data/NSIDC.csv")
 #TODO: replace with same product for full range of latitudes and redo (these data are cut off halfway through EBS)
 
 # filter data by region, time, sea ice cover (only available from 1988 onward for March in this version and need lower latitudes)
-#Latitude <= 73,
-#Longitude <= -156,
-#Longitude >= -175.3,
 ice_df <- ice_ras %>% filter(Month == 3, 
                              Year > 1981) %>%
                       na.omit()
@@ -46,7 +43,7 @@ print(summary(m_lteminus1))
 plot(df$extent, log(df$area_lte2_km2))
 abline(m_lte2)
 
-# TODO: separate by outer/inner/middle domain boxes from stratum shapefile and calculate extent specific to each?
+# TODO: separate by outer/inner/middle domain boxes from stratum shapefile and calculate extent specific to each? ----
 ice <- ice_df %>% filter(Seaice >= 0.15)
 ice_sf <- st_as_sf(ice, coords = c("Longitude", "Latitude"))
 st_crs(ice_sf) <- 4326
@@ -55,19 +52,46 @@ ebs <- akgfmaps::get_base_layers("ebs", "EPSG:4326")
 
 # TODO: use bathymetry to define inner/outer/middle and then do spatial join between areas and ice_sf
 # Note that there may be complications as bathymetry includes geometries for islands and no inner boundary for land
-ggplot() +
-  geom_sf(data = ebs$akland) +
-  geom_sf(data = ebs$bathymetry) +
-  geom_sf(data = ice_sf, color = "red") +
-  geom_sf(data = ebs$graticule, color = "grey70", alpha = 0.5) +
-  coord_sf(xlim = ebs$plot.boundary$x,
-           ylim = ebs$plot.boundary$y) +
-  scale_x_continuous(name = "Longitude",
-                     breaks = ebs$lon.breaks) +
-  scale_y_continuous(name = "Latitude",
-                     breaks = ebs$lat.breaks) +
-  theme_bw()
+# ggplot() +
+#   geom_sf(data = ebs$akland) +
+#   geom_sf(data = ebs$bathymetry) +
+#   geom_sf(data = ice_sf, color = "red") +
+#   geom_sf(data = ebs$graticule, color = "grey70", alpha = 0.5) +
+#   coord_sf(xlim = ebs$plot.boundary$x,
+#            ylim = ebs$plot.boundary$y) +
+#   scale_x_continuous(name = "Longitude",
+#                      breaks = ebs$lon.breaks) +
+#   scale_y_continuous(name = "Latitude",
+#                      breaks = ebs$lat.breaks) +
+#   theme_bw()
 
 #st_filter(ice_sf, ebs$bathymetry) #could use this if make bathymetry into polygon with 0 depth/land
 
 # TODO: Could also calculate probability of temp being below 2, 1, 0 etc given ice extent for each grid cell of current survey or finer spatial scale?
+
+
+# Same regression for whole area, but using the proportion of EBS with sea ice, ----
+# using data from ERDAPP extracted by Matt Callahan on 2023-4-27 
+ice_prop <- read.csv("Data/Sea_ice_data/ebs_march_ice.csv")
+colnames(ice_prop) <- tolower(colnames(ice_prop))
+
+df2 <- left_join(ice_prop, coldpool) %>% na.omit()
+
+m_lte2_prop <- lm(area_lte2_km2 ~ march_sea_ice, df2)
+m_lte2_prop_log <- lm(log(area_lte2_km2) ~ march_sea_ice, df2)
+m_lte1_prop <- lm(area_lte1_km2 ~ march_sea_ice, df2)
+m_lte0_prop <- lm(area_lte0_km2 ~ march_sea_ice, df2)
+m_lteminus1_prop <- lm(area_lteminus1_km2 ~ march_sea_ice, df2)
+
+print(summary(m_lte2_prop))
+print(summary(m_lte2_prop_log))
+print(summary(m_lte1_prop))
+print(summary(m_lte0_prop))
+print(summary(m_lteminus1_prop))
+
+#best relationship plotted
+plot(df2$march_sea_ice, df2$area_lte2_km2)
+abline(m_lte2_prop)
+
+plot(df2$march_sea_ice, log(df2$area_lte2_km2))
+abline(m_lte2_prop_log)
