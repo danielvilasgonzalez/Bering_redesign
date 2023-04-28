@@ -33,7 +33,7 @@ out_dir<-'C:/Users/Daniel.Vilas/Work/Adapting Monitoring to a Changing Seascape/
 setwd(out_dir)
 
 #version VAST (cpp)
-version<-'VAST_v13_1_0'
+version<-"VAST_v14_0_1" #if using "VAST_v13_1_0" follow covariate values
 
 #number of knots
 knots<-'500' #1000 
@@ -129,12 +129,12 @@ enc100<-ifelse(100 %in% xpct,TRUE,FALSE)
 enc0<-ifelse(0 %in% xpct,TRUE,FALSE)
 
 #set settings based on enc100
-if(enc_100==TRUE){
-  obs <- c(2,3)
-}
-if(enc_100==FALSE){
-  obs <- c(2,1)
-}
+# if(enc100==TRUE){
+#   obs <- c(2,3)
+# }
+# if(enc100==FALSE){
+#   obs <- c(2,1)
+# }
 
 #VAST model settings
 settings <- make_settings(n_x=knots, 
@@ -151,7 +151,7 @@ settings <- make_settings(n_x=knots,
                           RhoConfig=c("Beta1"=2,"Beta2"=2,"Epsilon1"=4,"Epsilon2"=4), 
                           Version = version,
                           #fine_scale=TRUE,
-                          ObsModel = obs,
+                          ObsModel = c(2,1), #obs
                           max_cells = Inf,
                           Options = c("Calculate_Range" =  F, 
                                       "Calculate_effective_area" = F)) 
