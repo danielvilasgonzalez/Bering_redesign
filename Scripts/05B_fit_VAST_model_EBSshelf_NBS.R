@@ -68,7 +68,7 @@ fol_region<-c('shelf EBS NBS VAST')
 dir.create(paste(out_dir,fol_region,sep='/'))
 
 #dir create for splist
-for (sp in splist) {
+for (sp in spp) {
   dir.create(paste(out_dir,fol_region,sp,sep='/'))
 }
 
