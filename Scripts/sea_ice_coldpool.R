@@ -91,6 +91,10 @@ print(summary(m_lte0_prop))
 print(summary(m_lteminus1_prop))
 
 #best relationship plotted
+m1 <- summary(m_lte2_prop)
+m1_log <- summary(m_lte2_prop_log)
+
+pdf("Data/Sea_ice_data/ice_coldpool_regression.pdf")
 plot(df2$march_sea_ice, df2$area_lte2_km2, xlim=c(0,0.7), 
      ylim=c(0,max(df2$area_lte2_km2)*1.05), xaxs="i", yaxs="i",
      xlab="Proportion of EBS with sea ice in prior March",
@@ -100,9 +104,15 @@ march_sea_ice <- seq(0,0.7, by = 0.05)
 ci <- predict(m_lte2_prop, newdata=data.frame(march_sea_ice), interval="confidence",
                          level = 0.95)
 matlines(march_sea_ice, ci[,2:3], col = "blue", lty=2)
+mtext(paste0("R-sq = ",round(m1$r.squared,2)),adj = 0)
+mtext(paste0("sigma = ",round(m1$sigma,0)), adj = 0.3)
+mtext(paste0("y ~ ",round(m1$coefficients[1],2)," + ", 
+             round(m1$coefficients[2],2),"x"), adj = 1)
+dev.off()
 
 # log y provides higher R-square, but relationship really isn't linear,
 # thus would be better fit with a concave/saturating
+pdf("Data/Sea_ice_data/ice_coldpool_regression_log.pdf")
 plot(df2$march_sea_ice, log(df2$area_lte2_km2), xlim=c(0,0.7), xaxs="i",
      xlab="Proportion of EBS with sea ice in prior March",
      ylab="Cold pool extent index (sq-km)")
@@ -110,3 +120,8 @@ abline(m_lte2_prop_log, col = "blue")
 ci_log <- predict(m_lte2_prop_log, newdata=data.frame(march_sea_ice), interval="confidence",
               level = 0.95)
 matlines(march_sea_ice, ci_log[,2:3], col = "blue", lty=2)
+mtext(paste0("R-sq = ",round(m1_log$r.squared,2)),adj = 0)
+mtext(paste0("sigma = ",round(m1_log$sigma,2)), adj = 0.5)
+mtext(paste0("y ~ ",round(m1_log$coefficients[1],2)," + ", 
+             round(m1_log$coefficients[2],2),"x"), adj = 1)
+dev.off()
