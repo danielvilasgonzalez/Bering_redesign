@@ -3,7 +3,7 @@ library("dplyr")
 library("akgfmaps")
 library("ggplot2")
 
-# API
+# API ----
 #ice_poly <- st_read("https://nsidc.org/api/mapservices/NSIDC/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=NSIDC:g02135_polyline_n") # &filter=time@filter_from=1982-03
 # filter to march of every year from ice_ext_2$timestamp
 
@@ -22,10 +22,11 @@ ice_df <- ice_ras %>% filter(Month == 3,
 ice_ext <- ice_df %>% filter(Seaice >= 0.15) %>% group_by(Year) %>% summarise(Extent = min(Latitude))
 colnames(ice_ext) <- tolower(colnames(ice_ext))
 
-# compare to coldpool extent
+# compare to coldpool extent ----
 coldpool <- coldpool:::cold_pool_index
 colnames(coldpool) <- tolower(colnames(coldpool))
 
+# combine and fit regressions ----
 df <- left_join(ice_ext, coldpool) %>% na.omit()
 
 m_lte2 <- lm(log(area_lte2_km2) ~ extent, df)
@@ -90,8 +91,22 @@ print(summary(m_lte0_prop))
 print(summary(m_lteminus1_prop))
 
 #best relationship plotted
-plot(df2$march_sea_ice, df2$area_lte2_km2)
-abline(m_lte2_prop)
+plot(df2$march_sea_ice, df2$area_lte2_km2, xlim=c(0,0.7), 
+     ylim=c(0,max(df2$area_lte2_km2)*1.05), xaxs="i", yaxs="i",
+     xlab="Proportion of EBS with sea ice in prior March",
+     ylab="Cold pool extent index (sq-km)")
+abline(m_lte2_prop, col="blue")
+march_sea_ice <- seq(0,0.7, by = 0.05)
+ci <- predict(m_lte2_prop, newdata=data.frame(march_sea_ice), interval="confidence",
+                         level = 0.95)
+matlines(march_sea_ice, ci[,2:3], col = "blue", lty=2)
 
-plot(df2$march_sea_ice, log(df2$area_lte2_km2))
-abline(m_lte2_prop_log)
+# log y provides higher R-square, but relationship really isn't linear,
+# thus would be better fit with a concave/saturating
+plot(df2$march_sea_ice, log(df2$area_lte2_km2), xlim=c(0,0.7), xaxs="i",
+     xlab="Proportion of EBS with sea ice in prior March",
+     ylab="Cold pool extent index (sq-km)")
+abline(m_lte2_prop_log, col = "blue")
+ci_log <- predict(m_lte2_prop_log, newdata=data.frame(march_sea_ice), interval="confidence",
+              level = 0.95)
+matlines(march_sea_ice, ci_log[,2:3], col = "blue", lty=2)
