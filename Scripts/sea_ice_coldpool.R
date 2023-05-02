@@ -115,7 +115,7 @@ dev.off()
 pdf("Data/Sea_ice_data/ice_coldpool_regression_log.pdf")
 plot(df2$march_sea_ice, log(df2$area_lte2_km2), xlim=c(0,0.7), xaxs="i",
      xlab="Proportion of EBS with sea ice in prior March",
-     ylab="Cold pool extent index (sq-km)")
+     ylab="Cold pool extent index (log sq-km)")
 abline(m_lte2_prop_log, col = "blue")
 ci_log <- predict(m_lte2_prop_log, newdata=data.frame(march_sea_ice), interval="confidence",
               level = 0.95)
