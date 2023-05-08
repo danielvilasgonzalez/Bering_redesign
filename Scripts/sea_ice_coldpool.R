@@ -100,6 +100,7 @@ plot(df2$march_sea_ice, df2$area_lte2_km2, xlim=c(0,0.7),
      xlab="Proportion of EBS with sea ice in prior March",
      ylab="Cold pool extent index (sq-km)")
 abline(m_lte2_prop, col="blue")
+#text(df2$march_sea_ice, df2$area_lte2_km2,labels=df2$year) #maybe a little autocorrelation?
 march_sea_ice <- seq(0,0.7, by = 0.05)
 ci <- predict(m_lte2_prop, newdata=data.frame(march_sea_ice), interval="confidence",
                          level = 0.95)
