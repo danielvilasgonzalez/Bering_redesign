@@ -93,7 +93,7 @@ print(summary(m_lteminus1_prop))
 #best relationship plotted
 m1 <- summary(m_lte2_prop)
 m1_log <- summary(m_lte2_prop_log)
-saveRDS(m1, "Data/Sea_ice_data/ice_coldpool_lm.RDS")
+saveRDS(m_lte2_prop, "Data/Sea_ice_data/ice_coldpool_lm.RDS")
 
 pdf("Data/Sea_ice_data/ice_coldpool_regression.pdf")
 plot(df2$march_sea_ice, df2$area_lte2_km2, xlim=c(0,0.7), 
