@@ -127,3 +127,8 @@ mtext(paste0("sigma = ",round(m1_log$sigma,2)), adj = 0.5)
 mtext(paste0("y ~ ",round(m1_log$coefficients[1],2)," + ", 
              round(m1_log$coefficients[2],2),"x"), adj = 1)
 dev.off()
+
+# example simulation ----
+# note that you'll want to set predictions < 0 to 0
+sims <- simulate(m_lte2_prop)
+plot(df2$march_sea_ice, sims$sim_1)
