@@ -34,7 +34,7 @@ setwd(out_dir)
 splist<-list.dirs('./data processed/',full.names = FALSE,recursive = FALSE)
 
 #folder region
-fol_region<-'slope EBS VAST'
+#fol_region<-'slope EBS VAST'
 
 #####################
 # Effects package
@@ -85,7 +85,7 @@ fs<-c('X1','X2')
       for (f in fs) {
       
         #formula
-        f<-'X1'
+        f<-'X2'
         
         #for title purposes
         f1<-ifelse(f=='X1','presence','positive')
@@ -103,10 +103,10 @@ fs<-c('X1','X2')
         
         #plot response
         p<-plot(pred,
-                #main=paste(m,'model -',f1),
+                main=paste('SBT effect',f1),
                 axes=list(grid=TRUE, 
                           x=list(rug=TRUE,
-                                 Depth=list(lab="BotTemp")),
+                                 BotTemp=list(lab="SBT (°C)")),
                           y=list(rug=TRUE,
                                  lab="Catch (kg)")))
         
