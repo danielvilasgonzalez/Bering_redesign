@@ -222,21 +222,34 @@ eez_sh22 <- eez_sh2[eez_sh2$AREA_KM2 == 5193061,]  #"5193061"  "24614858" "8521"
 eez_sh3<-aggregate(rbind(eez_sh11,eez_sh22),dissolve=T)
 eez_sh33<-rgeos::gUnaryUnion(eez_sh3)
 
+#load baseline strata
+load('./output/baseline_strata.RData')
+
+#baseline_strata
+pts<-baseline_strata$locations
+coordinates(pts)<-~longitude + latitude
+proj4string(pts) <- CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0") 
+pts<-spTransform(pts,CRSobj = CRS('+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs'))
+pts<-as.data.frame(pts)
+
 #zoomin plot
-zoomin<-
-  gplot(ak_bathy_4) +
-    geom_tile(aes(fill=value))+
-    geom_point(data=st_EBS1,aes(x=longitude,y=latitude),shape=4,size=1)+
+#zoomin<-
+  #gplot(ak_bathy_4) +
+  x<-ggplot()+
+    #geom_tile(aes(fill=value))+
+    geom_sf(data=ebs_layers$survey.strata,fill = NA)+
+    geom_point(data=pts,aes(x=longitude,y=latitude),size=1)+
+    #geom_point(data=subset(pts,rm25==0),aes(x=longitude,y=latitude),shape=4,size=1,col='red')+
     geom_polygon(data=ak_sppoly,aes(x=long,y=lat,group=group),fill = 'grey60')+
-    geom_polygon(data=eez_sh33,aes(x=long,y=lat,group=group),fill=NA,color='grey40')+
+    #geom_polygon(data=eez_sh33,aes(x=long,y=lat,group=group),fill=NA,color='grey40')+
     scale_x_continuous(expand = c(0,0),position = 'bottom',
                        breaks = c(-175,-170,-165,-160,-155),sec.axis = dup_axis())+
     geom_polygon(data=NBS_sh,aes(x=long,y=lat,group=group),fill=NA,col='black')+
     geom_polygon(data=EBSshelf_sh,aes(x=long,y=lat,group=group),fill=NA,col='black')+
-    geom_polygon(data=EBSslope_sh,aes(x=long,y=lat,group=group),fill=NA,col='black')+
+    #geom_polygon(data=EBSslope_sh,aes(x=long,y=lat,group=group),fill=NA,col='black')+
     coord_sf(crs = '+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs',
-             xlim = panel_extent$x,
-             ylim = panel_extent$y,
+             xlim = c(panel_extent$x[1]+200000,panel_extent$x[2]),
+             ylim = c(panel_extent$y[1],panel_extent$y[2]-200000),
              label_axes = "-NE-")+
     scale_fill_gradient2(low = '#c1f2fe',
                         high = '#007c9b',
@@ -254,10 +267,10 @@ zoomin<-
           axis.text.y.right = element_text(hjust= 0.1 ,margin = margin(0,7,0,-25, unit = 'points'),color='black'),
           axis.text.x = element_text(vjust = 6, margin = margin(-7,0,7,0, unit = 'points'),color='black'),
           axis.ticks.length = unit(-5,"points"))+
-    annotate("text", x = -256559, y = 1354909, label = "Alaska",parse=TRUE,size=7)+
-    annotate("text", x = -1376559, y = 2049090, label = "Russia",parse=TRUE,size=7)+
-    scale_y_continuous(expand = c(0,0),position = 'right',sec.axis = dup_axis())+
-    annotate("text", x = -1376559, y = 744900, label = "italic('Bering Sea')",parse=TRUE,size=9)
+    #annotate("text", x = -256559, y = 1354909, label = "Alaska",parse=TRUE,size=7)+
+    #annotate("text", x = -1376559, y = 2049090, label = "Russia",parse=TRUE,size=7)+
+    scale_y_continuous(expand = c(0,0),position = 'right',sec.axis = dup_axis())#+
+    #annotate("text", x = -1376559, y = 744900, label = "italic('Bering Sea')",parse=TRUE,size=9)
 
 #extract countries and lake for the zoomout plot
 count<-ne_countries(scale = 'large',
