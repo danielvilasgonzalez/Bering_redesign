@@ -41,14 +41,14 @@ if (!('VAST' %in% installed.packages())) {
 pacman::p_load(pack_cran,character.only = TRUE)
 
 #call function distance points buffer
-source('C:/Users/Daniel.Vilas/Work/GitHub/Bering_redesign/Scripts/genRandomPnts.R')
+#source('C:/Users/Daniel.Vilas/Work/GitHub/Bering_redesign/Scripts/genRandomPnts.R')
 
 #setwd
 out_dir<-'C:/Users/Daniel.Vilas/Work/Adapting Monitoring to a Changing Seascape/'
 setwd(out_dir)
 
 #version VAST (cpp)
-version<-'VAST_v13_1_0'
+version<-'VAST_v14_0_1'
 
 #selected species
 spp<-c('Limanda aspera',
@@ -87,7 +87,7 @@ shfiles<-c('EBSshelfThorson','NBSThorson','EBSslopeThorson')
 
 #get files from google drive and set up
 files<-googledrive::drive_find()
-1 #for dvilasg@uw.edu
+2 #for dvilasg@uw.edu
 
 #get id shared folder from google drive
 id.bering.folder<-files[which(files$name=='Shapefiles'),'id']
@@ -249,23 +249,44 @@ st_EBS<-as.data.frame(st_EBS)
 # LOAD GRID EBS (remember to keep the same order as in fit_model if multiple grids)
 ###################################
 
-#load grid data
-#https://github.com/James-Thorson-NOAA/FishStatsUtils/tree/main/data
-#https://github.com/danielvilasgonzalez/Bering_redesign/blob/main/Scripts/04_Bering10K_data.R
-load('./data processed/lastversion_grid_EBS.RData') #grid.ebs_year
+#load grid of NBS and EBS
+load('./extrapolation grids/northern_bering_sea_grid.rda')
+load('./extrapolation grids/eastern_bering_sea_grid.rda')
+grid<-as.data.frame(rbind(data.frame(northern_bering_sea_grid,region='NBS'),data.frame(eastern_bering_sea_grid,region='EBS')))
+grid$cell<-1:nrow(grid)
+#add col and row number
+x1<-grid[,c('Lon','Lat','cell')]
+names(x1)<-c('x','y','z')
+coordinates(x1)=~x + y
+crs(x1)<-c(crs="+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
+x2<-spTransform(x1,'+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs')
+x3<-data.frame(x2)
+x3$x<-as.integer(x3$x)
+x3$y<-as.integer(x3$y)
+lon<-sort(unique(x3$x),decreasing = FALSE) #1556
+lat<-sort(unique(x3$y),decreasing = TRUE) #1507
+lons<-data.frame(x=lon,col=1:length(lon))
+lats<-data.frame(y=lat,row=1:length(lat))
+x4<-merge(x3,lons,by='x',all.x=TRUE)
+x5<-merge(x4,lats,by='y',all.x=TRUE)
+colnames(x5)<-c('Lat','Lon','cell','optional','col','row')
+grid<-x5[,c('Lat','Lon','cell','col','row')]
 
-#remove slope grid
-grid.ebs_year1<-grid.ebs_year[which(grid.ebs_year$region!='EBSslope'),]
+###################################
+# BASELINE/CURRENT SAMPLING DESIGN
+###################################
+
+load('./output/baseline_strata.RData') #baseline_strata
 
 ###################################
 # SCENARIOS
 ###################################
 
 #sampling scenarios
-samp_df<-expand.grid(strat_var=c('Lat_varTemp','Lat_meanTempF','Depth_meanTempF','Depth_varTemp','meanTempF_varTemp','meanTempF','varTemp','Depth'),
+samp_df<-expand.grid(strat_var=c('Depth_varTemp','varTemp','Depth'),
                     target_var=c('sumDensity'), #,'sqsumDensity'
-                    n_samples=c(350), #c(300,500) 520 (EBS+NBS+CRAB);26 (CRAB); 350 (EBS-CRAB); 494 (NBS-CRAB)
-                    n_strata=c(10)) #c(5,10,15)
+                    n_samples=c(520), #c(300,500) 520 (EBS+NBS+CRAB);26 (CRAB); 350 (EBS-CRAB); 494 (NBS-CRAB)
+                    n_strata=c(15)) #c(5,10,15)
 
 #add scenario number
 samp_df$samp_scn<-paste0(paste0('scn',1:nrow(samp_df)))
@@ -280,7 +301,7 @@ for (sp in spp) {
   sp<-'Gadus macrocephalus'
   
   #load optimization data
-  load(paste0('./output/species/',sp,'/optimization_static_data.RData')) #D6
+  load(paste0('./output/species/',sp,'/optimization data/optimization_static_data.RData')) #D6
   #load(paste0('./output/species/',sp,'/projection_data.RData')) #temp_dens_vals
   
   #load fit OM
@@ -411,12 +432,12 @@ for (sp in spp) {
     solution <- optimStrata(method = "continuous", #continous variables
                             errors = cv,  #precision level - maximum allowable coefficient of variation set by the simple random sampling 
                             framesamp = frame, #df of input variables
-                            iter = 50, #300 #aximum number of iterations
-                            pops = 20, #100  #dimension of each generations
-                            elitism_rate = 0.2, #0.1
+                            iter = 300, #300 #aximum number of iterations
+                            pops = 100, #100  #dimension of each generations
+                            elitism_rate = 0.1, #0.1
                             mut_chance = 1 / (no_strata[1] + 1), #mutation chance
                             nStrata = no_strata,
-                            showPlot = FALSE,
+                            showPlot = TRUE, #FALSE
                             writeFiles = FALSE)
       
     ###################################
@@ -459,7 +480,7 @@ for (sp in spp) {
         
       sum_stats<-data.frame(sum_stats[,c("Domain","Stratum","Population","Allocation","SamplingRate","Lower_X1","Upper_X1")],
                            "Lower_X2"=NA,"Upper_X2"=NA,
-                           sum_stats[,c("stratum_id","wh","Wh","M1","S1","SOLUZ","samp_scn","sp")])
+                           sum_stats[,c("stratum_id","wh","Wh","M1",'M2',"S1",'S2',"SOLUZ","samp_scn","sp")])
     }
     
     #append stat results  
@@ -485,8 +506,10 @@ for (sp in spp) {
       
     #reproject coordinates for plotting purposes
     D8_1<-spTransform(D8,'+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs')
-    #D8_2<-data.frame(D8_1)
-      
+    D8_2<-merge(as.data.frame(D8_1),x5,by='cell')
+    D8_2<-D8_2[,c('cell','Strata','Lon.x','Lat.x','col','row')]
+    names(D8_2)[c(2,3,4)]<-c('strata','Lon','Lat')
+    
     #x and y cells
     xycells<-as.integer(sqrt(dim(D8_1)[1]))
       
@@ -553,51 +576,132 @@ for (sp in spp) {
     n_iter<-100
       
     #to store samples
-    all_points<-array(NA,dim = list(sum(allocations),4,n_iter),
-                        dimnames = list(c(1:sum(allocations)),c('Lon','Lat','cell','strata'),c(1:n_iter)))
+    all_points<-array(NA,dim = list(sum(allocations),4,n_iter,2),
+                        dimnames = list(c(1:sum(allocations)),c('Lon','Lat','cell','strata'),c(1:n_iter),c('current','buffer')))
       
     #loop over iterations
     for (iter in 1:n_iter) {
       
+      #print scenario to check progress
+      cat(paste(" #############   iter", iter, 'of',n_iter,  "  #############\n"))
+      
       #iter<-1
         
       #to store points
-      dfpoints<-data.frame(matrix(NA,nrow=0,ncol=4))
-      colnames(dfpoints)<-c('Lon','Lat','cell','strata')
+      dfcurrent<-data.frame(matrix(NA,nrow=0,ncol=4))
+      colnames(dfcurrent)<-c('Lon','Lat','cell','strata')
+      dfbuffer<-dfcurrent
         
       #random sample for each strata wit distance constrains
       for(istrata in 1:length(allocations)) {
           #istrata<-1
-          
+        
+        ##############################
+        # CURRENT APPROACH
+        ##############################
+        
           #subset cells for strata
-          df<-subset(as.data.frame(D8_1),Strata==istrata)
+          df<-subset(as.data.frame(D8_2),strata==istrata)
+          df1<-subset(as.data.frame(D8_2),strata==istrata & cell %in% baseline_strata$locations$cell)
           
-          #ratio of available cells and samples to take
-          ratio<-dim(df)[1]/allocations[istrata]
+          n_i<-allocations[istrata]
           
-          #select samples with buffer
-          xy.buff<-buffer.f(data.frame(x=df$Lon,y=df$Lat,cell=df$cell),
-                                       buffer = ratio*100, #30000
-                                       reps = 1,
-                                       n=allocations[istrata])
-          colnames(xy.buff)[1:2]<-c("Lon",'Lat')
-          xy.buff1<-data.frame(xy.buff,strata=istrata)
-          
-          dfpoints<-rbind(dfpoints,xy.buff1)
+          if (nrow(df1)<n_i) {
             
-          #sample_vec<-c(sample_vec,xy.buff$cell)
-          # sample_vec <- c(sample_vec,
-          #                 sample(x = temp_ids[which(temp_ids$X1==istrata),'ID'], #which(temp_ids == istrata)
-          #                        size = allocations[istrata]) )
+            dropcell<-c()
+            selcell<-c()
+            
+            dff<-df
+            
+            ii<-n_i-nrow(df1)
+            
+            for (ii in rep(1,times=n_i)) {
+              
+              #ii<-1
+              cell_i<-sample(dff$cell,ii)
+              row<-dff[which(dff$cell==cell_i),c('row','col')][1,1]
+              col<-dff[which(dff$cell==cell_i),c('row','col')][1,2]
+              adj_cells<-expand.grid(row=c(row,row+(1:200),row-(1:200)),
+                                     col=c(col,col+(1:200),col-(1:200)))
+              adj_cells1<-merge(adj_cells,df,by=c('row', 'col'))[,'cell']
+              # if (istrata == 2 ) {
+              #   x<-merge(adj_cells,df,by=c('row', 'col'))
+              # }
+              
+              dropcell_i<-c(cell_i,adj_cells1)
+              selcell<-c(selcell,cell_i)
+              dropcell<-c(dropcell,dropcell_i)
+              
+              dff<-subset(dff, !(cell %in% dropcell))
+              
+              
+            }
+            
+            points<-subset(df,cell %in% selcell)[,c('Lon','Lat','cell','strata')]
+            names(points)<-c('Lon','Lat','cell','strata')
+            
+            #append data
+            dfcurrent<-rbind(dfcurrent,points)
+            
+          } else {
+            
+            ss<-sample(1:nrow(df1),size = allocations[istrata],replace = FALSE)
+            dfcurrent<-rbind(dfcurrent,df1[ss,c('Lon','Lat','cell','strata')])
+            
+          }
+
+          ##############################
+          # BUFFER APPROACH
+          ##############################
+          
+          dff<-df
+          
+          dropcell<-c()
+          selcell<-c()
+          
+          for (ii in rep(1,times=n_i)) {
+            
+            #ii<-1
+            cell_i<-sample(dff$cell,ii)
+            row<-dff[which(dff$cell==cell_i),c('row','col')][1,1]
+            col<-dff[which(dff$cell==cell_i),c('row','col')][1,2]
+            adj_cells<-expand.grid(row=c(row,row+(1:200),row-(1:200)),
+                                   col=c(col,col+(1:200),col-(1:200)))
+            adj_cells1<-merge(adj_cells,df,by=c('row', 'col'))[,'cell']
+            # if (istrata == 2 ) {
+            #   x<-merge(adj_cells,df,by=c('row', 'col'))
+            # }
+            
+            dropcell_i<-c(cell_i,adj_cells1)
+            selcell<-c(selcell,cell_i)
+            dropcell<-c(dropcell,dropcell_i)
+            
+            dff<-subset(dff, !(cell %in% dropcell))
+            
+            
+          }
+          
+          # if (length(selcell)!=i) {
+          #   #print scenario to check progress
+          #   cat(paste(" #############  not enough samples  #############\n"))}
+          
+          points<-subset(df,cell %in% selcell)[,c('Lon','Lat','cell','strata')]
+          names(points)<-c('Lon','Lat','cell','strata')
+          
+          #append data
+          dfbuffer<-rbind(dfbuffer,points)
+          
+          
         }
         
-        #append points
-        all_points[,,iter]<-unlist(dfpoints)
+      #append points
+      all_points[,,iter,'current']<-unlist(dfcurrent)
+      all_points[,,iter,'buffer']<-unlist(dfbuffer)
         
       }
       
       #save sample selection
-      save(all_points,file=paste0('./output/species/',sp,'/samples_optimization_',samp_df[s,'samp_scn'],'.RData'))
+      save(all_points,file=paste0('./output/species/',sp,'/optimization data/samples_optimization_',samp_df[s,'samp_scn'],'.RData'))
 
       #change projection of spatial object 
       coordinates(dfpoints)<- ~ Lon + Lat
@@ -622,7 +726,7 @@ for (sp in spp) {
                           str_cell = points1)
       
       #save plot list
-      save(result_list,file=paste0('./output/species/',sp,'/optimization_results_',samp_df[s,'samp_scn'],'.RData'))
+      save(result_list,file=paste0('./output/species/',sp,'/optimization data/optimization_results_',samp_df[s,'samp_scn'],'.RData'))
       
       #########################
       # JOIN POINTS FOR LEGEND PURPOSES
@@ -702,13 +806,13 @@ for (sp in spp) {
     dev.off()
 
     #save plot list
-    save(plot_list,file=paste0('./output/species/',sp,'/optimization_plots.RData'))
+    save(plot_list,file=paste0('./output/species/',sp,'/optimization data/optimization_plots.RData'))
   
   
   #save locations
-  save(sp_loc,file = paste0('./output/species/',sp,'/optimization_locations.RData'))
+  save(sp_loc,file = paste0('./output/species/',sp,'/optimization data/optimization_locations.RData'))
   
   #save locations
-  save(sp_sum_stats,file = paste0('./output/species/',sp,'/optimization_summary_stats.RData'))
+  save(sp_sum_stats,file = paste0('./output/species/',sp,'/optimization data/optimization_summary_stats.RData'))
 
 }  
