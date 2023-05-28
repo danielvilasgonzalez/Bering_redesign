@@ -64,6 +64,11 @@ spp<-c('Limanda aspera',
 #folder region
 fol_region<-c('shelf EBS NBS VAST')
 
+#load grid
+load('./extrapolation grids/lastversion_grid_EBS.RData')
+grid_ebs<-grid.ebs_year[which(grid.ebs_year$region != 'EBSslope' & grid.ebs_year$Year %in% yrs),]
+dim(grid_ebs)
+
 #dir create for slope region results
 dir.create(paste(out_dir,fol_region,sep='/'))
 
@@ -87,12 +92,12 @@ cat(paste("\n","    ----- ", sp, " -----\n"))
 
 #check % of process  
 #windows progress bar
-py <- winProgressBar(title = paste0(sp, ' (',which(spp == sp),' out of ',length(spp),')'), # Window title
-                     label = "Percentage completed", # Window label
-                     min = 0,      # Minimum value of the bar
-                     max = length(spp), #(species) # Maximum value of the bar
-                     initial = 0,  # Initial value of the bar
-                     width = 300L) # Width of the window   
+# py <- winProgressBar(title = paste0(sp, ' (',which(spp == sp),' out of ',length(spp),')'), # Window title
+#                      label = "Percentage completed", # Window label
+#                      min = 0,      # Minimum value of the bar
+#                      max = length(spp), #(species) # Maximum value of the bar
+#                      initial = 0,  # Initial value of the bar
+#                      width = 300L) # Width of the window   
 
 #read data_geostat_temp file
 df1<-readRDS(paste0('./data processed/species/',sp,'/data_geostat_temp.rds'))
@@ -113,8 +118,31 @@ data_geostat<-df4[complete.cases(df4[,c('CPUE_kg')]),]
 #covariate_data<-subset(df2,Year>=yrs_region[1] & Year<=yrs_region[2])
 covariate_data<-df3[complete.cases(df3[,c('BotTemp')]),] #,'ScaleLogDepth'
 
+#add grid to get prediction for simulate data on each cell of the grid (sim$b_i)
+grid_df<-data.frame(Lat=grid_ebs$Lat,
+                    Lon=grid_ebs$Lon,
+                    Year=grid_ebs$Year,
+                    Species=rep(sp,times=nrow(grid_ebs)),
+                    CPUE_kg=mean(data_geostat$CPUE_kg),
+                    Effort=grid_ebs$Area_in_survey_km2,
+                    Depth=grid_ebs$Depth,
+                    BotTemp=grid_ebs$Temp,
+                    Region=grid_ebs$region,
+                    stringsAsFactors = T)
+
+#ha to km2
+data_geostat$Effort<-data_geostat$Effort/100
+
+#rbind grid and data_geostat to get prediction into grid values when simulating data
+data_geostat1<-rbind(data_geostat[,c("Lat","Lon","Year","Species","CPUE_kg","Effort","Depth","BotTemp","Region")],
+                     grid_df)
+
+#to get predictions in locations but not influencing fit
+pred_TF <- rep(1, nrow(data_geostat1))
+pred_TF[1:nrow(data_geostat)] <- 0
+
 #save data
-saveRDS(data_geostat,paste(out_dir,fol_region,sp,'data_geostat_temp.rds',sep='/'))
+saveRDS(data_geostat1,paste(out_dir,fol_region,sp,'data_geostat_temp.rds',sep='/'))
 
 #regions (predefined in VAST)
 region<-c("northern_bering_sea","eastern_bering_sea")
@@ -173,12 +201,12 @@ X2config_cp = X1config_cp
 
 #fit model #### ADD TryCatch{(),}
 fit <- tryCatch( {fit_model(settings=settings,
-                            Lat_i=data_geostat$Lat, 
-                            Lon_i=data_geostat$Lon,
-                            t_i=data_geostat$Year,
-                            b_i=data_geostat$CPUE_kg,
-                            c_iz = as.numeric(factor(data_geostat$Species))-1,
-                            a_i=data_geostat$Effort/100,
+                            Lat_i=data_geostat1$Lat, 
+                            Lon_i=data_geostat1$Lon,
+                            t_i=data_geostat1$Year,
+                            b_i=data_geostat1$CPUE_kg,
+                            c_iz = as.numeric(factor(data_geostat1$Species))-1,
+                            a_i=data_geostat1$Effort,
                             #input_grid=grid.ebs,
                             getJointPrecision = TRUE,
                             test_fit=FALSE,
@@ -187,6 +215,7 @@ fit <- tryCatch( {fit_model(settings=settings,
                             X1_formula =  X1_formula,
                             X2_formula = X2_formula, 
                             newtonsteps = 1,
+                            PredTF_i = pred_TF,
                             #X_gtp = X_gtp,
                             working_dir = paste(out_dir,fol_region,sp,'/',sep='/'))},
                  error = function(cond) {
