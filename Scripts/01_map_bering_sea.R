@@ -225,6 +225,8 @@ eez_sh33<-rgeos::gUnaryUnion(eez_sh3)
 #load baseline strata
 load('./output/baseline_strata.RData')
 
+baseline_strata$locations[grep('GF|HG|JI|IH|ON|QP|PO',baseline_strata$locations$stationid),]
+baseline_strata$locations$corner<-ifelse(grepl('GF|HG|JI|IH|ON|QP|PO',baseline_strata$locations$stationid),'TRUE','FALSE')
 #baseline_strata
 pts<-baseline_strata$locations
 coordinates(pts)<-~longitude + latitude
@@ -238,7 +240,7 @@ pts<-as.data.frame(pts)
   x<-ggplot()+
     #geom_tile(aes(fill=value))+
     geom_sf(data=ebs_layers$survey.strata,fill = NA)+
-    geom_point(data=pts,aes(x=longitude,y=latitude),size=1)+
+    geom_point(data=subset(pts,corner=='FALSE'),aes(x=longitude,y=latitude),size=1)+
     #geom_point(data=subset(pts,rm25==0),aes(x=longitude,y=latitude),shape=4,size=1,col='red')+
     geom_polygon(data=ak_sppoly,aes(x=long,y=lat,group=group),fill = 'grey60')+
     #geom_polygon(data=eez_sh33,aes(x=long,y=lat,group=group),fill=NA,color='grey40')+
@@ -261,7 +263,7 @@ pts<-as.data.frame(pts)
     theme(aspect.ratio = 1,panel.grid.major = element_line(color = rgb(0, 0, 0,20, maxColorValue = 285), linetype = 'dashed', linewidth =  0.5),
           panel.background = element_rect(fill = NA),panel.ontop = TRUE,text = element_text(size=10),
           legend.background =  element_rect(fill = "transparent", colour = "transparent"),legend.key.height= unit(25, 'points'),
-          legend.key.width= unit(25, 'points'),axis.title = element_blank(),legend.position = c(0.12,0.47),
+          legend.key.width= unit(25, 'points'),axis.title = element_blank(),legend.position = 'none', #c(0.12,0.47)
           panel.border = element_rect(fill = NA, colour = 'black'),legend.key = element_rect(color="black"),
           axis.text = element_text(color='black'),legend.spacing.y = unit(10, 'points'),
           axis.text.y.right = element_text(hjust= 0.1 ,margin = margin(0,7,0,-25, unit = 'points'),color='black'),
