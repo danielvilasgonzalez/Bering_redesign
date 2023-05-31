@@ -117,12 +117,13 @@ for (sp in spp) {
         repls<-1
         
         #in case scn base need to remove stations
-        if (samp == "scnbase") {
+        #conditions on baseline scenarios
+        if (samp == 'scnbase') {
           baseline_strata$locations2<-baseline_strata$locations
-        } else if (samp == "scnbase25") { #remove 25 stations
-          baseline_strata$locations2<-baseline_strata$locations[which(baseline_strata$locations$rm25==1),]
-        } else if (samp == "scnbase9") { #remove 9 stations
-          baseline_strata$locations2<-baseline_strata$locations[which(baseline_strata$locations$rm9==1),] }
+        } else if (samp == 'scnbase_bis') {
+          baseline_strata$locations2<-baseline_strata$locations[which(baseline_strata$locations$corner=='FALSE'),]
+        } 
+        
         
         #sort by strata
         baseline_strata$strata_areas<-baseline_strata$strata_areas[order(baseline_strata$strata_areas$X1),]
