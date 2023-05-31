@@ -1,1 +1,0 @@
-# Bering_redesign
