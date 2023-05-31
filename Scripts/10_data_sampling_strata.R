@@ -372,7 +372,7 @@ head(locations)
 #cell
 locations$cell<-extract(r2,st)
 
-#list vaseline strata
+#list baseline strata
 baseline_strata<-list(strata_areas=strata_areas,locations=locations)
 
 #save data
