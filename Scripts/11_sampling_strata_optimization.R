@@ -336,14 +336,14 @@ for (sp in spp) {
                            "stratum_id","wh","Wh","M1","S1","SOLUZ","samp_scn","sp")
   
   #df locations
-  sp_loc<-data.frame(matrix(nrow = 0,ncol=5))
-  names(sp_loc)<- c("Lat","Lon","Stations","samp_scn","sp")
+  # sp_loc<-data.frame(matrix(nrow = 0,ncol=5))
+  # names(sp_loc)<- c("Lat","Lon","Stations","samp_scn","sp")
   
   #subset cells with appropiate depth
   static_df1<-subset(D6,cell %in% ok_cells)
     
   #create a list to store results
-  plot_list<-list()
+  #plot_list<-list()
     
   #########################
   # RUN LOOP SAMPLING SCENARIOS
@@ -489,7 +489,7 @@ for (sp in spp) {
     ###################################
     # CREATE SPATIAL OBJECT BASED ON CELLS STRATA
     ###################################
-    
+
     #strata by cell  
     strata<-solution$indices
     colnames(strata)<-c('cell','Strata')
@@ -579,9 +579,15 @@ for (sp in spp) {
     all_points<-array(NA,dim = list(sum(allocations),4,n_iter,2),
                         dimnames = list(c(1:sum(allocations)),c('Lon','Lat','cell','strata'),c(1:n_iter),c('current','buffer')))
       
+    flag<-TRUE
+    
     #loop over iterations
     for (iter in 1:n_iter) {
       
+      while(flag){
+        
+        tryCatch({
+          
       #print scenario to check progress
       cat(paste(" #############   iter", iter, 'of',n_iter,  "  #############\n"))
       
@@ -615,24 +621,27 @@ for (sp in spp) {
             
             ii<-n_i-nrow(df1)
             
+
+            
             for (ii in rep(1,times=n_i)) {
-              
-              #ii<-1
-              cell_i<-sample(dff$cell,ii)
-              row<-dff[which(dff$cell==cell_i),c('row','col')][1,1]
-              col<-dff[which(dff$cell==cell_i),c('row','col')][1,2]
-              adj_cells<-expand.grid(row=c(row,row+(1:200),row-(1:200)),
-                                     col=c(col,col+(1:200),col-(1:200)))
-              adj_cells1<-merge(adj_cells,df,by=c('row', 'col'))[,'cell']
-              # if (istrata == 2 ) {
-              #   x<-merge(adj_cells,df,by=c('row', 'col'))
-              # }
-              
-              dropcell_i<-c(cell_i,adj_cells1)
-              selcell<-c(selcell,cell_i)
-              dropcell<-c(dropcell,dropcell_i)
-              
-              dff<-subset(dff, !(cell %in% dropcell))
+
+                #ii<-1
+                cell_i<-sample(dff$cell,ii)
+                row<-dff[which(dff$cell==cell_i),c('row','col')][1,1]
+                col<-dff[which(dff$cell==cell_i),c('row','col')][1,2]
+                adj_cells<-expand.grid(row=c(row,row+(1:200),row-(1:200)),
+                                       col=c(col,col+(1:200),col-(1:200)))
+                adj_cells1<-merge(adj_cells,df,by=c('row', 'col'))[,'cell']
+                # if (istrata == 2 ) {
+                #   x<-merge(adj_cells,df,by=c('row', 'col'))
+                # }
+                
+                dropcell_i<-c(cell_i,adj_cells1)
+                selcell<-c(selcell,cell_i)
+                dropcell<-c(dropcell,dropcell_i)
+                
+                dff<-subset(dff, !(cell %in% dropcell))
+    
               
               
             }
@@ -659,26 +668,28 @@ for (sp in spp) {
           dropcell<-c()
           selcell<-c()
           
+          flag<-TRUE
+          
           for (ii in rep(1,times=n_i)) {
-            
-            #ii<-1
-            cell_i<-sample(dff$cell,ii)
-            row<-dff[which(dff$cell==cell_i),c('row','col')][1,1]
-            col<-dff[which(dff$cell==cell_i),c('row','col')][1,2]
-            adj_cells<-expand.grid(row=c(row,row+(1:200),row-(1:200)),
-                                   col=c(col,col+(1:200),col-(1:200)))
-            adj_cells1<-merge(adj_cells,df,by=c('row', 'col'))[,'cell']
-            # if (istrata == 2 ) {
-            #   x<-merge(adj_cells,df,by=c('row', 'col'))
-            # }
-            
-            dropcell_i<-c(cell_i,adj_cells1)
-            selcell<-c(selcell,cell_i)
-            dropcell<-c(dropcell,dropcell_i)
-            
-            dff<-subset(dff, !(cell %in% dropcell))
-            
-            
+
+
+              #ii<-1
+              cell_i<-sample(dff$cell,ii)
+              row<-dff[which(dff$cell==cell_i),c('row','col')][1,1]
+              col<-dff[which(dff$cell==cell_i),c('row','col')][1,2]
+              adj_cells<-expand.grid(row=c(row,row+(1:200),row-(1:200)),
+                                     col=c(col,col+(1:200),col-(1:200)))
+              adj_cells1<-merge(adj_cells,df,by=c('row', 'col'))[,'cell']
+              # if (istrata == 2 ) {
+              #   x<-merge(adj_cells,df,by=c('row', 'col'))
+              # }
+              
+              dropcell_i<-c(cell_i,adj_cells1)
+              selcell<-c(selcell,cell_i)
+              dropcell<-c(dropcell,dropcell_i)
+              
+              dff<-subset(dff, !(cell %in% dropcell))
+
           }
           
           # if (length(selcell)!=i) {
@@ -691,127 +702,42 @@ for (sp in spp) {
           #append data
           dfbuffer<-rbind(dfbuffer,points)
           
-          
         }
-        
+      
       #append points
       all_points[,,iter,'current']<-unlist(dfcurrent)
       all_points[,,iter,'buffer']<-unlist(dfbuffer)
-        
+     
+      flag<-FALSE},
+          error=function(e) {
+            
+            
+            message(paste0("Daniel tienes un problema",':\n'),e)})
+                
+                if (!flag) next
+                
       }
       
+      flag<-TRUE     
+      }
+   
       #save sample selection
       save(all_points,file=paste0('./output/species/',sp,'/optimization data/samples_optimization_',samp_df[s,'samp_scn'],'.RData'))
-
-      #change projection of spatial object 
-      coordinates(dfpoints)<- ~ Lon + Lat
-      
-      #reproject shapefile
-      proj4string(dfpoints) <- CRS('+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs')
-      #points1<-spTransform(dfpoints,CRSobj = CRS('+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs'))
-      
-      #to dataframe
-      points1<-as.data.frame(dfpoints)
-      
-      #add scn 
-      points1$samp_scn<- s
-      points1$sp<- sp
 
       #save list results por SBTscn and Sampscn
       result_list <- list(solution = solution,
                           sum_stats = sum_stats,
                           cvs = cv_temp,
                           sample_allocations = allocations,
-                          sol_by_cell = temp_ids,
-                          str_cell = points1)
+                          sol_by_cell = temp_ids)
+                          #str_cell = points1)
       
       #save plot list
       save(result_list,file=paste0('./output/species/',sp,'/optimization data/optimization_results_',samp_df[s,'samp_scn'],'.RData'))
       
-      #########################
-      # JOIN POINTS FOR LEGEND PURPOSES
-      #########################
-      
-      loc_sur<-rbind(data.frame(Lat=points1$Lat,Lon=points1$Lon,Stations='optimization'),
-                      data.frame(Lat=st_EBS$latitude,Lon=st_EBS$longitude,Stations='current design'),
-                      data.frame(Lat=st_corners1$latitude,Lon=st_corners1$longitude,Stations='corner crab'))
-      
-      loc_sur$samp_scn<-samp_df[s,'samp_scn']
-      loc_sur$sp<-sp
-      
-      loc_sur1<-subset(loc_sur,Stations=='optimization')
-      
-      sp_loc<-rbind(sp_loc,loc_sur1)
-      
-      #########################
-      # MAP POINTS
-      #########################
-    
-      p<-
-        ggplot()+
-            geom_raster(data=as.data.frame(r2, xy = TRUE),aes(x=x,y=y,fill=layer))+
-            #geom_point(data=D8_2, aes(Lon, Lat, fill=Strata, group=NULL),size=2, stroke=0,shape=21)+
-            scale_fill_gradientn(colours=c("#ea5545", "#f46a9b", "#ef9b20", "#edbf33", "#ede15b", "#bdcf32", "#87bc45", "#27aeef", "#b33dc6"),
-                                 #guide = guide_legend(),na.value = 'white',breaks=sort(unique(D8_1$Strata)),
-                                 #labels=paste0(sort(unique(D8_1$Strata))," (n=",allocations,')'))+ #,,
-                                  guide = guide_legend(),na.value = 'white',breaks=sort(na.omit(unique(values(r2)))),
-                                  labels=paste0(sort(na.omit(unique(values(r2))))," (n=",allocations,')'))+ #,,
-            #geom_point(data=st_EBS,aes(x=longitude,y=latitude),shape=4,size=1)+
-            #geom_point(data=st_corners1,aes(x=longitude,y=latitude),color='red',shape=20,size=1)+
-            geom_polygon(data=ak_sppoly,aes(x=long,y=lat,group=group),fill = 'grey60')+
-            #geom_polygon(data=eez_sh33,aes(x=long,y=lat,group=group),fill=NA,color='grey40',linetype='dashed')+
-            scale_x_continuous(expand = c(0,0),position = 'bottom',
-                               breaks = c(-175,-170,-165,-160,-155),sec.axis = dup_axis())+
-            geom_polygon(data=NBS_sh,aes(x=long,y=lat,group=group),fill=NA,col='black')+
-            geom_polygon(data=EBSshelf_sh,aes(x=long,y=lat,group=group),fill=NA,col='black')+
-            geom_polygon(data=EBSslope_sh,aes(x=long,y=lat,group=group),fill=NA,col='black')+
-            geom_point(data=loc_sur,aes(x=Lon,y=Lat,color=Stations,shape=Stations),fill='white',color='black',size=1.2)+
-            scale_shape_manual(values = c('optimization'=21,
-                                          'current design'=4,
-                                          'corner crab'=8),
-                               breaks=unique(loc_sur$Stations),
-                               labels=paste0(unique(loc_sur$Stations)," (n=",c(nrow(points1),nrow(st_EBS),nrow(st_corners1)),')'))+
-            coord_sf(crs = '+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs',
-                     xlim = panel_extent$x,
-                     ylim = c(453099.5,2004909.7),
-                         label_axes = "-NE-")+
-            theme(aspect.ratio = 1,panel.grid.major = element_line(color = rgb(0, 0, 0,20, maxColorValue = 285), linetype = 'dashed', linewidth =  0.5),
-                  panel.background = element_rect(fill = NA),panel.ontop = TRUE,text = element_text(size=12),
-                  legend.background =  element_rect(fill = "transparent", colour = "transparent"),legend.key.height= unit(14, 'points'),
-                  legend.key.width= unit(12, 'points'),axis.title = element_blank(),
-                  legend.position = c(0, 1), legend.justification = c(0, 1),
-                  panel.border = element_rect(fill = NA, colour = 'black'),legend.key = element_rect(color="black"),
-                  axis.text = element_text(color='black'),legend.spacing.y = unit(8, 'points'),
-                  axis.text.y.right = element_text(hjust= 0.1 ,margin = margin(0,0,0,-28, unit = 'points'),color='black'),
-                  axis.text.x.bottom = element_text(vjust = 6, margin = margin(-5,0,0,0, unit = 'points'),color='black'),
-                  axis.ticks.length = unit(-5,"points"),plot.title = element_text(size=11,vjust = -10, hjust=0.95,face="bold"),
-                  plot.margin=margin(c(-10,0,0,-10)),legend.title = element_text(size = 12))+
-                #annotate("text", x = -256559, y = 1354909, label = "Alaska",parse=TRUE,size=7)+
-                #annotate("text", x = -1296559, y = 2049090, label = "Russia",parse=TRUE,size=7)+
-                scale_y_continuous(expand = c(0,0),position = 'right',sec.axis = dup_axis())+
-                #annotate("text", x = -1296559, y = 744900, label = "italic('Bering Sea')",parse=TRUE,size=9)+
-                guides(fill = guide_legend(order=2,override.aes=list(size=4),title="Strata"),
-                       color = guide_legend(order=1,override.aes=list(size=8)),
-                       shape = guide_legend(order=1),override.aes=list(size=8))+
-                labs(title=paste0(samp_df[s,'strat_var'],' n=',samp_df[s,'n_samples']))
 
-        #store into the list
-        plot_list[[s]]<-p  
    }
     
-    #save multiplot
-    mp<-cowplot::plot_grid(plotlist = plot_list,nrow = 3,ncol = 3)
-    ragg::agg_png(paste0('./figures/species/',sp,'/optimization_sampling.png'), width = 14, height = 14, units = "in", res = 300)
-    print(mp)
-    dev.off()
-
-    #save plot list
-    save(plot_list,file=paste0('./output/species/',sp,'/optimization data/optimization_plots.RData'))
-  
-  
-  #save locations
-  save(sp_loc,file = paste0('./output/species/',sp,'/optimization data/optimization_locations.RData'))
-  
   #save locations
   save(sp_sum_stats,file = paste0('./output/species/',sp,'/optimization data/optimization_summary_stats.RData'))
 
