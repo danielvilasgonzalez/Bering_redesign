@@ -68,6 +68,13 @@ ff<-'fit.RData'
 load('./data processed/lastversion_grid_EBS.RData') #grid.ebs_year
 
 #remove slope grid
+#load grid of NBS and EBS
+load('./extrapolation grids/northern_bering_sea_grid.rda')
+load('./extrapolation grids/eastern_bering_sea_grid.rda')
+grid<-as.data.frame(rbind(data.frame(northern_bering_sea_grid,region='NBS'),data.frame(eastern_bering_sea_grid,region='EBS')))
+grid$cell<-1:nrow(grid)
+
+
 grid.ebs_year1<-grid.ebs_year[which(grid.ebs_year$region!='EBSslope'),]
 ncells<-nrow(grid.ebs_year1[which(grid.ebs_year1$Year==1982),])
 yrs<-1982:2022
@@ -372,8 +379,21 @@ head(locations)
 #cell
 locations$cell<-extract(r2,st)
 
+#number of samples per strata for random sampling
+y<-aggregate(locations$cell,by=list(locations$stratum),length)
+yc<-aggregate(subset(locations,corner!=TRUE)[,'cell'],by=list(subset(locations,corner!=TRUE)[,'stratum']),length)
+n_samples<-data.frame('stratum'=yc$Group.1,'scnbase'=y$x,'scnbase_bis'=yc$x)
+
+# grid1<-grid
+# coordinates(grid1)<- ~ Lon + Lat
+# crs(grid1)<-'+proj=aea +lat_0=50 +lon_0=-154 +lat_1=55 +lat_2=65 +x_0=0 +y_0=0 +datum=NAD83 +units=m +no_defs'
+# 
+# xx<- as(x, 'Spatial')
+# #grid over polygon to get samples grid which current baseline strata
+# cell_strata<-data.frame(as.data.frame(grid1,'stratum'=over(grid1,xx)[,'Stratum']))
+
 #list baseline strata
-baseline_strata<-list(strata_areas=strata_areas,locations=locations)
+baseline_strata<-list(strata_areas=strata_areas,locations=locations,n_samples=n_samples,cell_strata=grid)
 
 #save data
 save(baseline_strata,file='./output/baseline_strata.RData')
