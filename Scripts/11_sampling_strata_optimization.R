@@ -352,7 +352,7 @@ for (sp in spp) {
   #loop through sampling scenarios
   for (s in 1:nrow(samp_df)) {
       
-    #s<-1
+    s<-1
       
     #print scenario to check progress
     cat(paste(" #############   Species", sp, match(sp,spp), 'out of',length(spp),  "  #############\n",
@@ -575,155 +575,170 @@ for (sp in spp) {
     #iterations for samples
     n_iter<-100
       
-    #to store samples
-    all_points<-array(NA,dim = list(sum(allocations),4,n_iter,2),
-                        dimnames = list(c(1:sum(allocations)),c('Lon','Lat','cell','strata'),c(1:n_iter),c('current','buffer')))
-      
-    flag<-TRUE
-    
-    #loop over iterations
-    for (iter in 1:n_iter) {
-      
-      while(flag){
-        
-        tryCatch({
-          
-      #print scenario to check progress
-      cat(paste(" #############   iter", iter, 'of',n_iter,  "  #############\n"))
-      
-      #iter<-1
-        
-      #to store points
-      dfcurrent<-data.frame(matrix(NA,nrow=0,ncol=4))
-      colnames(dfcurrent)<-c('Lon','Lat','cell','strata')
-      dfbuffer<-dfcurrent
-        
-      #random sample for each strata wit distance constrains
-      for(istrata in 1:length(allocations)) {
-          #istrata<-1
-        
-        ##############################
-        # CURRENT APPROACH
-        ##############################
-        
-          #subset cells for strata
-          df<-subset(as.data.frame(D8_2),strata==istrata)
-          df1<-subset(as.data.frame(D8_2),strata==istrata & cell %in% baseline_strata$locations$cell)
-          
-          n_i<-allocations[istrata]
-          
-          if (nrow(df1)<n_i) {
-            
-            dropcell<-c()
-            selcell<-c()
-            
-            dff<-df
-            
-            ii<-n_i-nrow(df1)
-            
-
-            
-            for (ii in rep(1,times=n_i)) {
-
-                #ii<-1
-                cell_i<-sample(dff$cell,ii)
-                row<-dff[which(dff$cell==cell_i),c('row','col')][1,1]
-                col<-dff[which(dff$cell==cell_i),c('row','col')][1,2]
-                adj_cells<-expand.grid(row=c(row,row+(1:200),row-(1:200)),
-                                       col=c(col,col+(1:200),col-(1:200)))
-                adj_cells1<-merge(adj_cells,df,by=c('row', 'col'))[,'cell']
-                # if (istrata == 2 ) {
-                #   x<-merge(adj_cells,df,by=c('row', 'col'))
-                # }
-                
-                dropcell_i<-c(cell_i,adj_cells1)
-                selcell<-c(selcell,cell_i)
-                dropcell<-c(dropcell,dropcell_i)
-                
-                dff<-subset(dff, !(cell %in% dropcell))
-    
-              
-              
-            }
-            
-            points<-subset(df,cell %in% selcell)[,c('Lon','Lat','cell','strata')]
-            names(points)<-c('Lon','Lat','cell','strata')
-            
-            #append data
-            dfcurrent<-rbind(dfcurrent,points)
-            
-          } else {
-            
-            ss<-sample(1:nrow(df1),size = allocations[istrata],replace = FALSE)
-            dfcurrent<-rbind(dfcurrent,df1[ss,c('Lon','Lat','cell','strata')])
-            
-          }
-
-          ##############################
-          # BUFFER APPROACH
-          ##############################
-          
-          dff<-df
-          
-          dropcell<-c()
-          selcell<-c()
-          
-          flag<-TRUE
-          
-          for (ii in rep(1,times=n_i)) {
-
-
-              #ii<-1
-              cell_i<-sample(dff$cell,ii)
-              row<-dff[which(dff$cell==cell_i),c('row','col')][1,1]
-              col<-dff[which(dff$cell==cell_i),c('row','col')][1,2]
-              adj_cells<-expand.grid(row=c(row,row+(1:200),row-(1:200)),
-                                     col=c(col,col+(1:200),col-(1:200)))
-              adj_cells1<-merge(adj_cells,df,by=c('row', 'col'))[,'cell']
-              # if (istrata == 2 ) {
-              #   x<-merge(adj_cells,df,by=c('row', 'col'))
-              # }
-              
-              dropcell_i<-c(cell_i,adj_cells1)
-              selcell<-c(selcell,cell_i)
-              dropcell<-c(dropcell,dropcell_i)
-              
-              dff<-subset(dff, !(cell %in% dropcell))
-
-          }
-          
-          # if (length(selcell)!=i) {
-          #   #print scenario to check progress
-          #   cat(paste(" #############  not enough samples  #############\n"))}
-          
-          points<-subset(df,cell %in% selcell)[,c('Lon','Lat','cell','strata')]
-          names(points)<-c('Lon','Lat','cell','strata')
-          
-          #append data
-          dfbuffer<-rbind(dfbuffer,points)
-          
-        }
-      
-      #append points
-      all_points[,,iter,'current']<-unlist(dfcurrent)
-      all_points[,,iter,'buffer']<-unlist(dfbuffer)
-     
-      flag<-FALSE},
-          error=function(e) {
-            
-            
-            message(paste0("Daniel tienes un problema",':\n'),e)})
-                
-                if (!flag) next
-                
-      }
-      
-      flag<-TRUE     
-      }
-   
-      #save sample selection
-      save(all_points,file=paste0('./output/species/',sp,'/optimization data/samples_optimization_',samp_df[s,'samp_scn'],'.RData'))
-
+    # #to store samples
+    # all_points<-array(NA,
+    #                   dim = list(sum(allocations),4,length(1982:2027),2),
+    #                   dimnames = list(c(1:sum(allocations)),c('Lon','Lat','cell','strata'),1:length(1982:2027),c('current','buffer')))
+    # 
+    # for (y in 1:length(1982:2027)) {
+    #   
+    #   #y<-1
+    #   
+    #   #print scenario to check progress
+    #   cat(paste(" #############   year", y, 'of',length(1982:2027),  "  #############\n"))
+    #   
+    #   #to store points
+    #   dfcurrent<-data.frame(matrix(NA,nrow=0,ncol=4))
+    #   colnames(dfcurrent)<-c('Lon','Lat','cell','strata')
+    #   dfbuffer<-dfcurrent
+    #   
+    #   #for while purposes
+    #   flag<-TRUE
+    #   
+    #   #random sample for each strata wit distance constrains
+    #   for(istrata in 1:length(allocations)) {
+    #     
+    #     #istrata<-15
+    #     
+    #     #subset cells for strata
+    #     df<-subset(as.data.frame(D8_2),strata==istrata)
+    #     df1<-subset(as.data.frame(D8_2),strata==istrata & cell %in% baseline_strata$locations$cell)
+    #     n_i<-allocations[istrata]
+    #     
+    #     #while error, keep running
+    #     while(flag){
+    #       
+    #       #keep running if error
+    #       tryCatch({
+    #         
+    #         #print loop state
+    #         cat(paste(" -- strata", istrata, 'of',length(allocations),  "  --\n"))
+    #         
+    #         ##############################
+    #         # CURRENT APPROACH
+    #         ##############################
+    #         
+    #         #if more required samples than available
+    #         if (nrow(df1)<n_i) {
+    #           
+    #           #vectors to store results
+    #           dropcell<-c()
+    #           selcell<-c()
+    #           
+    #           #duplicate df strata
+    #           dff<-df
+    #           
+    #           #df removing available samples from current design
+    #           dff<-subset(dff, !(cell %in% df1$cell))
+    #           
+    #           #cells to complete the required cells
+    #           ii<-n_i-nrow(df1)
+    #           
+    #           #loop over the required samples using buffer
+    #           for (iii in rep(1,times=ii)) {
+    #             
+    #             #ii<-1
+    #             
+    #             #get random cell
+    #             cell_i<-sample(dff$cell,iii)
+    #             #get row
+    #             #row<-dff[which(dff$cell==cell_i),c('row','col')][1,1] 
+    #             row<-dff[which(dff$cell %in% c(cell_i,df1$cell)),c('row','col')][1,1]
+    #             #get col
+    #             #col<-dff[which(dff$cell==cell_i),c('row','col')][1,2] 
+    #             col<-dff[which(dff$cell %in% c(cell_i,df1$cell)),c('row','col')][1,2]
+    #             #get adjacent cells
+    #             adj_cells<-expand.grid(row=c(row,row+(1:200),row-(1:200)),
+    #                                    col=c(col,col+(1:200),col-(1:200)))
+    #             adj_cells1<-merge(adj_cells,df,by=c('row', 'col'))[,'cell']
+    #             #remove cells from available for sampling
+    #             dropcell_i<-c(cell_i,adj_cells1)
+    #             
+    #             #if no more samples available to sample stop
+    #             if (nrow(subset(dff, !(cell %in% dropcell_i)))==0) {flag<-TRUE; stop("-- no samples to select on current approach",call. = FALSE)}else {
+    #               dff<-subset(dff, !(cell %in% dropcell_i))
+    #               selcell<-c(selcell,cell_i)
+    #               dropcell<-c(dropcell,dropcell_i)}
+    #           }
+    #           
+    #           #subset points if equal to required number of samples, if not ERROR and rerun iteration
+    #           if (nrow(subset(df,cell %in% c(selcell,df1$cell))) != n_i) {flag<-TRUE; stop("-- different number of points on current approach",call. = FALSE)}else{
+    #             pointsc<-subset(df,cell %in% c(selcell,df1$cell))[,c('Lon','Lat','cell','strata')]
+    #             names(pointsc)<-c('Lon','Lat','cell','strata')}
+    #           
+    #           #else there are enough samples to get from the current sampling design    
+    #         } else {
+    #           ss<-sample(1:nrow(df1),size = allocations[istrata],replace = FALSE)
+    #           pointsc<-df1[ss,c('Lon','Lat','cell','strata')]}
+    #         
+    #         ##############################
+    #         # BUFFER APPROACH
+    #         ##############################
+    #         
+    #         #replicate df of strata     
+    #         dff<-df
+    #         
+    #         #create vectors to store cells
+    #         dropcell<-c()
+    #         selcell<-c()
+    #         
+    #         #loop over required samples
+    #         for (iii in rep(1,times=n_i)) {
+    #           
+    #           #iii<-1
+    #           
+    #           #random sample
+    #           cell_i<-sample(dff$cell,iii)
+    #           #get row of selected sample
+    #           row<-dff[which(dff$cell==cell_i),c('row','col')][1,1]
+    #           #get col of selected sample
+    #           col<-dff[which(dff$cell==cell_i),c('row','col')][1,2]
+    #           #get adjacent cells of selected sample
+    #           adj_cells<-expand.grid(row=c(row,row+(1:200),row-(1:200)),
+    #                                  col=c(col,col+(1:200),col-(1:200)))
+    #           adj_cells1<-merge(adj_cells,df,by=c('row', 'col'))[,'cell']
+    #           #drop cells is equal to selected cell and adjacent cells
+    #           dropcell_i<-c(cell_i,adj_cells1)
+    #           
+    #           #store cells if there are still samples on the filtered df
+    #           if (nrow(subset(dff, !(cell %in% dropcell_i)))==0) {flag<-TRUE;stop("-- no samples to select on buffer approach",call. = FALSE)} else {
+    #             dff<-subset(dff, !(cell %in% dropcell_i))
+    #             selcell<-c(selcell,cell_i)
+    #             dropcell<-c(dropcell,dropcell_i)}
+    #           
+    #         }
+    #         
+    #         #subset points if equal to required number of samples, if not ERROR and rerun iteration
+    #         if (nrow(subset(df,cell %in% selcell)) != n_i ) {flag<-TRUE;stop("-- different number of points on buffer approach",call. = FALSE)}else{
+    #           pointsb<-subset(df,cell %in% selcell)[,c('Lon','Lat','cell','strata')]
+    #           names(pointsb)<-c('Lon','Lat','cell','strata')}
+    #         
+    #         #append data if buffer and current df have equal to required number of samples
+    #         if (nrow(pointsc) == n_i & nrow(pointsb) == n_i) {
+    #           dfcurrent<-rbind(dfcurrent,pointsc)
+    #           dfbuffer<-rbind(dfbuffer,pointsb)
+    #           flag<-FALSE}
+    #       },
+    #       
+    #       #error message
+    #       error=function(e) {
+    #         message(paste0("ERROR RETRYING",':\n'),e)})
+    #       if (!flag) next
+    #     }
+    #     
+    #     #to start while again
+    #     flag<-TRUE
+    #   }
+    #   
+    #   #append points
+    #   all_points[,,y,'current']<-unlist(dfcurrent)
+    #   all_points[,,y,'buffer']<-unlist(dfbuffer)
+    # }
+    # 
+    # #save sample selection
+    # save(all_points,file=paste0('./output/species/',sp,'/optimization data/samples_optimization_',samp_df[s,'samp_scn'],'_dynamic.RData'))
+    # 
+  
       #save list results por SBTscn and Sampscn
       result_list <- list(solution = solution,
                           sum_stats = sum_stats,
