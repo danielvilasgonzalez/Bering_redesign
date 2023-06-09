@@ -1,11 +1,16 @@
 ####################################################################
 ####################################################################
 ##
-##    Create a Bering Sea map figure
+##    Create a Bering Sea maps
+##    Sampling approach maps
 ##    Daniel Vilas (danielvilasgonzalez@gmail.com/dvilasg@uw.edu)
 ##
 ####################################################################
 ####################################################################
+
+#####################################
+# Settings
+#####################################
 
 #clear all objects
 rm(list = ls(all.names = TRUE)) 
@@ -39,24 +44,12 @@ panel_extent <- data.frame(x = c(-1716559.21, -77636.05), #x = c(-1326559.21, -8
 ebs_layers <- akgfmaps::get_base_layers(select.region = "ebs", set.crs = "EPSG:3338")
 ak_sppoly<-as(ebs_layers$akland, 'Spatial')
 
-#bathy from GEBCO (https://download.gebco.net/)
-#ak_bathy0<-raster("C:/Users/danie/Desktop/UW/GEBCO_21_Sep_2022_895fcb2e2466/GEBCO_21_Sep_2022_895fcb2e2466/gebco_2022_n74.2676_s50.1416_w175.2539_e180.0.asc")
-#ak_bathy1<-raster("C:/Users/danie/Desktop/UW/GEBCO_21_Sep_2022_895fcb2e2466/GEBCO_21_Sep_2022_895fcb2e2466/gebco_2022_n69.8291_s50.0977_w-179.9121_e-167.0.asc")
-#ak_bathy2<-raster("C:/Users/danie/Desktop/UW/GEBCO_21_Sep_2022_895fcb2e2466/GEBCO_21_Sep_2022_895fcb2e2466/gebco_2022_n69.8291_s50.0977_w-167.0_e-154.0.asc")
-#ak_bathy<-raster::merge(ak_bathy1,ak_bathy2)
-#ak_bathy_2<-projectRaster(ak_bathy,
-#                          crs='+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs')
-#
-#save raster with the new projection
-#writeRaster(ak_bathy_2,
-#            'E:/UW/Adapting Monitoring to a Changing Seascape/Resources/ak_bathy_NAD83.tiff',overwrite=FALSE)
-
 #get files from google drive and set up
 files<-googledrive::drive_find()
 2 #for dvilasg@uw.edu
 
 #####################################
-# GET DEPTH
+# Depth raster (from gebco)
 #####################################
 
 #create directory
@@ -78,7 +71,7 @@ googledrive::drive_download(file=id.data$id,
 ak_bathy_2<-raster('./bathymetry/ak_bathy_NAD83.tiff')
 
 #####################################
-# BERING SHAPEFILES
+# Region Shapefiles
 #####################################
 
 #create directory
@@ -133,7 +126,7 @@ bs_sh1<-union(EBSshelf_sh,NBS_sh)
 bs_sh<-union(bs_sh1,EBSslope_sh)
 
 #####################################
-# GET EEZ
+# Exclusive Economic Zone (EEZ)
 #####################################
 
 #create directory
@@ -179,7 +172,7 @@ ak_bathy_4[ak_bathy_4>0]<-0
 ak_bathy_4<--ak_bathy_4 
 
 #####################################
-# GET Stations 
+# Current sampling stations 
 #####################################
 
 #create directory
@@ -222,6 +215,10 @@ eez_sh22 <- eez_sh2[eez_sh2$AREA_KM2 == 5193061,]  #"5193061"  "24614858" "8521"
 eez_sh3<-aggregate(rbind(eez_sh11,eez_sh22),dissolve=T)
 eez_sh33<-rgeos::gUnaryUnion(eez_sh3)
 
+#####################################
+# Baseline strata
+#####################################
+
 #load baseline strata
 load('./output/baseline_strata.RData')
 
@@ -234,10 +231,14 @@ mean(baseline_strata$locations$difference,na.rm=TRUE)/2 #so 50
 
 #baseline_strata
 pts<-baseline_strata$locations
-coordinates(pts)<-~longitude + latitude
-proj4string(pts) <- CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0") 
-pts<-spTransform(pts,CRSobj = CRS('+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs'))
-pts<-as.data.frame(pts)
+#coordinates(pts)<-~longitude + latitude
+#proj4string(pts) <- CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0") 
+#pts<-spTransform(pts,CRSobj = CRS('+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs'))
+#pts<-as.data.frame(pts)
+
+#####################################
+# EBS+NBS grid 
+#####################################
 
 #load grid of NBS and EBS
 load('./extrapolation grids/northern_bering_sea_grid.rda')
@@ -261,85 +262,232 @@ x4<-merge(x3,lons,by='x',all.x=TRUE)
 x5<-merge(x4,lats,by='y',all.x=TRUE)
 colnames(x5)<-c('Lat','Lon','cell','strata','optional','col','row')
 grid<-x5[,c('Lat','Lon','cell','strata','col','row')]
-
-#change grid project
-#coordinates(grid)<-~Lon + Lat
-#proj4string(grid) <- CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0") 
-#grid1<-spTransform(grid,CRSobj = CRS('+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs'))
 grid1<-as.data.frame(grid)
 
-#cell to represent
-i_cell<-10000
+#####################################
+# Stations example for buffer approach
+#####################################
+
+#cell1 to represent
 i_cell2<-10000
-i_cell<-13675
-#row<-dff[which(dff$cell==cell_i),c('row','col')][1,1] 
-row<-grid1[which(grid1$cell %in% i_cell),c('row','col')][1,1]
-#get col
-#col<-dff[which(dff$cell==cell_i),c('row','col')][1,2] 
-col<-grid1[which(grid1$cell %in% i_cell),c('row','col')][1,2]
-#get adjacent cells
+#row
+row<-grid1[which(grid1$cell %in% i_cell2),c('row','col')][1,1]
+#col
+col<-grid1[which(grid1$cell %in% i_cell2),c('row','col')][1,2]
+#get 100 adjacent cells
 adj_cells<-expand.grid(row=c(row,row+(1:100),row-(1:100)),
                        col=c(col,col+(1:100),col-(1:100)))
 adj_cells1<-merge(adj_cells,grid1,by=c('row', 'col'))#[,'cell']
 adj_cells2<-adj_cells1
-#zoomin<-
-#gplot(ak_bathy_4) +
 
-x3<-
-ggplot()+
-  geom_point(data=subset(grid,strata==70),aes(x=Lon,y=Lat),size=0.1,alpha=0.1)+
-  #geom_point(data=grid1,aes(x=Lon,y=Lat),size=0.1,alpha=0.1)+
-  geom_point(data=adj_cells2,aes(x=Lon,y=Lat),size=0.1,color='white')+
-  geom_point(data=adj_cells1,aes(x=Lon,y=Lat),size=0.1,color='white')+
-  #geom_point(data=baseline_strata$locations,aes(x=longitude,y=latitude),size=0.5,color='red')+
-  #geom_point(data=subset(baseline_strata$locations,stratum==70),aes(x=longitude,y=latitude),size=0.5,color='red')+
-  #geom_point(data=subset(baseline_strata$locations,stratum==70),aes(x=longitude,y=latitude),size=0.5,color='black')+
-  #geom_point(data=subset(baseline_strata$locations,stationid=='S-01'),aes(x=longitude,y=latitude),size=0.5,color='black',shape=8)+
-  geom_point(data=subset(grid1,cell==i_cell2),aes(x=Lon,y=Lat),size=0.5,color='black',shape=8)+
-  geom_point(data=subset(grid1,cell==i_cell),aes(x=Lon,y=Lat),size=0.5,color='black',shape=8)+
-  #x<-ggplot()+
-  #geom_tile(aes(fill=value))+
-  geom_sf(data=ebs_layers$survey.strata,fill = NA)+
-  #geom_point(data=subset(pts,corner=='FALSE'),aes(x=longitude,y=latitude),size=1)+
-  #geom_point(data=subset(pts,rm25==0),aes(x=longitude,y=latitude),shape=4,size=1,col='red')+
-  geom_polygon(data=ak_sppoly,aes(x=long,y=lat,group=group),fill = 'grey60')+
-  #geom_polygon(data=eez_sh33,aes(x=long,y=lat,group=group),fill=NA,color='grey40')+
-  scale_x_continuous(expand = c(0,0),position = 'bottom',
-                     breaks = c(-175,-170,-165,-160,-155),sec.axis = dup_axis())+
-  geom_polygon(data=NBS_sh,aes(x=long,y=lat,group=group),fill=NA,col='black')+
-  geom_polygon(data=EBSshelf_sh,aes(x=long,y=lat,group=group),fill=NA,col='black')+
-  #geom_polygon(data=EBSslope_sh,aes(x=long,y=lat,group=group),fill=NA,col='black')+
-  coord_sf(crs = '+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs',
-           #xlim = panel_extent$x,
-           #ylim = panel_extent$y,
-           xlim = c(panel_extent$x[1]+200000,panel_extent$x[2]),
-           ylim = c(panel_extent$y[1],panel_extent$y[2]-200000),
-           label_axes = "-NE-")+
-  # scale_fill_gradient2(low = '#c1f2fe',
-  #                      high = '#007c9b',
-  #                      limits=c(0,200),oob = scales::squish,breaks=c(0,50,100,200),
-  #                      labels=c('0','50','100',paste0('200 - ',round(maxValue(ak_bathy_4)))),
-  #                      na.value = 'white',
-  #                      name='depth (m)',
-  #                      guide = guide_colorbar(frame.colour = 'black',ticks.colour = 'black'))+
-  theme(aspect.ratio = 1,panel.grid.major = element_line(color = rgb(0, 0, 0,20, maxColorValue = 285), linetype = 'dashed', linewidth =  0.5),
-        panel.background = element_rect(fill = NA),panel.ontop = TRUE,text = element_text(size=10),
-        legend.background =  element_rect(fill = "transparent", colour = "transparent"),legend.key.height= unit(25, 'points'),
-        legend.key.width= unit(25, 'points'),axis.title = element_blank(),legend.position = c(0.12,0.47), #c(0.12,0.47)
-        panel.border = element_rect(fill = NA, colour = 'black'),legend.key = element_rect(color="black"),
-        axis.text = element_text(color='black'),legend.spacing.y = unit(10, 'points'),
-        axis.text.y.right = element_text(hjust= 0.1 ,margin = margin(0,7,0,-25, unit = 'points'),color='black'),
-        axis.text.x = element_text(vjust = 6, margin = margin(-7,0,7,0, unit = 'points'),color='black'),
-        axis.ticks.length = unit(-5,"points"))+
-  #annotate("text", x = -256559, y = 1354909, label = "Alaska",parse=TRUE,size=7)+
-  #annotate("text", x = -1376559, y = 2049090, label = "Russia",parse=TRUE,size=7)+
-  scale_y_continuous(expand = c(0,0),position = 'right',sec.axis = dup_axis())#+
-  #annotate("text", x = -1376559, y = 744900, label = "italic('Bering Sea')",parse=TRUE,size=9)
+#select buffer and select 10 cells
+dff<-subset(grid,strata==70)
 
-ragg::agg_png(paste0('./figures/buffer_sampling.png'), width = 12, height = 4, units = "in", res = 300)
-gridExtra::grid.arrange(x0,x1,x2,x3,nrow=1)
+#create vectors to store cells
+dropcell<-c()
+selcell<-c()
+
+#loop over required samples
+for (iii in rep(1,times=10)) {
+  
+  #iii<-1
+  
+  #random sample
+  cell_i<-sample(dff$cell,iii)
+  #get row of selected sample
+  row<-dff[which(dff$cell==cell_i),c('row','col')][1,1]
+  #get col of selected sample
+  col<-dff[which(dff$cell==cell_i),c('row','col')][1,2]
+  #get adjacent cells of selected sample
+  adj_cells<-expand.grid(row=c(row,row+(1:100),row-(1:100)),
+                         col=c(col,col+(1:100),col-(1:100)))
+  adj_cells1<-merge(adj_cells,grid,by=c('row', 'col'))[,'cell']
+  #drop cells is equal to selected cell and adjacent cells
+  dropcell_i<-c(cell_i,adj_cells1)
+  
+    dff<-subset(dff, !(cell %in% dropcell_i))
+    selcell<-c(selcell,cell_i)
+    dropcell<-c(dropcell,dropcell_i)
+  
+}
+  pointsb<-subset(grid,cell %in% selcell)#[,c('Lon','Lat','cell','strata')]
+  buffer<-subset(grid,cell %in% dropcell)
+  #names(pointsb)<-c('Lon','Lat','cell','strata')
+
+
+#####################################
+# Plot approaches
+#####################################
+
+#CURRENT
+plot_list<-list()
+
+for (y in c(1,2,3,4)) {
+  
+  x<-
+    ggplot()+
+    geom_sf(data=ebs_layers$survey.strata,fill = NA)+
+    geom_polygon(data=ak_sppoly,aes(x=long,y=lat,group=group),fill = 'grey60')+
+    scale_x_continuous(expand = c(0,0),position = 'bottom',
+                       breaks = c(-175,-170,-165,-160,-155),sec.axis = dup_axis())+
+    geom_polygon(data=NBS_sh,aes(x=long,y=lat,group=group),fill=NA,col='black')+
+    geom_polygon(data=EBSshelf_sh,aes(x=long,y=lat,group=group),fill=NA,col='black')+
+    coord_sf(crs = '+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs',
+             #xlim = c(panel_extent$x[1]+200000,panel_extent$x[2]),
+             xlim = c(panel_extent$x[1]+200000,panel_extent$x[2]+100000),
+             ylim = c(panel_extent$y[1]-100000,panel_extent$y[2]-200000),
+             label_axes = "-NE-")+
+    theme(aspect.ratio = 1,panel.grid.major = element_line(color = rgb(0, 0, 0,20, maxColorValue = 285), linetype = 'dashed', linewidth =  0.5),
+          panel.background = element_rect(fill = NA),panel.ontop = TRUE,text = element_text(size=10),
+          legend.background =  element_rect(fill = "transparent", colour = "transparent"),legend.key.height= unit(25, 'points'),
+          legend.key.width= unit(25, 'points'),axis.title = element_blank(),legend.position = c(0.12,0.47), #c(0.12,0.47)
+          panel.border = element_rect(fill = NA, colour = 'black'),legend.key = element_rect(color="black"),
+          axis.text = element_text(color='black'),legend.spacing.y = unit(10, 'points'),
+          axis.text.y.right = element_text(hjust= 0.1 ,margin = margin(0,7,0,-25, unit = 'points'),color='black'),
+          axis.text.x = element_text(vjust = 6, margin = margin(-7,0,7,0, unit = 'points'),color='black'),
+          axis.ticks.length = unit(-5,"points"))+
+    scale_y_continuous(expand = c(0,0),position = 'right',sec.axis = dup_axis())#+
+  
+  x<-
+    if (y==1) {
+      x + geom_point(data=baseline_strata$locations,aes(x=longitude,y=latitude),size=0.1,alpha=0.1) #53464
+    } else if (y==2) {
+      x + geom_point(data=subset(baseline_strata$locations,stratum==70),aes(x=longitude,y=latitude),size=0.1,alpha=0.1) #6002 available points
+    } else if (y==3) {
+      x +
+        geom_point(data=subset(baseline_strata$locations,stratum==70),aes(x=longitude,y=latitude),size=0.1,alpha=0.1)+
+        geom_point(data=subset(baseline_strata$locations,stratum==70 & cell==14595),aes(x=longitude,y=latitude),size=1,color='white',fill='black',shape=21)
+    } else if (y==4){
+      x + 
+        geom_point(data=subset(baseline_strata$locations,stratum==70),aes(x=longitude,y=latitude),size=0.1,alpha=0.1)+
+        geom_point(data=subset(baseline_strata$locations,stratum==70 & cell==14595),aes(x=longitude,y=latitude),size=1,color='white',fill='black',shape=21)+
+        geom_point(data=subset(baseline_strata$locations,stratum==70)[sample(nrow(subset(baseline_strata$locations,stratum==70 | cell==14595)),size=19),],aes(x=longitude,y=latitude),size=1,color='white',fill='black',shape=21)
+      
+    }
+  
+  plot_list[[y]]<-x
+  
+}
+
+#save plot
+ragg::agg_png(paste0('./figures/current_sampling.png'), width = 12, height = 4, units = "in", res = 300)
+gridExtra::grid.arrange(plot_list[[1]],plot_list[[2]],plot_list[[3]],plot_list[[4]],nrow=1)
 dev.off()
 
+#RANDOM
+plot_list<-list()
+
+  for (y in c(1,2,3,4)) {
+    
+  x<-
+    ggplot()+
+    geom_sf(data=ebs_layers$survey.strata,fill = NA)+
+    geom_polygon(data=ak_sppoly,aes(x=long,y=lat,group=group),fill = 'grey60')+
+    scale_x_continuous(expand = c(0,0),position = 'bottom',
+                       breaks = c(-175,-170,-165,-160,-155),sec.axis = dup_axis())+
+    geom_polygon(data=NBS_sh,aes(x=long,y=lat,group=group),fill=NA,col='black')+
+    geom_polygon(data=EBSshelf_sh,aes(x=long,y=lat,group=group),fill=NA,col='black')+
+    coord_sf(crs = '+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs',
+             #xlim = c(panel_extent$x[1]+200000,panel_extent$x[2]),
+             xlim = c(panel_extent$x[1]+200000,panel_extent$x[2]+100000),
+             ylim = c(panel_extent$y[1]-100000,panel_extent$y[2]-200000),
+             label_axes = "-NE-")+
+    theme(aspect.ratio = 1,panel.grid.major = element_line(color = rgb(0, 0, 0,20, maxColorValue = 285), linetype = 'dashed', linewidth =  0.5),
+          panel.background = element_rect(fill = NA),panel.ontop = TRUE,text = element_text(size=10),
+          legend.background =  element_rect(fill = "transparent", colour = "transparent"),legend.key.height= unit(25, 'points'),
+          legend.key.width= unit(25, 'points'),axis.title = element_blank(),legend.position = c(0.12,0.47), #c(0.12,0.47)
+          panel.border = element_rect(fill = NA, colour = 'black'),legend.key = element_rect(color="black"),
+          axis.text = element_text(color='black'),legend.spacing.y = unit(10, 'points'),
+          axis.text.y.right = element_text(hjust= 0.1 ,margin = margin(0,7,0,-25, unit = 'points'),color='black'),
+          axis.text.x = element_text(vjust = 6, margin = margin(-7,0,7,0, unit = 'points'),color='black'),
+          axis.ticks.length = unit(-5,"points"))+
+    scale_y_continuous(expand = c(0,0),position = 'right',sec.axis = dup_axis())#+
+  
+  x<-
+    if (y==1) {
+      x + geom_point(data=grid,aes(x=Lon,y=Lat),size=0.1,alpha=0.1) #53464
+    } else if (y==2) {
+      x + geom_point(data=subset(grid,strata==70),aes(x=Lon,y=Lat),size=0.1,alpha=0.1) #6002 available points
+    } else if (y==3) {
+      x +
+        geom_point(data=subset(grid,strata==70),aes(x=Lon,y=Lat),size=0.1,alpha=0.1)+
+        geom_point(data=subset(grid,strata==70 & cell==12380),aes(x=Lon,y=Lat),size=1,color='white',fill='black',shape=21)
+    } else if (y==4){
+      x + 
+        geom_point(data=subset(grid,strata==70),aes(x=Lon,y=Lat),size=0.1,alpha=0.1)+
+        geom_point(data=subset(grid,strata==70 & cell==12380),aes(x=Lon,y=Lat),size=1,color='white',fill='black',shape=21)+
+        geom_point(data=subset(grid,strata==70)[sample(nrow(subset(grid,strata==70 | cell==12380)),size=19),],aes(x=Lon,y=Lat),size=1,color='white',fill='black',shape=21)
+      
+    }
+  
+  plot_list[[y]]<-x
+  
+  }
+
+#save plot
+ragg::agg_png(paste0('./figures/random_sampling.png'), width = 12, height = 4, units = "in", res = 300)
+gridExtra::grid.arrange(plot_list[[1]],plot_list[[2]],plot_list[[3]],plot_list[[4]],nrow=1)
+dev.off()
+
+#BUFFER
+plot_list<-list()
+
+for (y in c(1,2,3,4)) {
+  
+  x<-
+    ggplot()+
+    geom_sf(data=ebs_layers$survey.strata,fill = NA)+
+    geom_polygon(data=ak_sppoly,aes(x=long,y=lat,group=group),fill = 'grey60')+
+    scale_x_continuous(expand = c(0,0),position = 'bottom',
+                       breaks = c(-175,-170,-165,-160,-155),sec.axis = dup_axis())+
+    geom_polygon(data=NBS_sh,aes(x=long,y=lat,group=group),fill=NA,col='black')+
+    geom_polygon(data=EBSshelf_sh,aes(x=long,y=lat,group=group),fill=NA,col='black')+
+    coord_sf(crs = '+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs',
+             #xlim = c(panel_extent$x[1]+200000,panel_extent$x[2]),
+             xlim = c(panel_extent$x[1]+200000,panel_extent$x[2]+100000),
+             ylim = c(panel_extent$y[1]-100000,panel_extent$y[2]-200000),
+             label_axes = "-NE-")+
+    theme(aspect.ratio = 1,panel.grid.major = element_line(color = rgb(0, 0, 0,20, maxColorValue = 285), linetype = 'dashed', linewidth =  0.5),
+          panel.background = element_rect(fill = NA),panel.ontop = TRUE,text = element_text(size=10),
+          legend.background =  element_rect(fill = "transparent", colour = "transparent"),legend.key.height= unit(25, 'points'),
+          legend.key.width= unit(25, 'points'),axis.title = element_blank(),legend.position = c(0.12,0.47), #c(0.12,0.47)
+          panel.border = element_rect(fill = NA, colour = 'black'),legend.key = element_rect(color="black"),
+          axis.text = element_text(color='black'),legend.spacing.y = unit(10, 'points'),
+          axis.text.y.right = element_text(hjust= 0.1 ,margin = margin(0,7,0,-25, unit = 'points'),color='black'),
+          axis.text.x = element_text(vjust = 6, margin = margin(-7,0,7,0, unit = 'points'),color='black'),
+          axis.ticks.length = unit(-5,"points"))+
+    scale_y_continuous(expand = c(0,0),position = 'right',sec.axis = dup_axis())#+
+  
+  x<-
+    if (y==1) {
+      x + geom_point(data=grid,aes(x=Lon,y=Lat),size=0.1,alpha=0.1) #53464
+    } else if (y==2) {
+      x + geom_point(data=subset(grid,strata==70),aes(x=Lon,y=Lat),size=0.1,alpha=0.1) #6002 available points
+    } else if (y==3) {
+      x +
+        geom_point(data=subset(grid,strata==70),aes(x=Lon,y=Lat),size=0.1,alpha=0.1)+
+        geom_point(data=adj_cells2,aes(x=Lon,y=Lat),size=0.1,color='white')+
+        geom_point(data=subset(grid,strata==70 & cell==i_cell2),aes(x=Lon,y=Lat),size=1,color='white',fill='black',shape=21)
+    } else if (y==4){
+      x + 
+        geom_point(data=subset(grid,strata==70),aes(x=Lon,y=Lat),size=0.1,alpha=0.1)+
+        geom_point(data=buffer,aes(x=Lon,y=Lat),size=0.1,color='white')+
+        geom_point(data=pointsb,aes(x=Lon,y=Lat),size=1,color='white',fill='black',shape=21)
+      
+    }
+  
+  plot_list[[y]]<-x
+  
+}
+
+#save plot
+ragg::agg_png(paste0('./figures/buffer_sampling.png'), width = 12, height = 4, units = "in", res = 300)
+gridExtra::grid.arrange(plot_list[[1]],plot_list[[2]],plot_list[[3]],plot_list[[4]],nrow=1)
+dev.off()
+
+###########################
+# Plot study location map
+###########################
 
 #zoomin plot
 zoomin<-
@@ -418,18 +566,6 @@ zoomout<-
     annotate("text", x = +2000000, y = 1400000, label = "Canada",parse=TRUE,size=4)+
     annotate("text", x = +3000000, y = 0, label = "USA",parse=TRUE,size=4)+
     annotation_scale()
-
-
-#save plot
-tiff(filename = './Figures/map_bering_sea.png',res = 220,width = 1500,height = 1900)
-grid.newpage()
-vp_b <- viewport(width = 1, height = 1, x = 0.5, y = 0.5)  # the larger map
-vp_a <- viewport(width = 0.4, height = 0.3, x = 0.211, y = 0.78)  # the inset in upper left
-print(zoomin , vp = vp_b)
-print(zoomout , vp = vp_a)
-dev.off()
-
-
 
 #save plot
 ragg::agg_png(paste0('./figures/map_bering.png'), width = 7, height = 7, units = "in", res = 300)
