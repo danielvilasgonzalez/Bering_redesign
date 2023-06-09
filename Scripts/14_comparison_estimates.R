@@ -1,8 +1,9 @@
 ####################################################################
 ####################################################################
 ##    
-##    compare sampling design index estimates with complete index
-##    get bias
+##    extract estimates (index and CV)
+##    compute RRMSE and pbias
+##    plot
 ##    danielvilasgonzalez@gmail.com/dvilasg@uw.edu
 ##
 ####################################################################
@@ -49,31 +50,46 @@ spp<-c('Limanda aspera',
        'Paralithodes camtschaticus')
 
 ###################################
-# SCENARIOS from 11_sampling_strata_optimization.R
+# grid to get index from simulated densities at cell
 ###################################
 
-#sampling scenarios
-samp_df<-expand.grid(strat_var=c('Lat_varTemp','Lat_meanTempF','Depth_meanTempF','Depth_varTemp','meanTempF_varTemp','meanTempF','varTemp','Depth'),
+#load grid of NBS and EBS
+load('./extrapolation grids/northern_bering_sea_grid.rda')
+load('./extrapolation grids/eastern_bering_sea_grid.rda')
+grid<-as.data.frame(rbind(data.frame(northern_bering_sea_grid,region='NBS'),data.frame(eastern_bering_sea_grid,region='EBS')))
+grid$cell<-1:nrow(grid)
+
+###################################
+# Sampling designs (from 11_sampling_strata_optimization.R)
+###################################
+
+#sampling designs
+samp_df<-expand.grid(strat_var=c('Depth_varTemp','varTemp','Depth'),
                      target_var=c('sumDensity'), #,'sqsumDensity'
-                     n_samples=c(350,500), #c(300,500) 520 (EBS+NBS+CRAB);26 (CRAB); 350 (EBS-CRAB); 494 (NBS-CRAB)
-                     n_strata=c(5,10,15)) #c(5,10,15)
+                     n_samples=c(520), #c(300,500) 520 (EBS+NBS+CRAB);26 (CRAB); 350 (EBS-CRAB); 494 (NBS-CRAB)
+                     n_strata=c(15),
+                     stringsAsFactors = FALSE) #c(5,10,15)
 
-#add scenario number
+#add scenario number and baseline designs
 samp_df$samp_scn<-paste0(paste0('scn',1:nrow(samp_df)))
+samp_df<-rbind(samp_df,c('baseline','current',520,15,'scnbase'),
+               c('baseline w/o corner','current',494,15,'scnbase_bis'))
 
 ###################################
-# SBT projections
+# SBT scenarios
 ###################################
 
-#save SBT table
+#load SBT scenarios table
 load('./tables/SBT_projection.RData')#df_sbt
 
-#name scenario
+#name SBT scenarios
 df_sbt$sbt<-paste0('SBT',df_sbt$sbt_n)
 df_sbt$sbt2<-paste0(df_sbt$sbt,'_',df_sbt$Scenario)
 
 ###################################
+###################################
 # HISTORICAL EVALUATION
+###################################
 ###################################
 
 #loop over spp
@@ -87,217 +103,235 @@ df_sbt$sbt2<-paste0(df_sbt$sbt,'_',df_sbt$Scenario)
   #load indices for each sbt and scn
   load(file = paste0("./output/species/",sp,'/historical design-based indices/indices.RData')) #sp_index
   
-  #for (scn in dimnames(index_hist)[[5]]) {
-    
-    #scn<-dimnames(index_hist)[[5]][1]
-  
   ############################
   # INDEX
   ############################
   
-    ind<-index_hist[,'index',,,]
-    ind1<-as.data.frame.table(ind)
-    names(ind1)<-c('rep','year','sim','scn','index')
-    ind1$year<-gsub('y','',ind1$year)
-    
-    df<-aggregate(index ~ year + scn,ind1,FUN = function(x) c(mean = mean(x), q95 = quantile(x,probs=0.95) , q5 = quantile(x,probs=0.05)) )
-    colnames(df$index)<-c('mean','q95','q5')
-    
-    # df$ind<-df$index[,'mean']
-    # df$q5<-df$index[,'q5']
-    # df$q95<-df$index[,'q95']
-    
-    #check index by scn
-    ggplot()+
-      geom_line(data=subset(df,scn!='scnbase'),aes(x=year,y=index[,'mean'],color=scn,group =scn),alpha=0.5)+
-      geom_line(data=subset(df,scn=='scnbase'),aes(x=year,y=index[,'mean'],group=1),color='black')+
-      #geom_line(data=subset(df,scn=='scnbase9'),aes(x=year,y=index[,'mean'],group=1),color='black',linetype='dashed')+
-      #geom_line(data=subset(df,scn=='scnbase25'),aes(x=year,y=index[,'mean'],group=1),color='black',linetype='dotted')+
-      labs(y='t',x='year')+
-      theme_bw()+
-      theme(axis.text.x = element_text(angle=90),legend.position = 'none')+ 
-      expand_limits(y = 0)
-    
-     ggplot()+
-       geom_ribbon(data=df,aes(x=year,ymax=index[,'q95'],ymin=index[,'q5'],group=scn,fill=scn),alpha=0.5)+
-       geom_line(data=df,aes(x=year,y=index[,'mean'],color=scn,group=scn))+
-       labs(y='t',x='year')+
-       theme_bw()+
-       theme(axis.text.x = element_text(angle=90))+ 
-       expand_limits(y = 0)+
-       facet_wrap(~ scn)
+  #get indices values
+  ind<-index_hist['index',,,,]
+  
+  #array to dataframe
+  ind1<-as.data.frame.table(ind)
+  names(ind1)<-c('year','approach','sim','scn','index')
+  ind1$year<-gsub('y','',ind1$year)
+  
+  #aggregate df to get mean, q95 and q5 for each group  
+  df<-aggregate(index ~ year + scn + approach,ind1,FUN = function(x) c(mean = mean(x), q95 = quantile(x,probs=0.95) , q5 = quantile(x,probs=0.05)) )
+  colnames(df$index)<-c('mean','q95','q5')
 
-    #save object
-    save(df, file = paste0("./output/species/",sp,'/historical evaluation/indices.RData'))
+  #sort factors for plotting purposes
+  df$scn<-factor(df$scn,
+                 levels = c('scnbase','scnbase_bis','scn3','scn2','scn1'))
     
-    ############################
-    # CV
-    ############################
-     
-    ind<-index_hist[,'cv',,,]
-    ind1<-as.data.frame.table(ind)
-    names(ind1)<-c('rep','year','sim','scn','index')
-    ind1$year<-gsub('y','',ind1$year)
-    
-    df<-aggregate(index ~ year + scn,ind1,FUN = function(x) c(mean = mean(x), q95 = quantile(x,probs=0.95) , q5 = quantile(x,probs=0.05)) )
-    colnames(df$index)<-c('mean','q95','q5')
-    
-    # df$ind<-df$index[,'mean']
-    # df$q5<-df$index[,'q5']
-    # df$q95<-df$index[,'q95']
-    
-    df$scn<-factor(df$scn,levels=c('scnbase','scnbase9','scnbase25',paste0('scn',1:48)))
-    
-    #check cv by scn
-    ggplot()+
-      geom_line(data=subset(df,scn!='scnbase'),aes(x=year,y=index[,'mean'],color=scn,group =scn),alpha=0.5)+
-      geom_line(data=subset(df,scn=='scnbase'),aes(x=year,y=index[,'mean'],group=1),color='black')+
-      #geom_line(data=subset(df,scn=='scnbase9'),aes(x=year,y=index[,'mean'],group=1),color='black',linetype='dashed')+
-      #geom_line(data=subset(df,scn=='scnbase25'),aes(x=year,y=index[,'mean'],group=1),color='black',linetype='dotted')+
-      labs(y='CV',x='year')+
-      theme_bw()+
-      theme(axis.text.x = element_text(angle=90),legend.position = 'none')+ 
-      expand_limits(y = 0)
-    
-    samp_df$strat_var<-as.character(samp_df$strat_var)
-    samp_df1<-rbind(c('baseline',NA,520,15,'scnbase'),c('baseline',NA,511,15,'scnbase9'),c('baseline',NA,495,15,'scnbase25'),samp_df)
-    
-    df1<-merge(df,samp_df1,by.x='scn',by.y='samp_scn',all.x=TRUE)
-    df1$scn<-factor(df1$scn,levels=c('scnbase','scnbase9','scnbase25',paste0('scn',1:48)))
-    df1$n_samples<-factor(df1$n_samples,levels=c(520,511,495,350,500))
-    df1$strat_var<-gsub('_','\n',df1$strat_var)
+  #save plot
+  p<-
+   ggplot()+
+     #geom_line(data=df,aes(x=year,y=index[,'mean'],color=scn,group=interaction(scn,approach),linetype=approach))+
+     geom_ribbon(data=df,aes(x=year,ymax=index[,'q95'],ymin=index[,'q5'],group=interaction(scn,approach),fill=scn),alpha=0.1)+
+     geom_line(data=df,aes(x=year,y=index[,'mean'],color=scn,group=interaction(scn,approach),linetype=approach),linewidth=0.7)+
+     #geom_ribbon(data=subset(df,scenario=='scnbase'),aes(x=year,ymax=index[,'q95'],ymin=index[,'q5'],group=scenario,fill=scenario),alpha=0.3)+
+     #geom_line(data=subset(df,scenario=='scnbase'),aes(x=year,y=index[,'mean'],color=scenario,group=scenario,alpha=scenario))+
+     #geom_line(data=subset(df,scn=='scnbase'),aes(x=year,y=index[,'mean'],group=scn),color='black',alpha=0.8)+
+     #geom_ribbon(data=subset(df,scn=='scnbase'),aes(x=year,ymax=index[,'q95'],ymin=index[,'q5'],group=scn),fill='black',alpha=0.5)+
+     labs(y='t',x='')+
+     scale_fill_manual(values=c('scn1'='#4e79a7','scn2'='#59a14f','scn3'='#edc948','scnbase'='#79706E','scnbase_bis'='#e15759'),
+                       labels = c('baseline','baseline w/o corner','depth','var temp','depth + var temp'),name='sampling design')+
+     scale_color_manual(values=c('scn1'='#4e79a7','scn2'='#59a14f','scn3'='#edc948','scnbase'='#79706E','scnbase_bis'='#e15759'),
+                        labels = c('baseline','baseline w/o corner','depth','var temp','depth + var temp'),name='sampling design')+
+     scale_alpha_manual(values = c('scn1'=1,'scn2'=1,'scn3'=1,'scnbase'=0.8,'scnbase_bis'=1),
+                        labels = c('baseline','baseline w/o corner','depth','var temp','depth + var temp'),name='sampling design')+
+     theme_bw()+
+     scale_linetype_manual(values = c('current'='solid',
+                                      'buffer'='dashed',
+                                      'random'='dotted'))+
+     scale_y_continuous(expand = c(0,0))+
+     theme(axis.text.x = element_text(angle=90,vjust=0.5),panel.grid.minor = element_line(linetype=2,color='grey'))+ 
+     expand_limits(y = 0)
+
+  #save plot
+  ragg::agg_png(paste0('./figures/species/',sp,'/hist_indices.png'), width = 10, height = 4, units = "in", res = 300)
+  p
+  dev.off()
       
-    ggplot()+
-      geom_boxplot(data=df1,aes(x=scn,y=index[,'mean'],fill=scn,group =scn),alpha=0.5)+
-      #geom_boxplot(data=subset(df,scn=='scnbase'),aes(x=scn,y=index[,'mean'],group=1),color='black')+
-      #geom_line(data=subset(df,scn=='scnbase9'),aes(x=year,y=index[,'mean'],group=1),color='black',linetype='dashed')+
-      #geom_line(data=subset(df,scn=='scnbase25'),aes(x=year,y=index[,'mean'],group=1),color='black',linetype='dotted')+
-      labs(y='CV',x='sampling designs')+
-      theme_bw()+
-      theme(axis.text.x = element_text(angle=90),legend.position = 'none',
-            panel.spacing = unit(0, "lines"),
-            strip.background = element_blank(),
-            axis.line = element_line(colour = "grey"),
-            panel.grid.major.y =element_line(colour = "grey"),
-            strip.text = element_text(size=11),
-            strip.placement = "outside",
-            #axis.text.x = element_text(angle = 90, hjust = 1),
-            panel.background = element_rect(fill = 'white', colour = 'white'))+ 
-      expand_limits(y = 0)+
-      scale_y_continuous(expand = c(0,0))+
-      facet_wrap(vars(n_samples,strat_var), strip.position = "top", scales = "free_x",  nrow=1)
-      #coord_cartesian(ylim = c(0,0.1),clip = 'off') + 
-      #annotate(geom = "text", x = c('scnbase9','scn15','scn45'), y = -0.035, label = c('baseline','350','500'), size = 4) +
-      #scale_x_discrete(labels=c("0.5" = "Dose 0.5", "1" = "Dose 1", "2" = "Dose 2"))
+  #save df results
+  save(df, file = paste0("./output/species/",sp,'/historical evaluation/hist_indices.RData'))
     
+  ############################
+  # CV
+  ############################
+  
+  #get CV   
+  ind<-index_hist['cv',,,,]
+  
+  #array to dataframe
+  ind1<-as.data.frame.table(ind)
+  names(ind1)<-c('year','approach','sim','scn','index')
+  ind1$year<-gsub('y','',ind1$year)
+  
+  #aggregate df to get mean, q95 and q5 for each group  
+  df<-aggregate(index ~ year + scn+ approach,ind1,FUN = function(x) c(mean = mean(x), q95 = quantile(x,probs=0.95) , q5 = quantile(x,probs=0.05)) )
+  colnames(df$index)<-c('mean','q95','q5')
+  
+  #sort for plotting purposes  
+  df$scn<-factor(df$scn,levels=c('scnbase','scnbase_bis',paste0('scn',3:1)))
+  
+  #plot  
+  p<-
+   ggplot()+
+     geom_line(data=df,aes(x=year,y=index[,'mean'],color=scn,group=interaction(scn,approach),linetype=approach))+
+     #geom_line(data=subset(df,scn=='scnbase'),aes(x=year,y=index[,'mean'],group=1),color='black',linewidth=1.2)+
+     #geom_line(data=subset(df,scn=='scnbase9'),aes(x=year,y=index[,'mean'],group=1),color='black',linetype='dashed')+
+     #geom_line(data=subset(df,scn=='scnbase25'),aes(x=year,y=index[,'mean'],group=1),color='black',linetype='dotted')+
+     labs(y='CV',x='')+
+     # scale_fill_manual(values=c('scn1'='#4e79a7','scn2'='#59a14f','scn3'='#edc948','scnbase'='black','scnbase_bis'='#e15759'),
+     #                   labels = c('baseline','baseline w/o corner','depth','var temp','depth + var temp'),name='sampling design')+
+     scale_color_manual(values=c('scn1'='#4e79a7','scn2'='#59a14f','scn3'='#edc948','scnbase'='#79706E','scnbase_bis'='#e15759'),
+                        labels = c('baseline','baseline w/o corner','depth','var temp','depth + var temp'),name='sampling design')+
+     # scale_alpha_manual(values = c('scn1'=1,'scn2'=1,'scn3'=1,'scnbase'=0.8,'scnbase_bis'=1),
+     #                    labels = c('baseline','baseline w/o corner','depth','var temp','depth + var temp'),name='sampling design')+
+     theme_bw()+
+     scale_linetype_manual(values = c('current'='solid',
+                                      'buffer'='dashed',
+                                      'random'='dotted'))+
+     scale_y_continuous(expand = c(0,0),limits=c(0,0.11))+
+     theme(axis.text.x = element_text(angle=90,vjust=0.5),panel.grid.minor = element_line(linetype=2,color='grey'))+ 
+     expand_limits(y = 0)
     
-    #save object
-    save(df1, file = paste0("./output/species/",sp,'/historical evaluation/cv.RData'))
+  #save plot
+  ragg::agg_png(paste0('./figures/species/',sp,'/hist_indices_cv.png'), width = 10, height = 4, units = "in", res = 300)
+  p
+  dev.off()
+    
+  #merge results to sampling design table
+  df1<-merge(df,samp_df,by.x='scn',by.y='samp_scn',all.x=TRUE)
+    
+  #sort and corrections for plotting purposes
+  df1$scn<-factor(df1$scn,levels=c('scnbase','scnbase_bis',paste0('scn',3:1)))
+  df1$strat_var<-gsub('_','\n',df1$strat_var)
+  df1$strat_var<-factor(df1$strat_var,levels=c('baseline','baseline\nbis','Depth','varTemp','Depth\nvarTemp'))
+  df1$approach<-factor(df1$approach,levels=c('current','buffer','random'))
+    
+  #plot
+  p<-
+   ggplot()+
+     geom_boxplot(data=df1,aes(x=strat_var,y=index[,'mean'],fill=scn,group =interaction(scn,approach),linetype=approach),alpha=0.8)+
+     labs(y='CV',x='')+
+     theme_bw()+
+     theme(panel.grid.minor = element_line(linetype=2,color='grey'))+
+     expand_limits(y = 0)+
+     scale_fill_manual(values=c('scn1'='#4e79a7','scn2'='#59a14f','scn3'='#edc948','scnbase'='#79706E','scnbase_bis'='#e15759'),
+                       labels = c('baseline','baseline w/o corner','depth','var temp','depth + var temp'),name='sampling design')+
+     scale_x_discrete(#expand=c(0.1,0.01),
+                      labels=c('baseline','baseline w/o corner','depth','var temp','depth + var temp'))+
+     scale_linetype_manual(values = c('current'='solid',
+                                      'buffer'='dashed',
+                                      'random'='dotted'))+
+     scale_y_continuous(expand = c(0,0),limits=c(0,0.12))
+    
+  #save plot
+  ragg::agg_png(paste0('./figures/species/',sp,'/hist_indices_cv_box.png'), width = 7, height = 4, units = "in", res = 300)
+  p
+  dev.off()
+    
+  #save object
+  save(df1, file = paste0("./output/species/",sp,'/historical evaluation/hist_cv.RData'))
     
 #}
 
-############################
-# RRMSE PBIAS
-############################
-    
-#to store results  
-df<-data.frame(matrix(NA,nrow = 0,ncol=5))
-names(df)<-c('sim','scn','rep','rrmse','pbias')
-
-#get simulations
-ld<-list.dirs(paste0('./output/species/',sp,'/simulated historical data/'),full.names = FALSE,recursive = FALSE)
-
-#loop over simulations
-for (sim in ld) {
+  ############################
+  # RRMSE - PBIAS
+  ############################
+      
+  #to store results  
+  df<-data.frame(matrix(NA,nrow = 0,ncol=5))
+  names(df)<-c('sim','scn','approach','rrmse','pbias')
   
-  #sim<-ld[1]
-  
-  #print scenario to check progress
-  cat(paste(" #############  ", sim, " #############\n"))
-  
-  #load index
-  load(paste0("./output/species/",sp,'/simulated historical data/',sim,'/sim_data.RData'))  #sim_data
-  
-  #get true index
-  ind_true<-sim_data$sim_ind[,,1]/1000
+  #get simulations
+  ld<-list.dirs(paste0('./output/species/',sp,'/simulated historical data/'),full.names = FALSE,recursive = FALSE)
   
   #load design-based index
   load(paste0("./output/species/",sp,'/historical design-based indices/indices.RData'))  #sim_data
-  #dimnames(index_hist)
-  ind_sim<-index_hist[,'index',,sim,]
-  ind_sim1<-as.data.frame.table(ind_sim)
-  names(ind_sim1)<-c('rep','year','scn','index')
-  ind_sim1$year<-gsub('y','y',ind_sim1$year)
-  ind_sim1$rep<-as.integer(ind_sim1$rep)
   
-  #loop over sampling scenarios
-  for (scn in unique(ind_sim1$scn)) {
+  #loop over simulations (n_sim=100) to calculate RMSE and pbias
+  for (sim in ld) {
     
+    #sim<-ld[1]
+    
+    #print scenario to check progress
+    cat(paste(" #############  ", sim, " #############\n"))
+    
+    #load index
+    load(paste0("./output/species/",sp,'/simulated historical data/',sim,'/sim_dens.RData'))  #sim_data
+    
+    #get true index
+    ind_true<-(colSums(data.frame(sim_dens) * t(grid$Area_in_survey_km2))/1000)
+    
+    #get historical index
+    ind_sim<-index_hist['index',,,sim,]
+    ind_sim1<-as.data.frame.table(ind_sim)
+    names(ind_sim1)<-c('year','approach','scn','index')
+    ind_sim1$year<-gsub('y','y',ind_sim1$year)
+    
+    #loop over sampling designs
+    for (scn in unique(ind_sim1$scn)) {
+      
     #scn<-unique(ind_sim1$scn)[1]
-    
-    #when base scenario there is no replicates
-    if (grepl('base',scn)) {
-      repls<-1
-    } else {
-      repls<-1:100
-    }  
-    
-    #loop over replicates
-    for (rep in repls) {
       
-    #rep<-1
-    
-    ind_sim2<-ind_sim1[which(ind_sim1$rep==rep & ind_sim1$scn==scn),'index']
+      #loop over approaches to allocate samples
+      for (apr in c('buffer','current','random')) {
+        
+      #ss<-'current'
       
-    #calculate RRMSE
-    rmse_i<-sqrt(mean((ind_true - ind_sim2)^2))/mean(ind_true)
-    
-    #calculate PBIAS
-    pbias_i<-mean((ind_true - ind_sim2) / abs(ind_true))
-    
-    #append results
-    df<-rbind(df,data.frame(sim=sim,scn=scn,rep=rep,rrmse=rmse_i,pbias=pbias_i))
-    
+      #subset
+      ind_sim2<-ind_sim1[which(ind_sim1$approach==apr & ind_sim1$scn==scn),'index']
+        
+      #calculate RRMSE
+      rmse_i<-sqrt(mean((ind_true - ind_sim2)^2))/mean(ind_true)
+      
+      #calculate PBIAS
+      pbias_i<-mean((ind_true - ind_sim2) / abs(ind_true))
+      
+      #append results
+      df<-rbind(df,data.frame(sim=sim,scn=scn,approach=apr,rrmse=rmse_i,pbias=pbias_i))
+      
+      }
     }
   }
-}
-
-#save object
-save(df, file = paste0("./output/species/",sp,'/historical evaluation/rrmse_pbias.RData'))
-load(paste0("./output/species/",sp,'/historical evaluation/rrmse_pbias.RData'))
-
-df1<-merge(df,samp_df1,by.x='scn',by.y='samp_scn',all.x=TRUE)
-df1$scn<-factor(df1$scn,levels=c('scnbase','scnbase9','scnbase25',paste0('scn',1:48)))
-df1$n_samples<-factor(df1$n_samples,levels=c(520,511,495,350,500))
-df1$strat_var<-gsub('_','\n',df1$strat_var)
-
-#plot
-ggplot()+
-  geom_boxplot(data=df1,aes(x=scn,y=rrmse,fill=scn,group =scn),alpha=0.5)+
-  #geom_boxplot(data=subset(df,scn=='scnbase'),aes(x=scn,y=index[,'mean'],group=1),color='black')+
-  #geom_line(data=subset(df,scn=='scnbase9'),aes(x=year,y=index[,'mean'],group=1),color='black',linetype='dashed')+
-  #geom_line(data=subset(df,scn=='scnbase25'),aes(x=year,y=index[,'mean'],group=1),color='black',linetype='dotted')+
-  labs(y='RRMSE',x='sampling designs')+
-  theme_bw()+
-  theme(axis.text.x = element_text(angle=90),legend.position = 'none',
-        panel.spacing = unit(0, "lines"),
-        strip.background = element_blank(),
-        axis.line = element_line(colour = "grey"),
-        panel.grid.major.y =element_line(colour = "grey"),
-        strip.text = element_text(size=11),
-        strip.placement = "outside",
-        #axis.text.x = element_text(angle = 90, hjust = 1),
-        panel.background = element_rect(fill = 'white', colour = 'white'))+ 
-  expand_limits(y = 0)+
-  scale_y_continuous(expand = c(0,0))+
-  facet_wrap(vars(n_samples,strat_var), strip.position = "top", scales = "free_x",  nrow=1)
-#coord_cartesian(ylim = c(0,0.1),clip = 'off') + 
-#annotate(geom = "text", x = c('scnbase9','scn15','scn45'), y = -0.035, label = c('baseline','350','500'), size = 4) +
-#scale_x_discrete(labels=c("0.5" = "Dose 0.5", "1" = "Dose 1", "2" = "Dose 2"))
-
+  
+  #save object
+  save(df, file = paste0("./output/species/",sp,'/historical evaluation/rrmse_pbias.RData'))
+  #load(paste0("./output/species/",sp,'/historical evaluation/rrmse_pbias.RData'))
+  
+  #merge to get sampling scenarios data
+  df1<-merge(df,samp_df,by.x='scn',by.y='samp_scn',all.x=TRUE)
+  df1$scn<-factor(df1$scn,levels=c('scnbase','scnbase_bis',paste0('scn',3:1)))
+  df1$approach<-factor(df1$approach,levels=c('current','buffer','random'))
+  
+  #plot
+  p<-
+   ggplot()+
+     geom_boxplot(data=df1,aes(x=scn,y=rrmse,fill=scn,group =interaction(scn,approach),linetype=approach),alpha=0.8)+
+     labs(y='RRMSE',x='')+
+     theme_bw()+
+     theme(panel.grid.minor = element_line(linetype=2,color='grey'))+
+     expand_limits(y = 0)+
+     scale_linetype_manual(values = c('current'='solid',
+                                      'buffer'='dashed',
+                                      'random'='dotted'))+
+     scale_fill_manual(values=c('scn1'='#4e79a7','scn2'='#59a14f','scn3'='#edc948','scnbase'='#79706E','scnbase_bis'='#e15759'),
+                       labels = c('baseline','baseline w/o corner','depth','var temp','depth + var temp'),name='sampling design')+
+     scale_x_discrete(labels=c('baseline','baseline w/o corner','depth','var temp','depth + var temp'))+
+     scale_y_continuous(expand = c(0,0),limits=c(0,0.17))
+  
+  #save plot
+  ragg::agg_png(paste0('./figures/species/',sp,'/hist_indices_rmse_box.png'), width = 7, height = 4, units = "in", res = 300)
+  p
+  dev.off()
 
 ###################################
+###################################
 # PROJECTED EVALUATION
+###################################
 ###################################
 
 #loop over spp
@@ -311,958 +345,272 @@ ggplot()+
   #load indices for each sbt and scn
   load(file = paste0("./output/species/",sp,'/projected design-based indices/indices.RData')) #sp_index
   
-  #for (scn in dimnames(index_hist)[[5]]) {
-  
-  #scn<-dimnames(index_hist)[[5]][1]
-  
   ############################
   # INDEX
   ############################
   
-  ind<-index_proj[,'index',,,,]
+  #get index
+  ind<-index_proj['index',,,,,]/0.1 #missing 10
   ind1<-as.data.frame.table(ind)
-  names(ind1)<-c('rep','year','sim','scn','sbt','index')
+  names(ind1)<-c('year','approach','sim','scn','sbt','index')
   ind1$year<-gsub('y','',ind1$year)
   
-  df<-aggregate(index ~ year + scn +sbt ,ind1,FUN = function(x) c(mean = mean(x), q95 = quantile(x,probs=0.95) , q5 = quantile(x,probs=0.05)) )
+  #aggregate values by groups
+  df<-aggregate(index ~ year + scn +sbt+ approach ,ind1,FUN = function(x) c(mean = mean(x), q95 = quantile(x,probs=0.95) , q5 = quantile(x,probs=0.05)) )
   colnames(df$index)<-c('mean','q95','q5')
-  
-  # df$ind<-df$index[,'mean']
-  # df$q5<-df$index[,'q5']
-  # df$q95<-df$index[,'q95']
-  
-  #save SBT table
-  load('./tables/SBT_projection.RData')#df_sbt
-  
-  #name scenario
+
+  #name SBT scenario
   df_sbt$sbt<-paste0('SBT',df_sbt$sbt_n)
   df_sbt$sbt2<-paste0(df_sbt$sbt,'_',df_sbt$Scenario)
-  df_sbt<-df_sbt[,c('sbt','sbt2')]
-  
+
+  #get sbt names and sort for plotting purposes  
   df1<-merge(df,df_sbt,by='sbt',all.x=TRUE)
   df1$sbt2<-factor(df1$sbt2,levels = unique(df1$sbt2)[c(1,5:12,2:4)])
+  df1$Scenario<-factor(df1$Scenario,levels = unique(df1$Scenario)[c(1,5:12,2:4)])
   
-  #check index by scn
-  ggplot()+
-    geom_line(data=subset(df1,scn!='scnbase'),aes(x=year,y=index[,'mean'],color=scn,group =scn),alpha=0.5)+
-    geom_line(data=subset(df1,scn=='scnbase'),aes(x=year,y=index[,'mean'],group=1),color='black')+
-    #geom_line(data=subset(df,scn=='scnbase9'),aes(x=year,y=index[,'mean'],group=1),color='black',linetype='dashed')+
-    #geom_line(data=subset(df,scn=='scnbase25'),aes(x=year,y=index[,'mean'],group=1),color='black',linetype='dotted')+
-    labs(y='t',x='year')+
-    theme_bw()+
-    theme(axis.text.x = element_text(angle=90),legend.position = 'none')+ 
-    expand_limits(y = 0)+
-    facet_wrap(~ sbt2)
+  #if removing cold scenarios
+  df2<-df1[which(!grepl('cold',df1$sbt2)),]
+  #df2$Scenario<-factor(df2$Scenario,levels = unique(df2$Scenario)[c(1,5:12,2:4)])
   
+  #plot
+  p<-
+   ggplot()+
+     geom_ribbon(data=df2,aes(x=year,ymax=index[,'q95'],ymin=index[,'q5'],group=interaction(scn,approach),fill=scn),alpha=0.1)+
+     geom_line(data=df2,aes(x=year,y=index[,'mean'],color=scn,group=interaction(scn,approach),linetype=approach),linewidth=0.7)+
+     labs(y='t',x='')+
+     theme_bw()+
+     theme(axis.text.x = element_text(angle=90,vjust=0.5),
+           panel.spacing = unit(0, "lines"),
+           strip.background = element_rect('white'),
+           axis.line = element_line(colour = "grey"),
+           panel.grid.major.y =element_line(colour = "grey"),
+           strip.text = element_text(size=11),
+           panel.grid.minor = element_line(linetype=2,color='grey'))+
+     scale_fill_manual(breaks = c('scnbase','scnbase_bis','scn3','scn2','scn1'),
+                       labels = c('baseline','baseline w/o corner','depth','var temp','depth + var temp'),
+                       values=c('scn1'='#4e79a7','scn2'='#59a14f','scn3'='#edc948','scnbase'='#79706E','scnbase_bis'='#e15759'),
+                       name='sampling design')+ #labels = c('baseline','baseline w/o corner','depth','var temp','depth + var temp'),
+     scale_color_manual(breaks = c('scnbase','scnbase_bis','scn3','scn2','scn1'),
+                        labels = c('baseline','baseline w/o corner','depth','var temp','depth + var temp'),
+                        values=c('scn1'='#4e79a7','scn2'='#59a14f','scn3'='#edc948','scnbase'='#79706E','scnbase_bis'='#e15759'),
+                        name='sampling design')+ #labels = c('baseline','baseline w/o corner','depth','var temp','depth + var temp'),
+     scale_linetype_manual(values = c('current'='solid',
+                                      'buffer'='dashed',
+                                      'random'='dotted'))+
+     expand_limits(y = 0)+
+     scale_y_continuous(expand = c(0.01,0.01))+
+     scale_x_discrete(expand = c(0.05,0.05))+
+     facet_wrap(~ Scenario,nrow=2,ncol=4)
   
-  # ggplot()+
-  #   geom_ribbon(data=df,aes(x=year,ymax=index[,'q95'],ymin=index[,'q5'],group=scn,fill=scn),alpha=0.5)+
-  #   geom_line(data=df,aes(x=year,y=index[,'mean'],color=scn,group=scn))+
-  #   labs(y='t',x='year')+
-  #   theme_bw()+
-  #   theme(axis.text.x = element_text(angle=90))+ 
-  #   expand_limits(y = 0)+
-  #   facet_wrap(~ scn)
+  #save plot
+  ragg::agg_png(paste0('./figures/species/',sp,'/proj_indices.png'), width = 12, height = 5, units = "in", res = 300)
+  p
+  dev.off()
   
-  #save object
+  #save df object
   save(df1, file = paste0("./output/species/",sp,'/projected evaluation/indices.RData'))
   
   ############################
   # CV
   ############################
   
-  ind<-index_proj[,'cv',,,,]
+  #get CV
+  ind<-index_proj['cv',,,,,]
   ind1<-as.data.frame.table(ind)
-  names(ind1)<-c('rep','year','sim','scn','sbt','index')
+  names(ind1)<-c('year','approach','sim','scn','sbt','index')
   ind1$year<-gsub('y','',ind1$year)
- 
-  df<-aggregate(index ~ year + scn + sbt,ind1,FUN = function(x) c(mean = mean(x), q95 = quantile(x,probs=0.95) , q5 = quantile(x,probs=0.05)) )
+  
+  #aggregate by groups
+  df<-aggregate(index ~ year + scn + sbt + approach,ind1,FUN = function(x) c(mean = mean(x), q95 = quantile(x,probs=0.95) , q5 = quantile(x,probs=0.05)) )
   colnames(df$index)<-c('mean','q95','q5')
   
+  #sbt name and sort for plotting purposes
   df1<-merge(df,df_sbt,by='sbt',all.x=TRUE)
   df1$sbt2<-factor(df1$sbt2,levels = unique(df1$sbt2)[c(1,5:12,2:4)])
+  df1$Scenario<-factor(df1$Scenario,levels = unique(df1$Scenario)[c(1,5:12,2:4)])
+  df$scn<-factor(df$scn,levels=c('scnbase','scnbase_bis',paste0('scn',3:1)))
   
-  # df$ind<-df$index[,'mean']
-  # df$q5<-df$index[,'q5']
-  # df$q95<-df$index[,'q95']
+  #removing cold scenarios
+  df2<-df1[which(!grepl('cold',df1$sbt2)),]
+  df2$scn<-factor(df2$scn,levels=c('scnbase','scnbase_bis',paste0('scn',3:1)))
   
-  df$scn<-factor(df$scn,levels=c('scnbase','scnbase9','scnbase25',paste0('scn',1:48)))
+  #plot
+  p<-
+   ggplot()+
+     geom_line(data=df2,aes(x=year,y=index[,'mean'],color=scn,group =interaction(scn,approach),linetype=approach))+
+     labs(y='CV',x='')+
+     theme_bw()+
+     theme(axis.text.x = element_text(angle=90,vjust=0.5),
+           panel.spacing = unit(0, "lines"),
+           strip.background = element_rect('white'),
+           axis.line = element_line(colour = "grey"),
+           panel.grid.major.y =element_line(colour = "grey"),
+           strip.text = element_text(size=11),
+           panel.grid.minor = element_line(linetype=2,color='grey'))+
+     scale_color_manual(breaks = c('scnbase','scnbase_bis','scn3','scn2','scn1'),
+                        labels = c('baseline','baseline w/o corner','depth','var temp','depth + var temp'),
+                        values=c('scn1'='#4e79a7','scn2'='#59a14f','scn3'='#edc948','scnbase'='#79706E','scnbase_bis'='#e15759'),
+                        name='sampling design')+ #labels = c('baseline','baseline w/o corner','depth','var temp','depth + var temp'),
+     scale_linetype_manual(values = c('current'='solid',
+                                      'buffer'='dashed',
+                                      'random'='dotted'))+
+     expand_limits(y = 0)+
+     scale_y_continuous(expand = c(0,0.01))+
+     scale_x_discrete(expand = c(0.05,0.05))+
+     facet_wrap(~ Scenario,nrow=2,ncol=4)
   
-  #check cv by scn
-  ggplot()+
-    geom_line(data=subset(df1,scn!='scnbase'),aes(x=year,y=index[,'mean'],color=scn,group =scn),alpha=0.5)+
-    geom_line(data=subset(df1,scn=='scnbase'),aes(x=year,y=index[,'mean'],group=1),color='black')+
-    #geom_line(data=subset(df,scn=='scnbase9'),aes(x=year,y=index[,'mean'],group=1),color='black',linetype='dashed')+
-    #geom_line(data=subset(df,scn=='scnbase25'),aes(x=year,y=index[,'mean'],group=1),color='black',linetype='dotted')+
-    labs(y='CV',x='year')+
+  #save plot
+  ragg::agg_png(paste0('./figures/species/',sp,'/proj_indices_cv.png'), width = 12, height = 5, units = "in", res = 300)
+  p
+  dev.off()
+  
+  #plot
+  p<-
+   ggplot()+
+     geom_boxplot(data=df2,aes(x=scn,y=index[,'mean'],fill=scn,group =interaction(scn,approach),linetype=approach),alpha=0.8)+
+     labs(y='CV',x='')+
+     theme_bw()+
+     theme(panel.grid.minor = element_line(linetype=2,color='grey'))+#,
+     scale_fill_manual(breaks = c('scnbase','scnbase_bis','scn3','scn2','scn1'),
+                       labels = c('baseline','baseline w/o corner','depth','var temp','depth + var temp'),
+                       values=c('scn1'='#4e79a7','scn2'='#59a14f','scn3'='#edc948','scnbase'='#79706E','scnbase_bis'='#e15759'),
+                       name='sampling design')+ #labels = c('baseline','baseline w/o corner','depth','var temp','depth + var temp'),
+     scale_linetype_manual(values = c('current'='solid',
+                                      'buffer'='dashed',
+                                      'random'='dotted'))+
+     expand_limits(y = 0)+
+     scale_y_continuous(expand = c(0.001,0.001))+
+     scale_x_discrete(expand = c(0.1,0.1),breaks = c('scnbase','scnbase_bis','scn3','scn2','scn1'),
+                      labels = c('baseline','baseline w/o corner','depth','var temp','depth + var temp'))#+
+     
+  
+    #plot with SBT facets
+    ggplot()+
+    geom_boxplot(data=df2,aes(x=scn,y=index[,'mean'],fill=scn,group =interaction(scn,approach),linetype=approach),alpha=0.8)+
+    labs(y='CV',x='')+
     theme_bw()+
-    theme(axis.text.x = element_text(angle=90),legend.position = 'none')+ 
+      theme(axis.text.x = element_text(angle=90,vjust=0.5),
+            panel.spacing = unit(0, "lines"),
+            strip.background = element_rect('white'),
+            axis.line = element_line(colour = "grey"),
+            panel.grid.major.y =element_line(colour = "grey"),
+            strip.text = element_text(size=11),
+            panel.grid.minor = element_line(linetype=2,color='grey'))+
+    scale_fill_manual(breaks = c('scnbase','scnbase_bis','scn3','scn2','scn1'),
+                      labels = c('baseline','baseline w/o corner','depth','var temp','depth + var temp'),
+                      values=c('scn1'='#4e79a7','scn2'='#59a14f','scn3'='#edc948','scnbase'='#79706E','scnbase_bis'='#e15759'),
+                      name='sampling design')+ #labels = c('baseline','baseline w/o corner','depth','var temp','depth + var temp'),
+    scale_linetype_manual(values = c('current'='solid',
+                                     'buffer'='dashed',
+                                     'random'='dotted'))+
     expand_limits(y = 0)+
-    facet_wrap(~sbt2)
+    scale_y_continuous(expand = c(0.001,0.001))+
+    scale_x_discrete(expand = c(0.1,0.1),breaks = c('scnbase','scnbase_bis','scn3','scn2','scn1'),
+                     labels = c('baseline','baseline w/o corner','depth','var temp','depth + var temp'))+
+    facet_wrap(~ Scenario,nrow=2,ncol=4)
   
-  samp_df$strat_var<-as.character(samp_df$strat_var)
-  samp_df1<-rbind(c('baseline',NA,520,15,'scnbase'),c('baseline',NA,511,15,'scnbase9'),c('baseline',NA,495,15,'scnbase25'),samp_df)
-  
-  df1<-merge(df,samp_df1,by.x='scn',by.y='samp_scn',all.x=TRUE)
-  df1$scn<-factor(df1$scn,levels=c('scnbase','scnbase9','scnbase25',paste0('scn',1:48)))
-  df1$n_samples<-factor(df1$n_samples,levels=c(520,511,495,350,500))
-  df1$strat_var<-gsub('_','\n',df1$strat_var)
-  
-  ggplot()+
-    geom_boxplot(data=df1,aes(x=scn,y=index[,'mean'],fill=scn,group =scn),alpha=0.5)+
-    #geom_boxplot(data=subset(df,scn=='scnbase'),aes(x=scn,y=index[,'mean'],group=1),color='black')+
-    #geom_line(data=subset(df,scn=='scnbase9'),aes(x=year,y=index[,'mean'],group=1),color='black',linetype='dashed')+
-    #geom_line(data=subset(df,scn=='scnbase25'),aes(x=year,y=index[,'mean'],group=1),color='black',linetype='dotted')+
-    labs(y='CV',x='sampling designs')+
-    theme_bw()+
-    theme(axis.text.x = element_text(angle=90),legend.position = 'none',
-          panel.spacing = unit(0, "lines"),
-          strip.background = element_blank(),
-          axis.line = element_line(colour = "grey"),
-          panel.grid.major.y =element_line(colour = "grey"),
-          strip.text = element_text(size=11),
-          strip.placement = "outside",
-          #axis.text.x = element_text(angle = 90, hjust = 1),
-          panel.background = element_rect(fill = 'white', colour = 'white'))+ 
-    expand_limits(y = 0)+
-    scale_y_continuous(expand = c(0,0))+
-    facet_wrap(vars(sbt), strip.position = "top", scales = "free_x",  nrow=2)
-  #coord_cartesian(ylim = c(0,0.1),clip = 'off') + 
-  #annotate(geom = "text", x = c('scnbase9','scn15','scn45'), y = -0.035, label = c('baseline','350','500'), size = 4) +
-  #scale_x_discrete(labels=c("0.5" = "Dose 0.5", "1" = "Dose 1", "2" = "Dose 2"))
-  
+  #save plot
+  ragg::agg_png(paste0('./figures/species/',sp,'/proj_indices_cv_box.png'), width = 7, height = 4, units = "in", res = 300)
+  p
+  dev.off()
   
   #save object
   save(df1, file = paste0("./output/species/",sp,'/projected evaluation/cv.RData'))
+
+
+ ############################
+ # RRMSE PBIAS
+ ############################
   
+ #to store results  
+ df<-data.frame(matrix(NA,nrow = 0,ncol=6))
+ names(df)<-c('sim','scn','approach','sbt','rrmse','pbias')
+
+ #get simulations
+ ld<-list.dirs(paste0('./output/species/',sp,'/simulated projected data/'),full.names = FALSE,recursive = FALSE)
+
+ #loop over simulations
+ for (sim in ld) {
+  
+    #sim<-ld[1]
+    
+    #print scenario to check progress
+    cat(paste(" #############  ", sim, " #############\n"))
+    
+    for (sbt in paste0('SBT',1:12)) {
+    
+      
+    #sbt<-'SBT2'  
+    
+    #load index
+    load(paste0("./output/species/",sp,'/simulated projected data/',sim,'/sim_data_',sbt,'.RData'))  #sim_data
+    
+    #get true index
+    ind_true<-sim_data$sim_ind/1000
+    
+    #load design-based index
+    load(paste0("./output/species/",sp,'/projected design-based indices/indices.RData'))  #sim_data
+    #dimnames(index_hist)
+    ind_sim<-index_proj['index',,,sim,,]
+    ind_sim1<-as.data.frame.table(ind_sim)
+    names(ind_sim1)<-c('year','approach','scn','sbt','index')
+    ind_sim1$year<-gsub('y','y',ind_sim1$year)
+    
+    #loop over sampling scenarios
+    for (scn in unique(ind_sim1$scn)) {
+      
+      for (apr in c('current','buffer','random')) {
+        
+        #scn<-unique(ind_sim1$scn)[1]
+        #ss<-'current'
+        
+        ind_sim2<-ind_sim1[which(ind_sim1$sbt==sbt & ind_sim1$approach==apr & ind_sim1$scn==scn),'index']
+          
+        #calculate RRMSE
+        rmse_i<-sqrt(mean((ind_true - ind_sim2)^2))/mean(ind_true)
+          
+        #calculate PBIAS
+        pbias_i<-mean((ind_true - ind_sim2) / abs(ind_true))
+          
+        #append results
+        df<-rbind(df,data.frame(sim=sim,scn=scn,approach=apr,sbt=sbt,rrmse=rmse_i,pbias=pbias_i))
+      }  
+     }
+   }
+ }
+
+
+ #save object
+ save(df, file = paste0("./output/species/",sp,'/projected evaluation/rrmse_pbias.RData'))
+ 
+ #merge to get names and sort for plotting pruposes
+ df1<-merge(df,samp_df,by.x='scn',by.y='samp_scn',all.x=TRUE)
+ df1$scn<-factor(df1$scn,levels=c('scnbase','scnbase_bis',paste0('scn',3:1)))
+ df1$approach<-factor(df1$approach,levels=c('current','buffer','random'))
+ df2<-df1[which(df1$sbt %in% paste0('SBT',c(1,3:5,7,9,11,12))),]
+  
+  
+ #plot
+ p<-
+  ggplot()+
+   geom_boxplot(data=df2,aes(x=scn,y=rrmse,fill=scn,group =interaction(scn,approach),linetype=approach),alpha=0.8)+
+   labs(y='RRMSE',x='')+
+   theme_bw()+
+   theme(panel.grid.minor = element_line(linetype=2,color='grey'))+#,
+   expand_limits(y = 0)+
+   scale_linetype_manual(values = c('current'='solid',
+                                    'buffer'='dashed',
+                                    'random'='dotted'))+
+   scale_fill_manual(values=c('scn1'='#4e79a7','scn2'='#59a14f','scn3'='#edc948','scnbase'='#79706E','scnbase_bis'='#e15759'),
+                     labels = c('baseline','baseline w/o corner','depth','var temp','depth + var temp'),name='sampling design')+
+   scale_x_discrete(labels=c('baseline','baseline w/o corner','depth','var temp','depth + var temp'))+
+   scale_y_continuous(expand = c(0,0),limits=c(0,0.31))#+
+
+ #save plot
+ ragg::agg_png(paste0('./figures/species/',sp,'/proj_indices_rmse_box.png'), width = 7, height = 4, units = "in", res = 300)
+ p
+ dev.off()
+
 #}
 
-############################
-# RRMSE PBIAS
-############################
-  
-#to store results  
-df<-data.frame(matrix(NA,nrow = 0,ncol=5))
-names(df)<-c('sim','scn','rep','rrmse','pbias')
-
-#get simulations
-ld<-list.dirs(paste0('./output/species/',sp,'/simulated projected data/'),full.names = FALSE,recursive = FALSE)
-
-#loop over simulations
-for (sim in ld) {
-  
-  #sim<-ld[1]
-  
-  #print scenario to check progress
-  cat(paste(" #############  ", sim, " #############\n"))
-  
-  #load index
-  load(paste0("./output/species/",sp,'/projected historical data/',sim,'/sim_data.RData'))  #sim_data
-  
-  #get true index
-  ind_true<-sim_data$sim_ind[,,3]
-  
-  #load design-based index
-  load(paste0("./output/species/",sp,'/projected design-based indices/indices.RData'))  #sim_data
-  #dimnames(index_hist)
-  ind_sim<-index_hist[,'index',,sim,]
-  ind_sim1<-as.data.frame.table(ind_sim)
-  names(ind_sim1)<-c('rep','year','scn','index')
-  ind_sim1$year<-gsub('y','y',ind_sim1$year)
-  ind_sim1$rep<-as.integer(ind_sim1$rep)
-  
-  #loop over sampling scenarios
-  for (scn in unique(ind_sim1$scn)) {
-    
-    #scn<-unique(ind_sim1$scn)[49]
-    
-    #when base scenario there is no replicates
-    if (grepl('base',scn)) {
-      repls<-1
-    } else {
-      repls<-1:100
-    }  
-    
-    #loop over replicates
-    for (rep in repls) {
-      
-      #rep<-1
-      
-      ind_sim2<-ind_sim1[which(ind_sim1$rep==rep & ind_sim1$scn==scn),'index']
-      
-      #calculate RRMSE
-      rmse_i<-sqrt(mean((ind_true - ind_sim2)^2))/mean(ind_true)
-      
-      #calculate PBIAS
-      pbias_i<-mean((ind_true - ind_sim2) / abs(ind_true))
-      
-      #append results
-      df<-rbind(df,data.frame(sim=sim,scn=scn,rep=rep,rrmse=rmse_i,pbias=pbias_i))
-      
-    }
-  }
-}
-
-#save object
-save(df, file = paste0("./output/species/",sp,'/projected evaluation/rrmse_pbias.RData'))
-
-
-
-##########################################################################################################################
-##########################################################################################################################
-##########################################################################################################################
-##########################################################################################################################
-##########################################################################################################################
-##########################################################################################################################
-##########################################################################################################################
-##########################################################################################################################
-##########################################################################################################################
-
-  
-  
-  
-  
-  
-  #load projections
-  load( file = paste0("./output/species/",sp,'/fit_projection.RData')) #pr_list
-  
-  #convert array to df
-  df_cv<-as.data.frame.table(sp_index[,'cv',,,])
-  names(df_cv)<-c('iter','year','sbt','scn','cv')
-  
-  #merge to get name sampling scenario
-  df_cv1<-merge(df_cv,samp_df,by.x='scn',by.y='samp_scn',all.x = TRUE)
-  df_cv1$scn2<-paste0(df_cv1$scn,' - ',df_cv1$strat_var)
-  df_cv1$sbt<-factor(df_cv1$sbt,
-                     levels = paste0('SBT',1:12))
-  
-  #merge to get SBT scenario
-  df_cv2<-merge(df_cv1,df_sbt[,c("sbt","sbt2")],by = 'sbt')
-  
-  #sort
-  df_cv2$sbt2<-factor(df_cv2$sbt2,levels=unique(df_cv2$sbt2)[c(1,5:12,2:4)])
-  
-  #plot CV distribution by year/sbt/scn
-  ggplot()+
-    geom_boxplot(data=df_cv2,aes(x=year,y=cv,color=scn2),position = position_dodge(width = 0.9))+
-    #geom_point(data=df_cv,aes(x=year,y=cv,color=scn),position = position_dodge(width = 0.9))+
-    facet_wrap(~sbt2)+
-    theme_bw()+
-    labs(color='sampling designs')
-  
-  #aggregate annual average
-  df_cv3<-aggregate(df_cv2$cv,by=list(year=df_cv2$year,
-                                      scn2=df_cv2$scn2,
-                                      scn=df_cv2$scn,
-                                      sbt2=df_cv2$sbt2,
-                                      sbt=df_cv2$sbt),
-                    FUN=mean)
-  
-  #sort to plot sbt correctly
-  df_cv3$sbt2<-factor(df_cv3$sbt2,
-                      levels = unique(df_cv3$sbt2))
-  
-  #plot average CV by year/sbt/scn
-  ggplot()+
-    #geom_linerange(data=diff_index,aes(x=factor(year),ymin=0,ymax=rmse,color=scn),position = position_dodge(width = 0.5))+
-    geom_line(data=df_cv3,aes(x=factor(year),y=x,color=scn2,group=scn2))+ #,position = position_dodge(width = 0.5)
-    geom_point(data=df_cv3,aes(x=factor(year),y=x,fill=scn2),position = position_dodge(width = 0.5),shape=21,color='black')+
-    #geom_hline(yintercept=0,linetype='dashed')+
-    #geom_point(data=df_true1,aes(x=factor(year),y=index/1000,group=scn,shape=dummy),color='black',alpha=0.5,position = position_dodge(width = 0.9))+
-    facet_wrap(~sbt2)+
-    theme_bw()+
-    theme()+
-    labs(color='sampling design',fill='sampling design',shape='model-based',x='year',y='cv')#+  
-  #scale_y_continuous(limits = c(0,25000))
-  
-  #aggregate to get average by scn/sbt
-  df_cv4<-aggregate(df_cv3$x,by=list(
-    scn2=df_cv3$scn2,
-    scn=df_cv3$scn,
-    sbt2=df_cv3$sbt2,
-    sbt=df_cv3$sbt),
-    FUN=mean)
-  
-  
-  #plot average CV by sbt/scn
-  ggplot()+
-    #geom_linerange(data=diff_index,aes(x=factor(year),ymin=0,ymax=rmse,color=scn),position = position_dodge(width = 0.5))+
-    #geom_line(data=diff_index5,aes(x=scn,y=rmse,color=scn2,group=scn2))+ #,position = position_dodge(width = 0.5)
-    geom_point(data=df_cv4,aes(x=scn,y=x,fill=scn2),position = position_dodge(width = 0.5),shape=21,color='black',size=3)+
-    #geom_hline(yintercept=0,linetype='dashed')+
-    #geom_point(data=df_true1,aes(x=factor(year),y=index/1000,group=scn,shape=dummy),color='black',alpha=0.5,position = position_dodge(width = 0.9))+
-    facet_wrap(~sbt2)+
-    theme_bw()+
-    theme()+
-    labs(color='sampling design',fill='sampling design',shape='model-based',x='sampling scn',y='cv')#+  
-  #scale_y_continuous(limits = c(0,25000))
-  
-  #plot average CV by sbt/scn
-  ggplot()+
-    #geom_linerange(data=diff_index,aes(x=factor(year),ymin=0,ymax=rmse,color=scn),position = position_dodge(width = 0.5))+
-    #geom_line(data=diff_index5,aes(x=scn,y=rmse,color=scn2,group=scn2))+ #,position = position_dodge(width = 0.5)
-    geom_boxplot(data=df_cv4,aes(x=reorder(scn, x, FUN = mean),y=x,color=scn2),position = position_dodge(width = 0.5),shape=21,size=1,alpha=0.8)+
-    #geom_hline(yintercept=0,linetype='dashed')+
-    #geom_point(data=df_true1,aes(x=factor(year),y=index/1000,group=scn,shape=dummy),color='black',alpha=0.5,position = position_dodge(width = 0.9))+
-    #facet_wrap(~sbt2)+
-    theme_bw()+
-    theme()+
-    labs(color='sampling design',fill='sampling design',x='sampling scn',y='cv')#+  
-  #scale_y_continuous(limits = c(0,25000))
-  
-  
-  #to store index
-  df_index<-data.frame(matrix(NA,nrow = 0,ncol = 4))
-  colnames(df_index)<-c('sbt','scn','year','index')
-  diff_index<-df_true<-df_index
-  
-  #loop over sbt
-  for (sbt in names(pr_list)) {
-    
-    #sbt<-names(pr_list)[1]
-    
-    #print scenario to check progress
-    cat(paste(" #############     PROJECTING    #############\n",
-              " #############   Species", sp, match(sp,spp), 'out of',length(spp),  "  #############\n",
-              #" #############  Sampling ", samp, " #############\n",
-              " #############  ", sbt, " #############\n"))
-    
-    #get projection
-    pr<-pr_list[[sbt]]
-    
-    #loop over scn 
-    for (scn in dimnames(sp_index)[[5]]) {
-      
-      #scn<-dimnames(sp_index)[[5]][1]
-      
-      #loop over years
-      for (year in paste0('y',2023:2027)) {
-        
-        #year<-'y2023'
-        
-        #get index from projection
-        df_true<-rbind(df_true,
-                       data.frame(sbt=sbt,
-                                  scn=scn,
-                                  year=1982:2027,
-                                  index=drop_units(pr$Index_ctl[1,,1]),row.names = NULL))
-        
-        #get index from stratified random sampling
-        df_index<-rbind(df_index,
-                        data.frame(sbt=sbt,
-                                   scn=scn,
-                                   year=as.integer(gsub('y','',year)),
-                                   index=sp_index[,'index',year,sbt,scn]))
-        
-      }
-    }
-  }
-  
-  #check indices for each SBT and scenario
-  df_true1<-subset(df_true,year %in% 2023:2027)
-  df_true1<-df_true1[!duplicated(df_true1),]
-  df_true1$dummy<-''
-  
-  
-  #to sort facets
-  df_true1$sbt<-factor(df_true1$sbt,
-                       levels = paste0('SBT',1:12))
-  df_index$sbt<-factor(df_index$sbt,
-                       levels = paste0('SBT',1:12))
-  
-  #df_true1$sbt<-gsub('scn','',df_true1$sbt)
-  #df_index$sbt<-gsub('scn','',df_index$sbt)
-  
-  df_index<-merge(df_index,df_sbt,by='sbt',all.x=TRUE)
-  df_true1<-merge(df_true1,df_sbt,by='sbt',all.x=TRUE)
-  
-  
-  #sort
-  df_index$sbt2<-factor(df_index$sbt2,levels=unique(df_index$sbt2)[c(1,5:12,2:4)])  
-  df_true1$sbt2<-factor(df_true1$sbt2,levels=unique(df_true1$sbt2)[c(1,5:12,2:4)])
-  
-  df_index<-merge(df_index,samp_df,by.x='scn',by.y='samp_scn',all.x=TRUE)
-  df_true1<-merge(df_true1,samp_df,by.x='scn',by.y='samp_scn',all.x=TRUE)
-  df_index$scn_strata<-paste(df_index$scn,df_index$strat_var)
-  df_true1$scn_strata<-paste(df_true1$scn,df_true1$strat_var)
-  
-  #plot true and sampling index for checking
-  ggplot()+
-    geom_point(data=df_true1,aes(x=factor(year),y=index/1000,group=scn_strata,shape=dummy),color='black',position = position_dodge(width = 0.9),shape=8)+
-    geom_boxplot(data=df_index,aes(x=factor(year),y=index,color=scn_strata),position = position_dodge(width = 0.9),alpha=0.1)+
-    facet_wrap(~sbt2)+
-    theme_bw()+
-    theme()+
-    labs(color='sampling design',shape='obs',x='year',y='index (t)')#+  
-  #scale_y_continuous(limits = c(0,25000))
-  
-  #aggregate to get mean index by year/scn/sbt
-  df_index1<-aggregate(df_index$index,by=list(year=df_index$year,
-                                              scn=df_index$scn,
-                                              sbt=df_index$sbt,
-                                              sbt2=df_index$sbt2),
-                       FUN=mean)
-  
-  #loop over sbt scn and year
-  for (sbt in unique(df_index1$sbt)) {
-    for (scn in unique(df_index1$scn)) {
-      for (y in unique(df_index1$year)) {
-        
-        #sbt<-unique(df_index1$sbt)[1];scn<-unique(df_index1$scn)[1];y<-unique(df_index1$year)[1]
-        
-        #true index  
-        true_i<-df_true1[which(df_true1$sbt==sbt & df_true1$scn == scn & df_true1$year==y),'index']/1000
-        
-        #sampling index
-        samp_i<-df_index1[which(df_index1$sbt==sbt & df_index1$scn == scn & df_index1$year==y),'x']
-        
-        #true index for each 100 iterations
-        true_ii<-rep(true_i,times=100)
-        
-        #subset index for year/sbt/scn
-        samp_ii<-df_index[which(df_index$sbt==sbt & df_index$scn == scn & df_index$year==y),'index']
-        
-        #calculate RRMSE
-        rmse_i<-sqrt(mean((true_ii - samp_ii)^2))/mean(true_ii)
-        
-        #calculate PBIAS
-        pbias_i<-mean((true_ii - samp_ii) / abs(true_ii))
-        
-        #store results
-        diff_index<-rbind(diff_index,
-                          data.frame(sbt=paste0(sbt),
-                                     scn=scn,
-                                     year=y,
-                                     diff=true_i-samp_i,
-                                     rmse=rmse_i,
-                                     pbias=pbias_i))  
-      }
-    }
-  }
-  
-  #merge to get sampling scenario names
-  diff_index2<-merge(diff_index,samp_df,by.x='scn',by.y='samp_scn',all.x = TRUE)
-  
-  ###################################
-  # PLOTS
-  ###################################
-  
-  #to sort facets
-  diff_index$sbt<-factor(diff_index$sbt,
-                         levels = paste0('SBT',1:12))
-  
-  #plot differences between true and sampling index
-  ggplot()+
-    geom_linerange(data=diff_index,aes(x=factor(year),ymin=0,ymax=diff,color=scn),position = position_dodge(width = 0.5))+
-    geom_point(data=diff_index,aes(x=factor(year),y=diff,fill=scn),position = position_dodge(width = 0.5),shape=21,color='black')+
-    geom_hline(yintercept=0,linetype='dashed')+
-    #geom_point(data=df_true1,aes(x=factor(year),y=index/1000,group=scn,shape=dummy),color='black',alpha=0.5,position = position_dodge(width = 0.9))+
-    facet_wrap(~sbt)+
-    theme_bw()+
-    theme()+
-    labs(color='sampling design',fill='sampling design',shape='model-based',x='year',y='mean difference model-design index (t)')#+  
-  #scale_y_continuous(limits = c(0,25000))
-  
-  #get sampling scenario names
-  diff_index2$scn2<-paste0(diff_index2$scn,' - ',diff_index2$strat_var)
-  
-  #merge to get sbt projection names
-  diff_index22<-merge(diff_index2,df_sbt[,c("sbt","sbt2")],by = 'sbt')
-  
-  #sort sbt facet
-  diff_index22$sbt2<-factor(diff_index22$sbt2,
-                            levels = unique(diff_index22$sbt2)[c(1,5:12,2:4)])
-  
-  #plot RRMSE by year/sbt/scn
-  ggplot()+
-    #geom_linerange(data=diff_index,aes(x=factor(year),ymin=0,ymax=rmse,color=scn),position = position_dodge(width = 0.5))+
-    geom_line(data=diff_index22,aes(x=factor(year),y=rmse,color=scn2,group=scn2))+ #,position = position_dodge(width = 0.5)
-    geom_point(data=diff_index22,aes(x=factor(year),y=rmse,fill=scn2),position = position_dodge(width = 0.5),shape=21,color='black')+
-    #geom_hline(yintercept=0,linetype='dashed')+
-    #geom_point(data=df_true1,aes(x=factor(year),y=index/1000,group=scn,shape=dummy),color='black',alpha=0.5,position = position_dodge(width = 0.9))+
-    facet_wrap(~sbt2)+
-    theme_bw()+
-    theme()+
-    labs(color='sampling design',fill='sampling design',shape='model-based',x='year',y='rmse of index')#+  
-  #scale_y_continuous(limits = c(0,25000))
-  
-  #plot PBIAS by year/sbt/scn
-  ggplot()+
-    #geom_linerange(data=diff_index,aes(x=factor(year),ymin=0,ymax=rmse,color=scn),position = position_dodge(width = 0.5))+
-    geom_line(data=diff_index22,aes(x=factor(year),y=pbias,color=scn2,group=scn2))+ #,position = position_dodge(width = 0.5)
-    geom_point(data=diff_index22,aes(x=factor(year),y=pbias,fill=scn2),position = position_dodge(width = 0.5),shape=21,color='black')+
-    geom_hline(yintercept=0,linetype='dashed')+
-    #geom_point(data=df_true1,aes(x=factor(year),y=index/1000,group=scn,shape=dummy),color='black',alpha=0.5,position = position_dodge(width = 0.9))+
-    facet_wrap(~sbt2)+
-    theme_bw()+
-    theme()+
-    labs(color='sampling design',fill='sampling design',shape='model-based',x='year',y='pbias of index')#+  
-  #scale_y_continuous(limits = c(0,25000))
-  
-  #to store index aggregated years
-  diff_index3<-data.frame(matrix(NA,nrow = 0,ncol = 3))
-  colnames(diff_index3)<-c('sbt','scn','index')
-  
-  #loop over sbt/scn to get aggregated estimates
-  for (sbt in unique(df_index1$sbt)) {
-    for (scn in unique(df_index1$scn)) {
-      
-      #sbt<-unique(df_index1$sbt)[1];scn<-unique(df_index1$scn)[1];#y<-unique(df_index1$year)[1]
-      
-      #true values
-      true_i<-df_true1[which(df_true1$sbt==sbt & df_true1$scn == scn),]#/1000
-      true_i<-true_i[order(true_i$year),'index']/1000
-      true_ii<-rep(true_i,each=100)
-      
-      #sampling values
-      samp_i<-df_index[which(df_index$sbt==sbt & df_index$scn == scn),]
-      samp_i<-samp_i[order(samp_i$year),'index']
-      
-      #RRMSE
-      rmse_i<-sqrt(mean((true_ii - samp_i)^2))/mean(true_ii)
-      
-      #PBIAS
-      pbias_i<-mean((true_ii - samp_i) / abs(true_ii))
-      
-      #store results
-      diff_index3<-rbind(diff_index3,
-                         data.frame(sbt=paste0(sbt),
-                                    scn=scn,
-                                    #year=y,
-                                    #diff=true_i-samp_i,
-                                    rmse=rmse_i,
-                                    pbias=pbias_i))  
-      
-    }
-  }
-  
-  #merge for getting sampling scenarios and sbt projections names
-  diff_index4<-merge(diff_index3,samp_df,by.x='scn',by.y='samp_scn',all.x = TRUE)
-  diff_index4$scn2<-paste0(diff_index4$scn,' - ',diff_index4$strat_var)
-  diff_index4$sbt<-factor(diff_index4$sbt,
-                          levels = paste0('SBT',1:12))
-  diff_index5<-merge(diff_index4,df_sbt[,c("sbt","sbt2")],by = 'sbt')
-  diff_index5$sbt2<-factor(diff_index5$sbt2,
-                           levels = unique(diff_index22$sbt2)[c(1,5:12,2:4)])
-  
-  #plot RRMSE annual averages by scn/sbt
-  ggplot()+
-    #geom_linerange(data=diff_index,aes(x=factor(year),ymin=0,ymax=rmse,color=scn),position = position_dodge(width = 0.5))+
-    #geom_line(data=diff_index5,aes(x=scn,y=rmse,color=scn2,group=scn2))+ #,position = position_dodge(width = 0.5)
-    geom_point(data=diff_index5,aes(x=scn,y=rmse,fill=scn2),position = position_dodge(width = 0.5),shape=21,color='black',size=3)+
-    #geom_hline(yintercept=0,linetype='dashed')+
-    #geom_point(data=df_true1,aes(x=factor(year),y=index/1000,group=scn,shape=dummy),color='black',alpha=0.5,position = position_dodge(width = 0.9))+
-    facet_wrap(~sbt2)+
-    theme_bw()+
-    theme()+
-    labs(color='sampling design',fill='sampling design',shape='model-based',x='sampling scn',y='rmse of index')#+  
-  #scale_y_continuous(limits = c(0,25000))
-  
-  
-  ggplot()+
-    #geom_linerange(data=diff_index,aes(x=factor(year),ymin=0,ymax=rmse,color=scn),position = position_dodge(width = 0.5))+
-    #geom_line(data=diff_index5,aes(x=scn,y=rmse,color=scn2,group=scn2))+ #,position = position_dodge(width = 0.5)
-    geom_boxplot(data=diff_index5,aes(x=reorder(scn,rmse,FUN=mean),y=rmse,color=scn2),position = position_dodge(width = 0.5),size=1)+
-    #geom_hline(yintercept=0,linetype='dashed')+
-    #geom_point(data=df_true1,aes(x=factor(year),y=index/1000,group=scn,shape=dummy),color='black',alpha=0.5,position = position_dodge(width = 0.9))+
-    #facet_wrap(~sbt2)+
-    theme_bw()+
-    theme()+
-    labs(color='sampling design',fill='sampling design',shape='model-based',x='sampling scn',y='rmse of index')#+  
-  #scale_y_continuous(limits = c(0,25000))
-  
-  
-  
-  #plot PBIAS annual averages by scn/sbt
-  ggplot()+
-    #geom_linerange(data=diff_index,aes(x=factor(year),ymin=0,ymax=rmse,color=scn),position = position_dodge(width = 0.5))+
-    #geom_line(data=diff_index5,aes(x=scn,y=rmse,color=scn2,group=scn2))+ #,position = position_dodge(width = 0.5)
-    geom_point(data=diff_index5,aes(x=scn,y=pbias,fill=scn2),position = position_dodge(width = 0.5),shape=21,color='black',size=3)+
-    geom_hline(yintercept=0,linetype='dashed')+
-    #geom_point(data=df_true1,aes(x=factor(year),y=index/1000,group=scn,shape=dummy),color='black',alpha=0.5,position = position_dodge(width = 0.9))+
-    facet_wrap(~sbt2)+
-    theme_bw()+
-    theme()+
-    labs(color='sampling design',fill='sampling design',shape='model-based',x='sampling scn',y='pbias')#+  
-  #scale_y_continuous(limits = c(0,25000))
-  
-}
-
-
-###################################
-# PROJECTED EVALUATION
-###################################
-
-#loop over spp
-for (sp in spp) {
-  
-  sp<-"Gadus macrocephalus"
-  
-  #load indices for each sbt and scn
-  load(file = paste0("./output/species/",sp,'/historical design-based indices/indices.RData')) #sp_index
-  
-  #load projections
-  load( file = paste0("./output/species/",sp,'/fit_projection.RData')) #pr_list
-  
-  #convert array to df
-  df_cv<-as.data.frame.table(sp_index[,'cv',,,])
-  names(df_cv)<-c('iter','year','sbt','scn','cv')
-  
-  #merge to get name sampling scenario
-  df_cv1<-merge(df_cv,samp_df,by.x='scn',by.y='samp_scn',all.x = TRUE)
-  df_cv1$scn2<-paste0(df_cv1$scn,' - ',df_cv1$strat_var)
-  df_cv1$sbt<-factor(df_cv1$sbt,
-                          levels = paste0('SBT',1:12))
-  
-  #merge to get SBT scenario
-  df_cv2<-merge(df_cv1,df_sbt[,c("sbt","sbt2")],by = 'sbt')
-  
-  #sort
-  df_cv2$sbt2<-factor(df_cv2$sbt2,levels=unique(df_cv2$sbt2)[c(1,5:12,2:4)])
-  
-  #plot CV distribution by year/sbt/scn
-  ggplot()+
-    geom_boxplot(data=df_cv2,aes(x=year,y=cv,color=scn2),position = position_dodge(width = 0.9))+
-    #geom_point(data=df_cv,aes(x=year,y=cv,color=scn),position = position_dodge(width = 0.9))+
-    facet_wrap(~sbt2)+
-    theme_bw()+
-    labs(color='sampling designs')
-  
-  #aggregate annual average
-  df_cv3<-aggregate(df_cv2$cv,by=list(year=df_cv2$year,
-                                           scn2=df_cv2$scn2,
-                                            scn=df_cv2$scn,
-                                           sbt2=df_cv2$sbt2,
-                                      sbt=df_cv2$sbt),
-                    FUN=mean)
-  
-  #sort to plot sbt correctly
-  df_cv3$sbt2<-factor(df_cv3$sbt2,
-                       levels = unique(df_cv3$sbt2))
-  
-  #plot average CV by year/sbt/scn
-  ggplot()+
-    #geom_linerange(data=diff_index,aes(x=factor(year),ymin=0,ymax=rmse,color=scn),position = position_dodge(width = 0.5))+
-    geom_line(data=df_cv3,aes(x=factor(year),y=x,color=scn2,group=scn2))+ #,position = position_dodge(width = 0.5)
-    geom_point(data=df_cv3,aes(x=factor(year),y=x,fill=scn2),position = position_dodge(width = 0.5),shape=21,color='black')+
-    #geom_hline(yintercept=0,linetype='dashed')+
-    #geom_point(data=df_true1,aes(x=factor(year),y=index/1000,group=scn,shape=dummy),color='black',alpha=0.5,position = position_dodge(width = 0.9))+
-    facet_wrap(~sbt2)+
-    theme_bw()+
-    theme()+
-    labs(color='sampling design',fill='sampling design',shape='model-based',x='year',y='cv')#+  
-  #scale_y_continuous(limits = c(0,25000))
-  
-  #aggregate to get average by scn/sbt
-  df_cv4<-aggregate(df_cv3$x,by=list(
-                                      scn2=df_cv3$scn2,
-                                      scn=df_cv3$scn,
-                                      sbt2=df_cv3$sbt2,
-                                      sbt=df_cv3$sbt),
-                    FUN=mean)
-  
-  
-  #plot average CV by sbt/scn
-  ggplot()+
-    #geom_linerange(data=diff_index,aes(x=factor(year),ymin=0,ymax=rmse,color=scn),position = position_dodge(width = 0.5))+
-    #geom_line(data=diff_index5,aes(x=scn,y=rmse,color=scn2,group=scn2))+ #,position = position_dodge(width = 0.5)
-    geom_point(data=df_cv4,aes(x=scn,y=x,fill=scn2),position = position_dodge(width = 0.5),shape=21,color='black',size=3)+
-    #geom_hline(yintercept=0,linetype='dashed')+
-    #geom_point(data=df_true1,aes(x=factor(year),y=index/1000,group=scn,shape=dummy),color='black',alpha=0.5,position = position_dodge(width = 0.9))+
-    facet_wrap(~sbt2)+
-    theme_bw()+
-    theme()+
-    labs(color='sampling design',fill='sampling design',shape='model-based',x='sampling scn',y='cv')#+  
-  #scale_y_continuous(limits = c(0,25000))
-  
-  #plot average CV by sbt/scn
-  ggplot()+
-    #geom_linerange(data=diff_index,aes(x=factor(year),ymin=0,ymax=rmse,color=scn),position = position_dodge(width = 0.5))+
-    #geom_line(data=diff_index5,aes(x=scn,y=rmse,color=scn2,group=scn2))+ #,position = position_dodge(width = 0.5)
-    geom_boxplot(data=df_cv4,aes(x=reorder(scn, x, FUN = mean),y=x,color=scn2),position = position_dodge(width = 0.5),shape=21,size=1,alpha=0.8)+
-    #geom_hline(yintercept=0,linetype='dashed')+
-    #geom_point(data=df_true1,aes(x=factor(year),y=index/1000,group=scn,shape=dummy),color='black',alpha=0.5,position = position_dodge(width = 0.9))+
-    #facet_wrap(~sbt2)+
-    theme_bw()+
-    theme()+
-    labs(color='sampling design',fill='sampling design',x='sampling scn',y='cv')#+  
-  #scale_y_continuous(limits = c(0,25000))
-  
-  
-  #to store index
-  df_index<-data.frame(matrix(NA,nrow = 0,ncol = 4))
-  colnames(df_index)<-c('sbt','scn','year','index')
-  diff_index<-df_true<-df_index
-  
-  #loop over sbt
-  for (sbt in names(pr_list)) {
-    
-    #sbt<-names(pr_list)[1]
-    
-    #print scenario to check progress
-    cat(paste(" #############     PROJECTING    #############\n",
-              " #############   Species", sp, match(sp,spp), 'out of',length(spp),  "  #############\n",
-              #" #############  Sampling ", samp, " #############\n",
-              " #############  ", sbt, " #############\n"))
-  
-    #get projection
-    pr<-pr_list[[sbt]]
-    
-    #loop over scn 
-    for (scn in dimnames(sp_index)[[5]]) {
-      
-      #scn<-dimnames(sp_index)[[5]][1]
-      
-      #loop over years
-      for (year in paste0('y',2023:2027)) {
-      
-        #year<-'y2023'
-        
-        #get index from projection
-        df_true<-rbind(df_true,
-                       data.frame(sbt=sbt,
-                                  scn=scn,
-                                  year=1982:2027,
-                                  index=drop_units(pr$Index_ctl[1,,1]),row.names = NULL))
-        
-        #get index from stratified random sampling
-        df_index<-rbind(df_index,
-                        data.frame(sbt=sbt,
-                                   scn=scn,
-                                   year=as.integer(gsub('y','',year)),
-                                   index=sp_index[,'index',year,sbt,scn]))
-
-      }
-    }
-  }
-  
-  #check indices for each SBT and scenario
-  df_true1<-subset(df_true,year %in% 2023:2027)
-  df_true1<-df_true1[!duplicated(df_true1),]
-  df_true1$dummy<-''
-  
-  
-  #to sort facets
-  df_true1$sbt<-factor(df_true1$sbt,
-                       levels = paste0('SBT',1:12))
-  df_index$sbt<-factor(df_index$sbt,
-                       levels = paste0('SBT',1:12))
-  
-  #df_true1$sbt<-gsub('scn','',df_true1$sbt)
-  #df_index$sbt<-gsub('scn','',df_index$sbt)
-  
-  df_index<-merge(df_index,df_sbt,by='sbt',all.x=TRUE)
-  df_true1<-merge(df_true1,df_sbt,by='sbt',all.x=TRUE)
-  
-  
-  #sort
-  df_index$sbt2<-factor(df_index$sbt2,levels=unique(df_index$sbt2)[c(1,5:12,2:4)])  
-  df_true1$sbt2<-factor(df_true1$sbt2,levels=unique(df_true1$sbt2)[c(1,5:12,2:4)])
-  
-  df_index<-merge(df_index,samp_df,by.x='scn',by.y='samp_scn',all.x=TRUE)
-  df_true1<-merge(df_true1,samp_df,by.x='scn',by.y='samp_scn',all.x=TRUE)
-  df_index$scn_strata<-paste(df_index$scn,df_index$strat_var)
-  df_true1$scn_strata<-paste(df_true1$scn,df_true1$strat_var)
-  
-  #plot true and sampling index for checking
-  ggplot()+
-    geom_point(data=df_true1,aes(x=factor(year),y=index/1000,group=scn_strata,shape=dummy),color='black',position = position_dodge(width = 0.9),shape=8)+
-    geom_boxplot(data=df_index,aes(x=factor(year),y=index,color=scn_strata),position = position_dodge(width = 0.9),alpha=0.1)+
-    facet_wrap(~sbt2)+
-    theme_bw()+
-    theme()+
-    labs(color='sampling design',shape='obs',x='year',y='index (t)')#+  
-    #scale_y_continuous(limits = c(0,25000))
-  
-  #aggregate to get mean index by year/scn/sbt
-  df_index1<-aggregate(df_index$index,by=list(year=df_index$year,
-                                   scn=df_index$scn,
-                                   sbt=df_index$sbt,
-                                   sbt2=df_index$sbt2),
-                       FUN=mean)
-  
-  #loop over sbt scn and year
-  for (sbt in unique(df_index1$sbt)) {
-    for (scn in unique(df_index1$scn)) {
-      for (y in unique(df_index1$year)) {
-        
-      #sbt<-unique(df_index1$sbt)[1];scn<-unique(df_index1$scn)[1];y<-unique(df_index1$year)[1]
-        
-      #true index  
-      true_i<-df_true1[which(df_true1$sbt==sbt & df_true1$scn == scn & df_true1$year==y),'index']/1000
-      
-      #sampling index
-      samp_i<-df_index1[which(df_index1$sbt==sbt & df_index1$scn == scn & df_index1$year==y),'x']
-      
-      #true index for each 100 iterations
-      true_ii<-rep(true_i,times=100)
-      
-      #subset index for year/sbt/scn
-      samp_ii<-df_index[which(df_index$sbt==sbt & df_index$scn == scn & df_index$year==y),'index']
-      
-      #calculate RRMSE
-      rmse_i<-sqrt(mean((true_ii - samp_ii)^2))/mean(true_ii)
-      
-      #calculate PBIAS
-      pbias_i<-mean((true_ii - samp_ii) / abs(true_ii))
-      
-      #store results
-      diff_index<-rbind(diff_index,
-                        data.frame(sbt=paste0(sbt),
-                                   scn=scn,
-                                   year=y,
-                                   diff=true_i-samp_i,
-                                   rmse=rmse_i,
-                                   pbias=pbias_i))  
-      }
-    }
-  }
-  
-  #merge to get sampling scenario names
-  diff_index2<-merge(diff_index,samp_df,by.x='scn',by.y='samp_scn',all.x = TRUE)
-  
-  ###################################
-  # PLOTS
-  ###################################
-  
-  #to sort facets
-  diff_index$sbt<-factor(diff_index$sbt,
-                                      levels = paste0('SBT',1:12))
-  
-  #plot differences between true and sampling index
-  ggplot()+
-    geom_linerange(data=diff_index,aes(x=factor(year),ymin=0,ymax=diff,color=scn),position = position_dodge(width = 0.5))+
-    geom_point(data=diff_index,aes(x=factor(year),y=diff,fill=scn),position = position_dodge(width = 0.5),shape=21,color='black')+
-    geom_hline(yintercept=0,linetype='dashed')+
-    #geom_point(data=df_true1,aes(x=factor(year),y=index/1000,group=scn,shape=dummy),color='black',alpha=0.5,position = position_dodge(width = 0.9))+
-    facet_wrap(~sbt)+
-    theme_bw()+
-    theme()+
-    labs(color='sampling design',fill='sampling design',shape='model-based',x='year',y='mean difference model-design index (t)')#+  
-    #scale_y_continuous(limits = c(0,25000))
-  
-  #get sampling scenario names
-  diff_index2$scn2<-paste0(diff_index2$scn,' - ',diff_index2$strat_var)
-  
-  #merge to get sbt projection names
-  diff_index22<-merge(diff_index2,df_sbt[,c("sbt","sbt2")],by = 'sbt')
-  
-  #sort sbt facet
-  diff_index22$sbt2<-factor(diff_index22$sbt2,
-                            levels = unique(diff_index22$sbt2)[c(1,5:12,2:4)])
-  
-  #plot RRMSE by year/sbt/scn
-  ggplot()+
-    #geom_linerange(data=diff_index,aes(x=factor(year),ymin=0,ymax=rmse,color=scn),position = position_dodge(width = 0.5))+
-    geom_line(data=diff_index22,aes(x=factor(year),y=rmse,color=scn2,group=scn2))+ #,position = position_dodge(width = 0.5)
-    geom_point(data=diff_index22,aes(x=factor(year),y=rmse,fill=scn2),position = position_dodge(width = 0.5),shape=21,color='black')+
-    #geom_hline(yintercept=0,linetype='dashed')+
-    #geom_point(data=df_true1,aes(x=factor(year),y=index/1000,group=scn,shape=dummy),color='black',alpha=0.5,position = position_dodge(width = 0.9))+
-    facet_wrap(~sbt2)+
-    theme_bw()+
-    theme()+
-    labs(color='sampling design',fill='sampling design',shape='model-based',x='year',y='rmse of index')#+  
-  #scale_y_continuous(limits = c(0,25000))
-  
-  #plot PBIAS by year/sbt/scn
-  ggplot()+
-    #geom_linerange(data=diff_index,aes(x=factor(year),ymin=0,ymax=rmse,color=scn),position = position_dodge(width = 0.5))+
-    geom_line(data=diff_index22,aes(x=factor(year),y=pbias,color=scn2,group=scn2))+ #,position = position_dodge(width = 0.5)
-    geom_point(data=diff_index22,aes(x=factor(year),y=pbias,fill=scn2),position = position_dodge(width = 0.5),shape=21,color='black')+
-    geom_hline(yintercept=0,linetype='dashed')+
-    #geom_point(data=df_true1,aes(x=factor(year),y=index/1000,group=scn,shape=dummy),color='black',alpha=0.5,position = position_dodge(width = 0.9))+
-    facet_wrap(~sbt2)+
-    theme_bw()+
-    theme()+
-    labs(color='sampling design',fill='sampling design',shape='model-based',x='year',y='pbias of index')#+  
-  #scale_y_continuous(limits = c(0,25000))
-  
-  #to store index aggregated years
-  diff_index3<-data.frame(matrix(NA,nrow = 0,ncol = 3))
-  colnames(diff_index3)<-c('sbt','scn','index')
-  
-  #loop over sbt/scn to get aggregated estimates
-  for (sbt in unique(df_index1$sbt)) {
-    for (scn in unique(df_index1$scn)) {
-            
-        #sbt<-unique(df_index1$sbt)[1];scn<-unique(df_index1$scn)[1];#y<-unique(df_index1$year)[1]
-        
-        #true values
-        true_i<-df_true1[which(df_true1$sbt==sbt & df_true1$scn == scn),]#/1000
-        true_i<-true_i[order(true_i$year),'index']/1000
-        true_ii<-rep(true_i,each=100)
-        
-        #sampling values
-        samp_i<-df_index[which(df_index$sbt==sbt & df_index$scn == scn),]
-        samp_i<-samp_i[order(samp_i$year),'index']
-        
-        #RRMSE
-        rmse_i<-sqrt(mean((true_ii - samp_i)^2))/mean(true_ii)
-        
-        #PBIAS
-        pbias_i<-mean((true_ii - samp_i) / abs(true_ii))
-        
-        #store results
-        diff_index3<-rbind(diff_index3,
-                          data.frame(sbt=paste0(sbt),
-                                     scn=scn,
-                                     #year=y,
-                                     #diff=true_i-samp_i,
-                                     rmse=rmse_i,
-                                     pbias=pbias_i))  
-        
-    }
-  }
-  
-  #merge for getting sampling scenarios and sbt projections names
-  diff_index4<-merge(diff_index3,samp_df,by.x='scn',by.y='samp_scn',all.x = TRUE)
-  diff_index4$scn2<-paste0(diff_index4$scn,' - ',diff_index4$strat_var)
-  diff_index4$sbt<-factor(diff_index4$sbt,
-                         levels = paste0('SBT',1:12))
-  diff_index5<-merge(diff_index4,df_sbt[,c("sbt","sbt2")],by = 'sbt')
-  diff_index5$sbt2<-factor(diff_index5$sbt2,
-                            levels = unique(diff_index22$sbt2)[c(1,5:12,2:4)])
-  
-  #plot RRMSE annual averages by scn/sbt
-  ggplot()+
-    #geom_linerange(data=diff_index,aes(x=factor(year),ymin=0,ymax=rmse,color=scn),position = position_dodge(width = 0.5))+
-    #geom_line(data=diff_index5,aes(x=scn,y=rmse,color=scn2,group=scn2))+ #,position = position_dodge(width = 0.5)
-    geom_point(data=diff_index5,aes(x=scn,y=rmse,fill=scn2),position = position_dodge(width = 0.5),shape=21,color='black',size=3)+
-    #geom_hline(yintercept=0,linetype='dashed')+
-    #geom_point(data=df_true1,aes(x=factor(year),y=index/1000,group=scn,shape=dummy),color='black',alpha=0.5,position = position_dodge(width = 0.9))+
-    facet_wrap(~sbt2)+
-    theme_bw()+
-    theme()+
-    labs(color='sampling design',fill='sampling design',shape='model-based',x='sampling scn',y='rmse of index')#+  
-  #scale_y_continuous(limits = c(0,25000))
-  
-  
-  ggplot()+
-    #geom_linerange(data=diff_index,aes(x=factor(year),ymin=0,ymax=rmse,color=scn),position = position_dodge(width = 0.5))+
-    #geom_line(data=diff_index5,aes(x=scn,y=rmse,color=scn2,group=scn2))+ #,position = position_dodge(width = 0.5)
-    geom_boxplot(data=diff_index5,aes(x=reorder(scn,rmse,FUN=mean),y=rmse,color=scn2),position = position_dodge(width = 0.5),size=1)+
-    #geom_hline(yintercept=0,linetype='dashed')+
-    #geom_point(data=df_true1,aes(x=factor(year),y=index/1000,group=scn,shape=dummy),color='black',alpha=0.5,position = position_dodge(width = 0.9))+
-    #facet_wrap(~sbt2)+
-    theme_bw()+
-    theme()+
-    labs(color='sampling design',fill='sampling design',shape='model-based',x='sampling scn',y='rmse of index')#+  
-  #scale_y_continuous(limits = c(0,25000))
-  
-  
-  
-  #plot PBIAS annual averages by scn/sbt
-  ggplot()+
-    #geom_linerange(data=diff_index,aes(x=factor(year),ymin=0,ymax=rmse,color=scn),position = position_dodge(width = 0.5))+
-    #geom_line(data=diff_index5,aes(x=scn,y=rmse,color=scn2,group=scn2))+ #,position = position_dodge(width = 0.5)
-    geom_point(data=diff_index5,aes(x=scn,y=pbias,fill=scn2),position = position_dodge(width = 0.5),shape=21,color='black',size=3)+
-    geom_hline(yintercept=0,linetype='dashed')+
-    #geom_point(data=df_true1,aes(x=factor(year),y=index/1000,group=scn,shape=dummy),color='black',alpha=0.5,position = position_dodge(width = 0.9))+
-    facet_wrap(~sbt2)+
-    theme_bw()+
-    theme()+
-    labs(color='sampling design',fill='sampling design',shape='model-based',x='sampling scn',y='pbias')#+  
-  #scale_y_continuous(limits = c(0,25000))
-  
-}
       
