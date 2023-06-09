@@ -1,13 +1,12 @@
 ####################################################################
 ####################################################################
 ##    
-##    simulate datafrom fit object, simulate data and get design sample index
-##    get bias
+##    simulate data and survey for historical and projected years
+##    prepare estimates to compute design-based indices
 ##    danielvilasgonzalez@gmail.com/dvilasg@uw.edu
 ##
 ####################################################################
 ####################################################################
-
 
 #clear all objects
 rm(list = ls(all.names = TRUE)) 
@@ -69,14 +68,13 @@ yrs<-1982:2022
 grid_ebs<-grid.ebs_year[which(grid.ebs_year$region != 'EBSslope' & grid.ebs_year$Year %in% yrs),]
 dim(grid_ebs)
 
-#load baseline strata
+#load baseline strata and specify corner stations
 load('./output/baseline_strata.RData')
 baseline_strata$locations[grep('GF|HG|JI|IH|ON|QP|PO',baseline_strata$locations$stationid),]
 baseline_strata$locations$corner<-ifelse(grepl('GF|HG|JI|IH|ON|QP|PO',baseline_strata$locations$stationid),'TRUE','FALSE')
 
-
 ###################################
-# SAMPLING SCENARIOS from script #11 
+# Sampling designs (from script #11) 
 ###################################
 
 #sampling scenarios
@@ -99,43 +97,20 @@ for (sp in spp) {
   sp<-"Gadus macrocephalus"
   
   #load fit file
-  #getLoadedDLLs()
   load(paste0('./shelf EBS NBS VAST/',sp,'/fit.RData')) #fit
+  #getLoadedDLLs()
 
-  # Sys.time()
-  # #reload model
-   fit<-
+  #reload model
+  fit<-
      reload_model(x = fit)
-  # Sys.time()
-  
+
   #check observation and predicted densities at each obs
   data_geostat<-readRDS(paste0('./shelf EBS NBS VAST/',sp,'/data_geostat_temp.rds'))
   d_i<-fit$Report$D_i #nrow(fit$data_frame)
   length(d_i)==nrow(data_geostat)
   
-  # fit_sim <-
-  #  
-  #     fit_model(settings=fit$settings,
-  #               Lat_i=data_geostat$Lat, 
-  #               Lon_i=data_geostat$Lon,
-  #               t_i=data_geostat$Year,
-  #               b_i=data_geostat$CPUE_kg,
-  #               c_iz = as.numeric(factor(data_geostat$Species))-1,
-  #               a_i=data_geostat$Effort/100,
-  #               #input_grid=grid.ebs,
-  #               getJointPrecision = TRUE,
-  #               test_fit=FALSE,
-  #               create_strata_per_region = TRUE,  
-  #               covariate_data = fit$covariate_data, 
-  #               X1_formula =  fit$X1_formula,
-  #               X2_formula = fit$X2_formula, 
-  #               newtonsteps = 1,
-  #               Parameters=fit$ParHat,
-  #               #X_gtp = X_gtp,
-  #               working_dir = './shelf EBS NBS VAST/Gadus macrocephalus/test/')
-  
   #################
-  #get predTF
+  # get predTF (required argument to get predictions on grid when simulating data)
   #################
   
   #read data_geostat_temp file
@@ -180,15 +155,9 @@ for (sp in spp) {
   pred_TF <- rep(1, nrow(data_geostat1))
   pred_TF[1:nrow(data_geostat)] <- 0
            
-  ##################################################
-  ####   Simulate 100 iterations of historical data
-  ##################################################
-  
-  #array to store results
-  # sim_data <- array(data = NA, dim = c(fit$spatial_list$n_g,
-  #                                      length(fit$year_labels),
-  #                                      n_sim))
-  # 
+  ######################
+  # HISTORICAL DATA
+  ######################
   
   #create folder simulation data
   dir.create(paste0('./output/species/',sp,'/simulated historical data/'))
@@ -196,15 +165,12 @@ for (sp in spp) {
   #create folder simulation number
   dir.create(paste0('./output/species/',sp,'/survey simulation historical data/'))
   
-  # sim_data <- array(data = NA, dim = c(fit$spatial_list$n_g,
-  #                                      length(fit$year_labels),
-  #                                      1000))
-  # 
+  #loop over simulations
   for (isim in 1:n_sim) { #simulations
     
     #isim<-1
     
-    #print scenario to check progress
+    #print simulation to check progress
     cat(paste(" #############   Species", sp, match(sp,spp), 'out of',length(spp),  "  #############\n",
               " #############  historical simulation", isim, "of",n_sim, " #############\n"))
     
@@ -222,53 +188,16 @@ for (sp in spp) {
                                           type = 1, 
                                           random_seed = isim)
     
+    #select simulated data that belong to grid points
     sim_dens <-matrix(data = Sim1$b_i[pred_TF == 1], 
                       nrow = nrow(grid), 
                       ncol = length(unique(yrs)))
     
-    
-    #PredTF_i = 1 just excludes a given datum from being used in the joint likelihoodPredTF_i	
-    #OPTIONAL, whether each observation i is included in the likelihood, PredTF_i[i]=0, or in the predictive probability, PredTF_i[i]=1
-    
-    #append simulated densities
-    #sim_dens <- unlist(Sim1$D_gct[,1,])
-    #append simulated index   
-    #sim_ind<- unlist(Sim1$Index_ctl)
-    
-    #list of densities and index
-    #sim_data<-list(sim_dens=sim_dens,sim_ind=sim_ind)
-    
     #save data
     save(sim_dens, file = paste0("./output/species/",sp,'/simulated historical data/',sim_fold,'/sim_dens.RData'))  
     
+    #loop over sampling designs
     for (samp in unique(samp_df$samp_scn)) { #sampling designs
-      
-      #samp<-"scnbase"
-      
-      #if (!(samp %in% unique(samp_df$samp_scn))) {
-        
-        # #conditions on baseline scenarios
-        # if (samp == 'scnbase') {
-        #   points<-baseline_strata$locations
-        # } else if (samp == 'scnbase_bis') {
-        #   points<-baseline_strata$locations[which(baseline_strata$locations$corner=='FALSE'),]
-        # } 
-        
-        #to store results
-      #   sim_survey <- array(data = NA, dim = c(nrow(points),
-      #                                          length(fit$year_labels)+1, #add strata number
-      #                                          1),
-      #                       dimnames = list(c(1:nrow(points)),
-      #                                       c(fit$year_labels,'strata'),
-      #                                       1))
-      #   
-      #   #store results
-      #   sim_survey[,,1]<-cbind(sim_dens[points$cell,],points$stratum)
-      #   
-      #   #store results
-      #   save(sim_survey, file = paste0("./output/species/",sp,'/survey simulation historical data/',sim_fold,'/sim_survey_',samp,'_dynamic.RData'))  
-      #   
-      # } else {
       
       #get station locations for each sampling design
       load(file=paste0('./output/species/',sp,'/optimization data/samples_optimization_',samp,'_dynamic.RData')) #all_points
@@ -311,9 +240,9 @@ for (sp in spp) {
 rm(fit)
 rm(Sim1)
 
-##################################################
-####   Simulate 100 iterations of projected data
-##################################################
+######################
+# PROJECTED DATA
+######################
 
 #loop over spp
 for (sp in spp) {
@@ -322,9 +251,9 @@ for (sp in spp) {
   
   #create folder simulation number
   dir.create(paste0('./output/species/',sp,'/survey simulation projected data/'))
- 
   
-  for (sbt in paste0('SBT',6:12)) {
+  #loop over SBT scenarios
+  for (sbt in paste0('SBT',1:12)) {
       
     #sbt<-'SBT1'
     
@@ -333,11 +262,11 @@ for (sp in spp) {
               " #############  projected simulation", sbt, "of", 'SBT12' , " #############\n"))
   
   
-      #load sbt data
-      load(paste0('./output/species/',sp,'/simulated projected data/fit_projection_',sbt,'.RData'))
-      
-      
-      for (isim in 1:n_sim) { #simulations
+    #load sbt data
+    load(paste0('./output/species/',sp,'/simulated projected data/fit_projection_',sbt,'.RData'))
+    
+    #loop over simulations  
+    for (isim in 1:n_sim) { #simulations
         
         #isim<-1
         
@@ -349,7 +278,7 @@ for (sp in spp) {
         
         #create folder simulation number
         dir.create(paste0('./output/species/',sp,'/survey simulation projected data/',sim_fold),showWarnings = FALSE)
-        
+
         #simulated data
         sim_dens<-drop_units(unlist(pm[[isim]]$D_gct[,1,42:46]))
         sim_ind<-drop_units(unlist(pm[[isim]]$Index_ctl[,42:46,]))
@@ -364,72 +293,45 @@ for (sp in spp) {
           
           #samp<-"scn1"
           
-          # if (!(samp %in% unique(samp_df$samp_scn))) {
-          #   
-          #  
-          #   #conditions on baseline scenarios
-          #   if (samp == 'scnbase') {
-          #     points<-baseline_strata$locations
-          #   } else if (samp == 'scnbase_bis') {
-          #     points<-baseline_strata$locations[which(baseline_strata$locations$corner=='FALSE'),]
-          #   } 
-          #   
-          #   #to store results
-          #   sim_survey <- array(data = NA, dim = c(nrow(points),
-          #                                          5+1, #add strata number
-          #                                          1),
-          #                       dimnames = list(c(1:nrow(points)),
-          #                                       c(2023:2027,'strata'),
-          #                                       1))
-          #   
-          #   #store results
-          #   sim_survey[,,1]<-cbind(sim_data$sim_dens[points$cell,],points$stratum)
-          #   
-          #   save(sim_survey, file = paste0("./output/species/",sp,'/survey simulation projected data/',sim_fold,'/sim_survey_',samp,'_',sbt,'_dynamic.RData'))  
-          #   
-          # } else {
+          #get station locations for each sampling design
+          load(file=paste0('./output/species/',sp,'/optimization data/samples_optimization_',samp,'_dynamic.RData')) #all_points
             
-            #get station locations for each sampling design
-            load(file=paste0('./output/species/',sp,'/optimization data/samples_optimization_',samp,'_dynamic.RData')) #all_points
+          #to store results
+          sim_survey <- array(data = NA, dim = c(length(dimnames(all_points)[[1]]),
+                                                 5+1, #add strata number
+                                                 3),
+                              dimnames = list(dimnames(all_points)[[1]],
+                                              c(2023:2027,'strata'),
+                                              c('current','buffer','random')))
             
-            #to store results
-            sim_survey <- array(data = NA, dim = c(length(dimnames(all_points)[[1]]),
-                                                   5+1, #add strata number
-                                                   #length(dimnames(all_points)[[3]]),
-                                                   3),
-                                dimnames = list(dimnames(all_points)[[1]],
-                                                c(2023:2027,'strata'),
-                                                #dimnames(all_points)[[3]],
-                                                c('current','buffer','random')))
+          for (y in 1:length(2022:2027)) { #years
+              
+              
+            yy<-c(2022:2027)[y]
+              
+            #get points iterations
+            pointsc<-data.frame(unlist(all_points[,,y,'current']))
+            pointsb<-data.frame(unlist(all_points[,,y,'buffer']))   
+            pointsr<-data.frame(unlist(all_points[,,y,'random']))                          
+              
+              
+            #append survey densities for each iteration and simulated data
+            sim_survey[,,'current']<-cbind(sim_dens[pointsc$cell,],pointsc$strata)
+            sim_survey[,,'buffer']<-cbind(sim_dens[pointsb$cell,],pointsb$strata)
+            sim_survey[,,'random']<-cbind(sim_dens[pointsr$cell,],pointsr$strata)
             
-            for (y in 1:length(2022:2027)) { #years
+            ###extra
+            #gc()
               
-              
-              yy<-c(2022:2027)[y]
-              
-              #get points iterations
-              pointsc<-data.frame(unlist(all_points[,,y,'current']))
-              pointsb<-data.frame(unlist(all_points[,,y,'buffer']))   
-              pointsr<-data.frame(unlist(all_points[,,y,'random']))                          
-              
-              
-              #append survey densities for each iteration and simulated data
-              sim_survey[,,'current']<-cbind(sim_dens[pointsc$cell,],pointsc$strata)
-              sim_survey[,,'buffer']<-cbind(sim_dens[pointsb$cell,],pointsb$strata)
-              sim_survey[,,'random']<-cbind(sim_dens[pointsr$cell,],pointsr$strata)
-              
-              ###extra
-              gc()
-              
-            }
+          }
             
-            #store results
-            save(sim_survey, file = paste0("./output/species/",sp,'/survey simulation projected data/',sim_fold,'/sim_survey_',samp,'_',sbt,'_dynamic.RData'))  
-            gc();rm(sim_survey)
-            }
+          #store results
+          save(sim_survey, file = paste0("./output/species/",sp,'/survey simulation projected data/',sim_fold,'/sim_survey_',samp,'_',sbt,'_dynamic.RData'))  
+          gc();rm(sim_survey)
         }
       }
-      rm(pm)
+    gc();rm(pm)
+    }
   }
 #}
     
