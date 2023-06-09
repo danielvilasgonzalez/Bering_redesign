@@ -40,9 +40,6 @@ if (!('VAST' %in% installed.packages())) {
 #load/install packages
 pacman::p_load(pack_cran,character.only = TRUE)
 
-#call function distance points buffer
-#source('C:/Users/Daniel.Vilas/Work/GitHub/Bering_redesign/Scripts/genRandomPnts.R')
-
 #setwd
 out_dir<-'C:/Users/Daniel.Vilas/Work/Adapting Monitoring to a Changing Seascape/'
 setwd(out_dir)
@@ -98,10 +95,12 @@ files.1<-googledrive::drive_ls(id.bering.folder$id)
 #loop over shapefiles
 for (i in shfiles) {
   
-   #i=shfiles[1]
+  #i=shfiles[1]
   
+  #identify files
   id.data<-files.1[which(grepl(i,files.1$name)),]
   
+  #loop over files
   for (j in 1:nrow(id.data)) {
     
     #if not file, download
@@ -116,6 +115,7 @@ for (i in shfiles) {
   #shapefile EBS
   sh<-rgdal::readOGR(dsn='./shapefiles/',layer = i)
   
+  #if slope reproject
   if (i=='EBSslopeThorson') {
     
     #reproject shapefile
@@ -154,6 +154,7 @@ id.bering.folder<-files[which(files$name=='EEZ'),'id']
 #list of files and folder
 id.data<-googledrive::drive_ls(id.bering.folder$id)
 
+#loop over files
 for (j in 1:nrow(id.data)) {
   
   googledrive::drive_download(file=id.data$id[j],
@@ -179,7 +180,7 @@ proj4string(eez_sh2) <- CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +t
 eez_sh2<-spTransform(eez_sh2,CRSobj = CRS('+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs'))
 
 #####################################
-# GET Stations 
+# Get current ebs and NBS stations 
 #####################################
 
 #create directory
@@ -230,10 +231,6 @@ eez_sh33<-rgeos::gUnaryUnion(eez_sh3)
 #corner stations
 st_corners1<-st_EBS1[which(nchar(st_EBS1$stationid)>=6 & st_EBS1$stationid!='AZ0504'),]
 st_EBS2<-st_EBS1[which(nchar(st_EBS1$stationid)<=5 | st_EBS1$stationid=='AZ0504'),]
-
-#########################
-# ALL EBS+NBS points
-#########################
 
 #change projection of spatial object 
 coordinates(st_EBS)<- ~ longitude + latitude
@@ -334,25 +331,18 @@ for (sp in spp) {
   sp_sum_stats<-data.frame(matrix(nrow = 0,ncol=18))
   names(sp_sum_stats)<- c("Domain","Stratum","Population","Allocation","SamplingRate","Lower_X1","Upper_X1","Lower_X2","Upper_X2",
                            "stratum_id","wh","Wh","M1","S1","SOLUZ","samp_scn","sp")
-  
-  #df locations
-  # sp_loc<-data.frame(matrix(nrow = 0,ncol=5))
-  # names(sp_loc)<- c("Lat","Lon","Stations","samp_scn","sp")
-  
+
   #subset cells with appropiate depth
   static_df1<-subset(D6,cell %in% ok_cells)
-    
-  #create a list to store results
-  #plot_list<-list()
-    
+
   #########################
-  # RUN LOOP SAMPLING SCENARIOS
+  # sampling designs
   #########################
 
-  #loop through sampling scenarios
+  #loop through sampling designs
   for (s in 1:nrow(samp_df)) {
       
-    s<-1
+    #s<-1
       
     #print scenario to check progress
     cat(paste(" #############   Species", sp, match(sp,spp), 'out of',length(spp),  "  #############\n",
@@ -380,7 +370,7 @@ for (sp in spp) {
                         target_var_input) #target variables 
       
     ###################################
-    # SIMPLE RANDOM SAMPLING CV CONSTRAINTS
+    # Simple random sampling design CV constraints
     ###################################
       
     #Initiate CVs to be those calculated under simple random sampling (SRS)
@@ -406,26 +396,14 @@ for (sp in spp) {
     cv <- as.data.frame(cv)
       
     ###################################
-    # STRATAS
+    # Strata
     ###################################
-      
-    #get n_strata from kmean suggestion
-    # kmean<-KmeansSolution2(frame=frame,
-    #                        errors=cv,
-    #                        maxclusters = 20,
-    #                        showPlot = F)
-    # 
-    # #number strata from kmean
-    # no_strata<-tapply(kmean$suggestions,
-    #                   kmean$domainvalue,
-    #                   FUN=function(x) length(unique(x)))
-    # 
       
     #number of stratas 
     no_strata<-samp_df[s,'n_strata']
       
     ###################################
-    # RUN OPTIMIZATION
+    # Run optimization
     ###################################
       
     #run optimization
@@ -436,22 +414,18 @@ for (sp in spp) {
                             pops = 100, #100  #dimension of each generations
                             elitism_rate = 0.1, #0.1
                             mut_chance = 1 / (no_strata[1] + 1), #mutation chance
-                            nStrata = no_strata,
+                            nStrata = no_strata, #maximum strata
                             showPlot = TRUE, #FALSE
                             writeFiles = FALSE)
       
     ###################################
-    # STORE SOLUTIONS
+    # Store solutions from optimizations
     ###################################
       
     #results from optimization
     framenew<-solution$framenew
     outstrata<-solution$aggr_strata
     ss<-summaryStrata(framenew,outstrata)
-    #head(ss)
-      
-    #plot strata 2D
-    #plotStrata2d(framenew,outstrata,domain=1,vars=c('X1','X2'),labels = c('VarTemp','Depth'))
       
     #organize result outputs
     solution$aggr_strata$STRATO <- as.integer(solution$aggr_strata$STRATO)
@@ -487,7 +461,7 @@ for (sp in spp) {
     sp_sum_stats<-rbind(sp_sum_stats,sum_stats)
       
     ###################################
-    # CREATE SPATIAL OBJECT BASED ON CELLS STRATA
+    # Create spatial objects
     ###################################
 
     #strata by cell  
@@ -523,9 +497,10 @@ for (sp in spp) {
     #plot(r2)
       
     ###################################
-    # MULTIVARIATE OPTIMAL ALLOCATION
+    # Multimariate optimal allocation
     ###################################
       
+    #df for optimization
     temp_frame <- frame
     temp_frame$domainvalue <- n_dom
     srs_stats <- SamplingStrata::buildStrataDF(
@@ -538,10 +513,12 @@ for (sp in spp) {
     srs_var <- srs_stats$S1^2 * (1 - srs_n / n_cells) / srs_n
     srs_cv <- sqrt(srs_var) / srs_stats$M1
     
+    #error
     error_df <- data.frame("DOM" = "DOM1",
                            "CV1" = srs_cv,
                            "domainvalue"  = 1)
     
+    #df to run bethel algorithm
     temp_stratif <- solution$aggr_strata
     temp_stratif$N <- temp_stratif$N / n_years
     temp_stratif$DOM1 <- 1
@@ -554,7 +531,6 @@ for (sp in spp) {
       
       
     temp_n <- sum(ceiling(temp_bethel))
-      
     error_df$CV1 <- as.numeric(attributes(temp_bethel)$outcv[, "ACTUAL CV"])
       
     #run multivariate allocation
@@ -575,10 +551,15 @@ for (sp in spp) {
     #iterations for samples
     n_iter<-100
       
+    #######################
+    # allocations of samples per strata, year, sampling design
+    # this piece of code can be run through the #11A script
+    #######################
+    
     # #to store samples
     # all_points<-array(NA,
-    #                   dim = list(sum(allocations),4,length(1982:2027),2),
-    #                   dimnames = list(c(1:sum(allocations)),c('Lon','Lat','cell','strata'),1:length(1982:2027),c('current','buffer')))
+    #                   dim = list(sum(allocations$n_samples),4,length(1982:2027),3),
+    #                   dimnames = list(c(1:sum(allocations$n_samples)),c('Lon','Lat','cell','strata'),1:length(1982:2027),c('current','buffer','random')))
     # 
     # for (y in 1:length(1982:2027)) {
     #   
@@ -590,20 +571,22 @@ for (sp in spp) {
     #   #to store points
     #   dfcurrent<-data.frame(matrix(NA,nrow=0,ncol=4))
     #   colnames(dfcurrent)<-c('Lon','Lat','cell','strata')
-    #   dfbuffer<-dfcurrent
+    #   dfbuffer<-dfrandom<-dfcurrent
     #   
     #   #for while purposes
     #   flag<-TRUE
     #   
     #   #random sample for each strata wit distance constrains
-    #   for(istrata in 1:length(allocations)) {
+    #   for(n_istrata in 1:nrow(allocations)) {
     #     
-    #     #istrata<-15
+    #     #n_istrata<-10
+    #     
+    #     istrata<-allocations[n_istrata,'Strata']
     #     
     #     #subset cells for strata
     #     df<-subset(as.data.frame(D8_2),strata==istrata)
     #     df1<-subset(as.data.frame(D8_2),strata==istrata & cell %in% baseline_strata$locations$cell)
-    #     n_i<-allocations[istrata]
+    #     n_i<-allocations[n_istrata,'n_samples']
     #     
     #     #while error, keep running
     #     while(flag){
@@ -612,68 +595,78 @@ for (sp in spp) {
     #       tryCatch({
     #         
     #         #print loop state
-    #         cat(paste(" -- strata", istrata, 'of',length(allocations),  "  --\n"))
+    #         cat(paste(" -- strata", n_istrata, 'of',nrow(allocations),  " -- CURRENT  --\n"))
     #         
     #         ##############################
-    #         # CURRENT APPROACH
+    #         # CURRENT STRATIFIED APPROACH
     #         ##############################
     #         
-    #         #if more required samples than available
-    #         if (nrow(df1)<n_i) {
-    #           
-    #           #vectors to store results
-    #           dropcell<-c()
-    #           selcell<-c()
-    #           
-    #           #duplicate df strata
-    #           dff<-df
-    #           
-    #           #df removing available samples from current design
-    #           dff<-subset(dff, !(cell %in% df1$cell))
-    #           
-    #           #cells to complete the required cells
-    #           ii<-n_i-nrow(df1)
-    #           
-    #           #loop over the required samples using buffer
-    #           for (iii in rep(1,times=ii)) {
-    #             
-    #             #ii<-1
-    #             
-    #             #get random cell
-    #             cell_i<-sample(dff$cell,iii)
-    #             #get row
-    #             #row<-dff[which(dff$cell==cell_i),c('row','col')][1,1] 
-    #             row<-dff[which(dff$cell %in% c(cell_i,df1$cell)),c('row','col')][1,1]
-    #             #get col
-    #             #col<-dff[which(dff$cell==cell_i),c('row','col')][1,2] 
-    #             col<-dff[which(dff$cell %in% c(cell_i,df1$cell)),c('row','col')][1,2]
-    #             #get adjacent cells
-    #             adj_cells<-expand.grid(row=c(row,row+(1:200),row-(1:200)),
-    #                                    col=c(col,col+(1:200),col-(1:200)))
-    #             adj_cells1<-merge(adj_cells,df,by=c('row', 'col'))[,'cell']
-    #             #remove cells from available for sampling
-    #             dropcell_i<-c(cell_i,adj_cells1)
-    #             
-    #             #if no more samples available to sample stop
-    #             if (nrow(subset(dff, !(cell %in% dropcell_i)))==0) {flag<-TRUE; stop("-- no samples to select on current approach",call. = FALSE)}else {
-    #               dff<-subset(dff, !(cell %in% dropcell_i))
-    #               selcell<-c(selcell,cell_i)
-    #               dropcell<-c(dropcell,dropcell_i)}
-    #           }
-    #           
-    #           #subset points if equal to required number of samples, if not ERROR and rerun iteration
-    #           if (nrow(subset(df,cell %in% c(selcell,df1$cell))) != n_i) {flag<-TRUE; stop("-- different number of points on current approach",call. = FALSE)}else{
-    #             pointsc<-subset(df,cell %in% c(selcell,df1$cell))[,c('Lon','Lat','cell','strata')]
-    #             names(pointsc)<-c('Lon','Lat','cell','strata')}
-    #           
-    #           #else there are enough samples to get from the current sampling design    
+    #         if(samp_df[s,'samp_scn']=='scnbase'){
+    #           pointsc<-baseline_strata$locations[which(baseline_strata$locations$stratum==istrata),c('longitude','latitude','cell','stratum')]
+    #           names(pointsc)<-c('Lon' ,'Lat', 'cell','strata')
+    #         }else if (samp_df[s,'samp_scn']=='scnbase_bis'){
+    #           pointsc<-baseline_strata$locations[which(baseline_strata$locations$corner==FALSE & baseline_strata$locations$stratum==istrata),c('longitude','latitude','cell','stratum')]
+    #           names(pointsc)<-c('Lon' ,'Lat',  'cell','strata')
     #         } else {
-    #           ss<-sample(1:nrow(df1),size = allocations[istrata],replace = FALSE)
-    #           pointsc<-df1[ss,c('Lon','Lat','cell','strata')]}
+    #           
+    #           #if more required samples than available
+    #           if (nrow(df1)<n_i) {
+    #             
+    #             #vectors to store results
+    #             dropcell<-c()
+    #             selcell<-c()
+    #             
+    #             #duplicate df strata
+    #             dff<-df
+    #             
+    #             #df removing available samples from current design
+    #             dff<-subset(dff, !(cell %in% df1$cell))
+    #             
+    #             #cells to complete the required cells
+    #             ii<-n_i-nrow(df1)
+    #             
+    #             #loop over the required samples using buffer
+    #             for (iii in rep(1,times=ii)) {
+    #               
+    #               #ii<-1
+    #               
+    #               #get random cell
+    #               cell_i<-sample(dff$cell,iii)
+    #               #get row
+    #               #row<-dff[which(dff$cell==cell_i),c('row','col')][1,1] 
+    #               row<-dff[which(dff$cell %in% c(cell_i,df1$cell)),c('row','col')][1,1]
+    #               #get col
+    #               #col<-dff[which(dff$cell==cell_i),c('row','col')][1,2] 
+    #               col<-dff[which(dff$cell %in% c(cell_i,df1$cell)),c('row','col')][1,2]
+    #               #get adjacent cells
+    #               adj_cells<-expand.grid(row=c(row,row+(1:100),row-(1:100)),
+    #                                      col=c(col,col+(1:100),col-(1:100)))
+    #               adj_cells1<-merge(adj_cells,df,by=c('row', 'col'))[,'cell']
+    #               #remove cells from available for sampling
+    #               dropcell_i<-c(cell_i,adj_cells1)
+    #               
+    #               #if no more samples available to sample stop
+    #               if (nrow(subset(dff, !(cell %in% dropcell_i)))==0) {flag<-TRUE; stop("-- no samples to select on current approach",call. = FALSE)}else {
+    #                 dff<-subset(dff, !(cell %in% dropcell_i))
+    #                 selcell<-c(selcell,cell_i)
+    #                 dropcell<-c(dropcell,dropcell_i)}
+    #             }
+    #             
+    #             #subset points if equal to required number of samples, if not ERROR and rerun iteration
+    #             if (nrow(subset(df,cell %in% c(selcell,df1$cell))) != n_i) {flag<-TRUE; stop("-- different number of points on current approach",call. = FALSE)}else{
+    #               pointsc<-subset(df,cell %in% c(selcell,df1$cell))[,c('Lon','Lat','cell','strata')]
+    #               names(pointsc)<-c('Lon','Lat','cell','strata')}
+    #             
+    #             #else there are enough samples to get from the current sampling design    
+    #           } else {
+    #             ss<-sample(1:nrow(df1),size = n_i,replace = FALSE)
+    #             pointsc<-df1[ss,c('Lon','Lat','cell','strata')]}}
     #         
     #         ##############################
-    #         # BUFFER APPROACH
+    #         # STRATIFIED + BUFFER APPROACH
     #         ##############################
+    #         
+    #         cat(paste(" -- strata", n_istrata, 'of',nrow(allocations),  " -- BUFFER  --\n"))
     #         
     #         #replicate df of strata     
     #         dff<-df
@@ -694,8 +687,8 @@ for (sp in spp) {
     #           #get col of selected sample
     #           col<-dff[which(dff$cell==cell_i),c('row','col')][1,2]
     #           #get adjacent cells of selected sample
-    #           adj_cells<-expand.grid(row=c(row,row+(1:200),row-(1:200)),
-    #                                  col=c(col,col+(1:200),col-(1:200)))
+    #           adj_cells<-expand.grid(row=c(row,row+(1:100),row-(1:100)),
+    #                                  col=c(col,col+(1:100),col-(1:100)))
     #           adj_cells1<-merge(adj_cells,df,by=c('row', 'col'))[,'cell']
     #           #drop cells is equal to selected cell and adjacent cells
     #           dropcell_i<-c(cell_i,adj_cells1)
@@ -713,10 +706,25 @@ for (sp in spp) {
     #           pointsb<-subset(df,cell %in% selcell)[,c('Lon','Lat','cell','strata')]
     #           names(pointsb)<-c('Lon','Lat','cell','strata')}
     #         
+    #         ##############################
+    #         # STRATIFIED RANDOM APPROACH
+    #         ##############################
+    #         
+    #         cat(paste(" -- strata", n_istrata, 'of',nrow(allocations),  " -- RANDOM  --\n"))
+    #         
+    #         #duplicate df strata
+    #         dff<-df
+    #         
+    #         #random selection of samples
+    #         selcell<-sample(dff$cell,n_i)
+    #         pointsr<-subset(df,cell %in% selcell)[,c('Lon','Lat','cell','strata')]
+    #         names(pointsr)<-c('Lon','Lat','cell','strata')
+    #         
     #         #append data if buffer and current df have equal to required number of samples
-    #         if (nrow(pointsc) == n_i & nrow(pointsb) == n_i) {
+    #         if (nrow(pointsc) == n_i & nrow(pointsb) == n_i & nrow(pointsr) == n_i) {
     #           dfcurrent<-rbind(dfcurrent,pointsc)
     #           dfbuffer<-rbind(dfbuffer,pointsb)
+    #           dfrandom<-rbind(dfrandom,pointsr)
     #           flag<-FALSE}
     #       },
     #       
@@ -733,11 +741,12 @@ for (sp in spp) {
     #   #append points
     #   all_points[,,y,'current']<-unlist(dfcurrent)
     #   all_points[,,y,'buffer']<-unlist(dfbuffer)
+    #   all_points[,,y,'random']<-unlist(dfrandom)
     # }
     # 
     # #save sample selection
     # save(all_points,file=paste0('./output/species/',sp,'/optimization data/samples_optimization_',samp_df[s,'samp_scn'],'_dynamic.RData'))
-    # 
+  
   
       #save list results por SBTscn and Sampscn
       result_list <- list(solution = solution,
