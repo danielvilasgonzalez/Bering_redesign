@@ -142,7 +142,7 @@ df_sbt$sbt2<-paste0(df_sbt$sbt,'_',df_sbt$Scenario)
                         labels = c('baseline','baseline w/o corner','depth','var temp','depth + var temp'),name='sampling design')+
      theme_bw()+
      scale_linetype_manual(values = c('current'='solid',
-                                      'buffer'='dashed',
+                                      #'buffer'='dashed',
                                       'random'='dotted'))+
      scale_y_continuous(expand = c(0,0))+
      theme(axis.text.x = element_text(angle=90,vjust=0.5),panel.grid.minor = element_line(linetype=2,color='grey'))+ 
@@ -191,7 +191,7 @@ df_sbt$sbt2<-paste0(df_sbt$sbt,'_',df_sbt$Scenario)
      #                    labels = c('baseline','baseline w/o corner','depth','var temp','depth + var temp'),name='sampling design')+
      theme_bw()+
      scale_linetype_manual(values = c('current'='solid',
-                                      'buffer'='dashed',
+                                      #'buffer'='dashed',
                                       'random'='dotted'))+
      scale_y_continuous(expand = c(0,0),limits=c(0,0.11))+
      theme(axis.text.x = element_text(angle=90,vjust=0.5),panel.grid.minor = element_line(linetype=2,color='grey'))+ 
@@ -208,8 +208,8 @@ df_sbt$sbt2<-paste0(df_sbt$sbt,'_',df_sbt$Scenario)
   #sort and corrections for plotting purposes
   df1$scn<-factor(df1$scn,levels=c('scnbase','scnbase_bis',paste0('scn',3:1)))
   df1$strat_var<-gsub('_','\n',df1$strat_var)
-  df1$strat_var<-factor(df1$strat_var,levels=c('baseline','baseline\nbis','Depth','varTemp','Depth\nvarTemp'))
-  df1$approach<-factor(df1$approach,levels=c('current','buffer','random'))
+  df1$strat_var<-factor(df1$strat_var,levels=c('baseline','baseline w/o corner','Depth','varTemp','Depth\nvarTemp'))
+  df1$approach<-factor(df1$approach,levels=c('current','random'))
     
   #plot
   p<-
@@ -219,12 +219,13 @@ df_sbt$sbt2<-paste0(df_sbt$sbt,'_',df_sbt$Scenario)
      theme_bw()+
      theme(panel.grid.minor = element_line(linetype=2,color='grey'))+
      expand_limits(y = 0)+
-     scale_fill_manual(values=c('scn1'='#4e79a7','scn2'='#59a14f','scn3'='#edc948','scnbase'='#79706E','scnbase_bis'='#e15759'),
-                       labels = c('baseline','baseline w/o corner','depth','var temp','depth + var temp'),name='sampling design')+
-     scale_x_discrete(#expand=c(0.1,0.01),
-                      labels=c('baseline','baseline w/o corner','depth','var temp','depth + var temp'))+
+      scale_fill_manual(values=c('scn1'='#4e79a7','scn2'='#59a14f','scn3'='#edc948','scnbase'='#79706E','scnbase_bis'='#e15759'),
+                        breaks = c('scnbase','scnbase_bis',paste0('scn',3:1)),
+                        labels = c('baseline','baseline w/o corner','depth','var temp','depth + var temp'),name='sampling design')+
+      scale_x_discrete(#expand=c(0.1,0.01),
+                       labels=c('baseline','baseline w/o corner','depth','var temp','depth + var temp'))+
      scale_linetype_manual(values = c('current'='solid',
-                                      'buffer'='dashed',
+                                      #'buffer'='dashed',
                                       'random'='dotted'))+
      scale_y_continuous(expand = c(0,0),limits=c(0,0.12))
     
@@ -278,7 +279,7 @@ df_sbt$sbt2<-paste0(df_sbt$sbt,'_',df_sbt$Scenario)
     #scn<-unique(ind_sim1$scn)[1]
       
       #loop over approaches to allocate samples
-      for (apr in c('buffer','current','random')) {
+      for (apr in c('current','random')) {
         
       #ss<-'current'
       
@@ -305,7 +306,7 @@ df_sbt$sbt2<-paste0(df_sbt$sbt,'_',df_sbt$Scenario)
   #merge to get sampling scenarios data
   df1<-merge(df,samp_df,by.x='scn',by.y='samp_scn',all.x=TRUE)
   df1$scn<-factor(df1$scn,levels=c('scnbase','scnbase_bis',paste0('scn',3:1)))
-  df1$approach<-factor(df1$approach,levels=c('current','buffer','random'))
+  df1$approach<-factor(df1$approach,levels=c('current','random'))
   
   #plot
   p<-
@@ -316,7 +317,7 @@ df_sbt$sbt2<-paste0(df_sbt$sbt,'_',df_sbt$Scenario)
      theme(panel.grid.minor = element_line(linetype=2,color='grey'))+
      expand_limits(y = 0)+
      scale_linetype_manual(values = c('current'='solid',
-                                      'buffer'='dashed',
+                                      #'buffer'='dashed',
                                       'random'='dotted'))+
      scale_fill_manual(values=c('scn1'='#4e79a7','scn2'='#59a14f','scn3'='#edc948','scnbase'='#79706E','scnbase_bis'='#e15759'),
                        labels = c('baseline','baseline w/o corner','depth','var temp','depth + var temp'),name='sampling design')+
@@ -395,7 +396,7 @@ df_sbt$sbt2<-paste0(df_sbt$sbt,'_',df_sbt$Scenario)
                         values=c('scn1'='#4e79a7','scn2'='#59a14f','scn3'='#edc948','scnbase'='#79706E','scnbase_bis'='#e15759'),
                         name='sampling design')+ #labels = c('baseline','baseline w/o corner','depth','var temp','depth + var temp'),
      scale_linetype_manual(values = c('current'='solid',
-                                      'buffer'='dashed',
+                                      #'buffer'='dashed',
                                       'random'='dotted'))+
      expand_limits(y = 0)+
      scale_y_continuous(expand = c(0.01,0.01))+
@@ -452,7 +453,7 @@ df_sbt$sbt2<-paste0(df_sbt$sbt,'_',df_sbt$Scenario)
                         values=c('scn1'='#4e79a7','scn2'='#59a14f','scn3'='#edc948','scnbase'='#79706E','scnbase_bis'='#e15759'),
                         name='sampling design')+ #labels = c('baseline','baseline w/o corner','depth','var temp','depth + var temp'),
      scale_linetype_manual(values = c('current'='solid',
-                                      'buffer'='dashed',
+                                      #'buffer'='dashed',
                                       'random'='dotted'))+
      expand_limits(y = 0)+
      scale_y_continuous(expand = c(0,0.01))+
@@ -476,7 +477,7 @@ df_sbt$sbt2<-paste0(df_sbt$sbt,'_',df_sbt$Scenario)
                        values=c('scn1'='#4e79a7','scn2'='#59a14f','scn3'='#edc948','scnbase'='#79706E','scnbase_bis'='#e15759'),
                        name='sampling design')+ #labels = c('baseline','baseline w/o corner','depth','var temp','depth + var temp'),
      scale_linetype_manual(values = c('current'='solid',
-                                      'buffer'='dashed',
+                                      #'buffer'='dashed',
                                       'random'='dotted'))+
      expand_limits(y = 0)+
      scale_y_continuous(expand = c(0.001,0.001))+
@@ -501,7 +502,7 @@ df_sbt$sbt2<-paste0(df_sbt$sbt,'_',df_sbt$Scenario)
                       values=c('scn1'='#4e79a7','scn2'='#59a14f','scn3'='#edc948','scnbase'='#79706E','scnbase_bis'='#e15759'),
                       name='sampling design')+ #labels = c('baseline','baseline w/o corner','depth','var temp','depth + var temp'),
     scale_linetype_manual(values = c('current'='solid',
-                                     'buffer'='dashed',
+                                     #'buffer'='dashed',
                                      'random'='dotted'))+
     expand_limits(y = 0)+
     scale_y_continuous(expand = c(0.001,0.001))+
@@ -559,7 +560,7 @@ df_sbt$sbt2<-paste0(df_sbt$sbt,'_',df_sbt$Scenario)
     #loop over sampling scenarios
     for (scn in unique(ind_sim1$scn)) {
       
-      for (apr in c('current','buffer','random')) {
+      for (apr in c('current','random')) {
         
         #scn<-unique(ind_sim1$scn)[1]
         #ss<-'current'
@@ -586,7 +587,7 @@ df_sbt$sbt2<-paste0(df_sbt$sbt,'_',df_sbt$Scenario)
  #merge to get names and sort for plotting pruposes
  df1<-merge(df,samp_df,by.x='scn',by.y='samp_scn',all.x=TRUE)
  df1$scn<-factor(df1$scn,levels=c('scnbase','scnbase_bis',paste0('scn',3:1)))
- df1$approach<-factor(df1$approach,levels=c('current','buffer','random'))
+ df1$approach<-factor(df1$approach,levels=c('current','random'))
  df2<-df1[which(df1$sbt %in% paste0('SBT',c(1,3:5,7,9,11,12))),]
   
   
@@ -599,7 +600,7 @@ df_sbt$sbt2<-paste0(df_sbt$sbt,'_',df_sbt$Scenario)
    theme(panel.grid.minor = element_line(linetype=2,color='grey'))+#,
    expand_limits(y = 0)+
    scale_linetype_manual(values = c('current'='solid',
-                                    'buffer'='dashed',
+                                    #'buffer'='dashed',
                                     'random'='dotted'))+
    scale_fill_manual(values=c('scn1'='#4e79a7','scn2'='#59a14f','scn3'='#edc948','scnbase'='#79706E','scnbase_bis'='#e15759'),
                      labels = c('baseline','baseline w/o corner','depth','var temp','depth + var temp'),name='sampling design')+

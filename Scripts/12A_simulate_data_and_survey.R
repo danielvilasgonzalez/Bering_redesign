@@ -206,11 +206,11 @@ for (sp in spp) {
       sim_survey <- array(data = NA, dim = c(length(dimnames(all_points)[[1]]),
                                              length(fit$year_labels)+1, #add strata number
                                              #length(dimnames(all_points)[[3]]),
-                                             3),
+                                             2),
                           dimnames = list(dimnames(all_points)[[1]],
                                           c(fit$year_labels,'strata'),
                                           #dimnames(all_points)[[3]],
-                                          c('current','buffer','random')))
+                                          c('current','random')))
       
       for (y in 1:length(1982:2022)) { #years
         
@@ -220,12 +220,12 @@ for (sp in spp) {
         
         #get points iterations
         pointsc<-data.frame(unlist(all_points[,,y,'current']))
-        pointsb<-data.frame(unlist(all_points[,,y,'buffer']))                          
+        #pointsb<-data.frame(unlist(all_points[,,y,'buffer']))                          
         pointsr<-data.frame(unlist(all_points[,,y,'random']))   
         
         #append survey densities for each iteration and simulated data
         sim_survey[,,'current']<-cbind(sim_dens[pointsc$cell,],pointsc$strata)
-        sim_survey[,,'buffer']<-cbind(sim_dens[pointsb$cell,],pointsb$strata)
+        #sim_survey[,,'buffer']<-cbind(sim_dens[pointsb$cell,],pointsb$strata)
         sim_survey[,,'random']<-cbind(sim_dens[pointsr$cell,],pointsr$strata)
         
       }
@@ -299,10 +299,10 @@ for (sp in spp) {
           #to store results
           sim_survey <- array(data = NA, dim = c(length(dimnames(all_points)[[1]]),
                                                  5+1, #add strata number
-                                                 3),
+                                                 2),
                               dimnames = list(dimnames(all_points)[[1]],
                                               c(2023:2027,'strata'),
-                                              c('current','buffer','random')))
+                                              c('current','random')))
             
           for (y in 1:length(2022:2027)) { #years
               
@@ -311,13 +311,13 @@ for (sp in spp) {
               
             #get points iterations
             pointsc<-data.frame(unlist(all_points[,,y,'current']))
-            pointsb<-data.frame(unlist(all_points[,,y,'buffer']))   
+            #pointsb<-data.frame(unlist(all_points[,,y,'buffer']))   
             pointsr<-data.frame(unlist(all_points[,,y,'random']))                          
               
               
             #append survey densities for each iteration and simulated data
             sim_survey[,,'current']<-cbind(sim_dens[pointsc$cell,],pointsc$strata)
-            sim_survey[,,'buffer']<-cbind(sim_dens[pointsb$cell,],pointsb$strata)
+            #sim_survey[,,'buffer']<-cbind(sim_dens[pointsb$cell,],pointsb$strata)
             sim_survey[,,'random']<-cbind(sim_dens[pointsr$cell,],pointsr$strata)
             
             ###extra

@@ -91,8 +91,8 @@ for (sp in spp) {
 
   #array to store
   index_hist<-array(NA,
-                     dim=list(4,41,3,length(ld),length(lf2)),
-                     dimnames=list(c('STRS_mean','STRS_var','cv','index'),paste0('y',1982:2022),c('current','buffer','random'),ld,lf2))
+                     dim=list(4,41,2,length(ld),length(lf2)),
+                     dimnames=list(c('STRS_mean','STRS_var','cv','index'),paste0('y',1982:2022),c('current','random'),ld,lf2))
   
   
   #loop over simulation (n_sim=100)
@@ -240,8 +240,8 @@ for (sp in spp) {
 
   #array to store
   index_proj<-array(NA,
-                    dim=list(4,5,3,length(ld),length(lf2),length(paste0('SBT',1:12))),
-                    dimnames=list(c('STRS_mean','STRS_var','cv','index'),paste0('y',2023:2027),c('current','buffer','random'),ld,lf2,paste0('SBT',1:12)))
+                    dim=list(4,5,2,length(ld),length(lf2),length(paste0('SBT',1:12))),
+                    dimnames=list(c('STRS_mean','STRS_var','cv','index'),paste0('y',2023:2027),c('current','random'),ld,lf2,paste0('SBT',1:12)))
   
   #loop over simulation
   for (sim in ld) {
