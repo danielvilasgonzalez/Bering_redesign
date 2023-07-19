@@ -98,16 +98,19 @@ for (sp in spp) {
   
   #load fit file
   load(paste0('./shelf EBS NBS VAST/',sp,'/fit.RData')) #fit
-  #getLoadedDLLs()
+  #getLoadedDLLs() #if check loaded DLLs
 
   #reload model
   fit<-
      reload_model(x = fit)
 
   #check observation and predicted densities at each obs
+  #observations
   data_geostat<-readRDS(paste0('./shelf EBS NBS VAST/',sp,'/data_geostat_temp.rds'))
-  d_i<-fit$Report$D_i #nrow(fit$data_frame)
-  length(d_i)==nrow(data_geostat)
+  
+  #predictions
+  #d_i<-fit$Report$D_i #nrow(fit$data_frame)
+  #length(d_i)==nrow(data_geostat)
   
   #################
   # get predTF (required argument to get predictions on grid when simulating data)
@@ -168,7 +171,7 @@ for (sp in spp) {
   #loop over simulations
   for (isim in 1:n_sim) { #simulations
     
-    #isim<-1
+    isim<-1
     
     #print simulation to check progress
     cat(paste(" #############   Species", sp, match(sp,spp), 'out of',length(spp),  "  #############\n",
@@ -183,18 +186,30 @@ for (sp in spp) {
     #create folder simulation number
     dir.create(paste0('./output/species/',sp,'/simulated historical data/',sim_fold))
     
-    #simulate data from OM
-    Sim1 <- FishStatsUtils::simulate_data(fit = fit, 
-                                          type = 1, 
-                                          random_seed = isim)
-    
-    #select simulated data that belong to grid points
-    sim_dens <-matrix(data = Sim1$b_i[pred_TF == 1], 
-                      nrow = nrow(grid), 
-                      ncol = length(unique(yrs)))
+    # #simulate data from OM
+     Sim1 <- FishStatsUtils::simulate_data(fit = fit, #kg/km2
+                                           type = 1, 
+                                           random_seed = isim)
+     
+    # #select simulated data that belong to grid points
+     sim_bio <-matrix(data = Sim1$b_i[pred_TF == 1], 
+                       nrow = nrow(grid), 
+                       ncol = length(unique(yrs)))
+     
+     
+     #biomass to CPUE
+     sim_dens<-sim_bio/grid$Area_in_survey_km2 
     
     #save data
-    save(sim_dens, file = paste0("./output/species/",sp,'/simulated historical data/',sim_fold,'/sim_dens.RData'))  
+    save(sim_dens, file = paste0("./output/species/",sp,'/simulated historical data/',sim_fold,'/sim_dens.RData')) 
+    #load(file = paste0("./output/species/Gadus macrocephalus//simulated historical data/0001//sim_dens.RData"))  
+    
+    #checking units ---- kg/km2
+    # x<-readRDS('./data processed/species/Gadus macrocephalus/data_geostat_temp.rds') #kg/km2
+    # summary(x$cpue_kgkm2)
+    # sim_dens1<-reshape2::melt(sim_dens/grid$Area_in_survey_km2)
+    # summary(sim_dens/grid$Area_in_survey_km2)
+    # summary(sim_dens1$value)
     
     #loop over sampling designs
     for (samp in unique(samp_df$samp_scn)) { #sampling designs
