@@ -53,6 +53,9 @@ spp<-c('Limanda aspera',
        'Paralithodes platypus',
        'Paralithodes camtschaticus')
 
+#years
+n_years<-length(c(1982:2022))
+
 #load grid of NBS and EBS
 load('./extrapolation grids/northern_bering_sea_grid.rda')
 load('./extrapolation grids/eastern_bering_sea_grid.rda')
@@ -103,9 +106,8 @@ for (sp in spp) {
     #loop over sampling designs
     for (samp in lf2) {
       
-       #samp<-lf2[1]
-       #samp<-lf2[1]
-      
+      #samp<-lf2[4]
+       
       #print scenario to check progress
       cat(paste(" #############  ", sim, " #############\n",
                 " #############  ", samp, " #############\n"))
@@ -166,40 +168,44 @@ for (sp in spp) {
       #loop over approaches  
       for (apr in dimnames(sim_survey)[[3]]) {
         
-        #get strata mean over year  
+        #apr<-dimnames(sim_survey)[[3]][1]
+        
+        #get strata mean density over year  
         dens<-unlist(sim_survey[,,apr])
         y<-data.frame(dens)
+        rowMeans(y[,-ncol(y)])
         yy<-reshape2::melt(y,id.vars=c('strata'))
+        #yy$value<-yy$value/1000 #t/km²
         
-        #mean by strata and year (variable)
+        #mean, sum and var by strata and year (variable)
         yyy<-aggregate(x=yy$value,
                        by=list(strata=yy$strata,year=yy$variable),
-                       FUN = function(x) c(mean = mean(x,na.rm=T), var = var(x,na.rm=T) ))
+                       FUN = function(x) c('mean' = mean(x,na.rm=T), 'sum' = sum(x),'var' = var(x,na.rm=T) ))
         
-        #rename and dataframe
-        yyy$year<-gsub('X','',yyy$year) 
-        yyyy<-do.call(data.frame, yyy)
-        names(yyyy)<-c('strata','year','mean','var')
-          
-        #merge weight and strata
-        yyyyy<-merge(yyyy,survey_detail[,c("Stratum","Wh")],by.x='strata',by.y='Stratum',all.x=TRUE)
-        yyyyy<-merge(yyyyy,strata_areas,by.x='strata',by.y='X1',all.x=TRUE)
-        yyyyyy<-merge(yyyyy,data.frame('strata'=unique(survey_detail$Stratum),'v'=with(survey_detail, Wh^2 * (1 - wh) / nh)),by='strata',all.x=TRUE)
-          
-        #get average mean
-        yyyyyy$mean_w<-yyyyyy$mean*yyyyyy$Wh
-        yyyyyy$index<-yyyyyy$mean*yyyyyy$Area_in_survey_km2
-        yyyyyy$var_w<-yyyyyy$var*yyyyyy$v
-          
-        #area by strata
-        yyyyyyy <- aggregate(yyyyyy[,c('mean_w','var_w','index')], by= list(yyyyyy$year) , 
+        yyy$x[,c('mean')] #strata_mean
+        yyy$x[,c('var')]/length(yy$value) #strata var
+        
+        #create df
+        zzz<-data.frame('strata'=yyy$strata,'year'=yyy$year,'mean'=yyy$x[,c('mean')],'var'=yyy$x[,c('var')]) #/length(yy$value)
+        zzzz<-merge(zzz,strata_areas,by.x='strata',by.y='X1',all.x=TRUE)
+        zzzz<-merge(zzzz,survey_detail,by.x='strata',by.y='Stratum',all.x=TRUE)
+        #add index strata for sum to compute index (mean strata density * area of strata) t!
+        zzzz$index_strata<-zzzz$mean*zzzz$Area_in_survey_km2
+        #add strata var 
+        zzzz$strs_var<-zzzz$var*(zzzz$Area_in_survey_km2^2)/zzzz$nh #sum(survey_detail$Nh) 
+        #sum of strata var and mean density across years (kg/km2)
+        zzzz1 <- aggregate(zzzz[,c('strs_var','index_strata')], by= list(zzzz$year) , 
                              FUN = sum)
-          
+        #get CV across years
+        zzzz1$cv<- sqrt(zzzz1$strs_var) / zzzz1$index_strata
+        #mean CV 
+        mean(zzzz1$cv)
+    
         #get outputs
-        STRS_mean <- yyyyyyy$mean_w
-        STRS_var <- yyyyyyy$var_w
+        STRS_mean <- zzzz1$index_strata
+        STRS_var <- zzzz1$strs_var
         CV <- sqrt(STRS_var) / STRS_mean
-        index<- yyyyyyy$index/1000
+        index<- zzzz1$index
           
         index_hist['STRS_mean',,apr,sim,samp]<-STRS_mean
         index_hist['STRS_var',,apr,sim,samp]<-STRS_var
@@ -319,46 +325,50 @@ for (sp in spp) {
         #loop over approaches
         for (apr in dimnames(sim_survey)[[3]]) {
         
+          #apr<-dimnames(sim_survey)[[3]][1]
+          
           #get strata mean over year  
           dens<-unlist(sim_survey[,,apr])
           y<-data.frame(dens)
           yy<-reshape2::melt(y,id.vars=c('strata'))
+          #yy$value<-yy$value/1000 #t/km²
           
-          #mean
+          #mean, sum and var by strata and year (variable)
           yyy<-aggregate(x=yy$value,
                          by=list(strata=yy$strata,year=yy$variable),
-                         FUN = function(x) c(mean = mean(x,na.rm=T), var = var(x,na.rm=T) ))
+                         FUN = function(x) c(mean = mean(x,na.rm=T), sum = sum(x),var = var(x,na.rm=T) ))
             
-          #rename and dataframe
-          yyy$year<-gsub('X','',yyy$year) 
-          yyyy<-do.call(data.frame, yyy)
-          names(yyyy)<-c('strata','year','mean','var')
-            
-          #merge weight and strata
-          yyyyy<-merge(yyyy,survey_detail[,c("Stratum","Wh")],by.x='strata',by.y='Stratum',all.x=TRUE)
-          yyyyy<-merge(yyyyy,strata_areas,by.x='strata',by.y='X1',all.x=TRUE)
-          yyyyyy<-merge(yyyyy,data.frame('strata'=unique(survey_detail$Stratum),'v'=with(survey_detail, Wh^2 * (1 - wh) / nh)),by='strata',all.x=TRUE)
-            
-          #get average mean
-          yyyyyy$mean_w<-yyyyyy$mean*yyyyyy$Wh
-          yyyyyy$index<-yyyyyy$mean*yyyyyy$Area_in_survey_km2
-          yyyyyy$var_w<-yyyyyy$var*yyyyyy$v
           
-          #area by strata
-          yyyyyyy <- aggregate(yyyyyy[,c('mean_w','var_w','index')], by= list(yyyyyy$year) , 
-                               FUN = sum)
-            
-          #get outputs
-          STRS_mean <- yyyyyyy$mean_w
-          STRS_var <- yyyyyyy$var_w
-          CV <- sqrt(STRS_var) / STRS_mean
-          index<- yyyyyyy$index/1000
+           yyy$x[,c('mean')] #strata_mean
+           yyy$x[,c('var')]/length(yy$value) #strata var
+           
+           #create df
+           zzz<-data.frame('strata'=yyy$strata,'year'=yyy$year,'mean'=yyy$x[,c('mean')],'var'=yyy$x[,c('var')]) #/length(yy$value)
+           zzzz<-merge(zzz,strata_areas,by.x='strata',by.y='X1',all.x=TRUE)
+           zzzz<-merge(zzzz,survey_detail,by.x='strata',by.y='Stratum',all.x=TRUE)
+           #add index strata for sum to compute index (mean strata density * area of strata) kg!
+           zzzz$index_strata<-zzzz$mean*zzzz$Area_in_survey_km2
+           #add strata var 
+           zzzz$strs_var<-zzzz$var*(zzzz$Area_in_survey_km2^2)/zzzz$nh #sum(survey_detail$Nh) 
+           #sum of strata var and mean density across years (kg/km2)
+           zzzz1 <- aggregate(zzzz[,c('strs_var','index_strata')], by= list(zzzz$year) , 
+                              FUN = sum)
+           #get CV across years
+           zzzz1$cv<- sqrt(zzzz1$strs_var) / zzzz1$index_strata
+           #mean CV 
+           mean(zzzz1$cv)
           
-          #append results
-          index_proj['STRS_mean',,apr,sim,samp,sbt]<-STRS_mean
-          index_proj['STRS_var',,apr,sim,samp,sbt]<-STRS_var
-          index_proj['cv',,apr,sim,samp,sbt]<-CV
-          index_proj['index',,apr,sim,samp,sbt]<-index
+           #get outputs
+           STRS_mean <- zzzz1$index_strata
+           STRS_var <- zzzz1$strs_var
+           CV <- sqrt(STRS_var) / STRS_mean
+           index<- zzzz1$index
+           
+           #append results
+           index_proj['STRS_mean',,apr,sim,samp,sbt]<-STRS_mean
+           index_proj['STRS_var',,apr,sim,samp,sbt]<-STRS_var
+           index_proj['cv',,apr,sim,samp,sbt]<-CV
+           index_proj['index',,apr,sim,samp,sbt]<-index
            
         }  
       }
