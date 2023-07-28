@@ -1,7 +1,7 @@
 ####################################################################
 ####################################################################
 ##
-##    Project model example
+##    Project OM for each sp under multiple SBT conditions
 ##    Daniel Vilas (danielvilasgonzalez@gmail.com/dvilasg@uw.edu)
 ##
 ####################################################################
@@ -134,10 +134,6 @@ load('./extrapolation grids/eastern_bering_sea_grid.rda')
 grid<-as.data.frame(rbind(data.frame(northern_bering_sea_grid,region='NBS'),data.frame(eastern_bering_sea_grid,region='EBS')))
 grid$cell<-1:nrow(grid)
 
-#fit file
-#ff<-'temp3d/b2_19822022fit.RData'
-ff<-'fit.RData'
-
 #number of simulation on model projection
 n_sim<-100
 
@@ -147,10 +143,13 @@ dir.create('./output/species/')
 #loop over species
 for (sp in spp) {
 
-  sp<-'Gadus macrocephalus'
+  #sp<-spp[1]
   
   #create sp folder
   dir.create(paste0('./output/species/',sp))
+  
+  #get list of fit data
+  ff<-list.files(paste0('./shelf EBS NBS VAST/',sp),'fit',recursive = TRUE)
   
 ##############################
 # FIT PROJECT SETTINGS 
