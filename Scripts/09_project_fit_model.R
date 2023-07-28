@@ -143,7 +143,7 @@ dir.create('./output/species/')
 #loop over species
 for (sp in spp) {
 
-  #sp<-spp[1]
+  sp<-spp[1]
   
   #create sp folder
   dir.create(paste0('./output/species/',sp))
@@ -192,7 +192,7 @@ for (sp in spp) {
     #loop over scenarios
     for (sbt in unique(df_sbt$sbt_n)) {
       
-      #sbt<-unique(df_sbt$sbt_n)[1]
+      sbt<-unique(df_sbt$sbt_n)[1]
       
       #print scenario to check progress
       cat(paste(" #############     PROJECTING    #############\n",
@@ -247,11 +247,12 @@ for (sp in spp) {
       
       #project model example
       pm<-VAST::project_model(x = fit,
-                        n_proj = n_proj,
-                        n_samples = n_sim,
-                        new_covariate_data = new_data,
-                        historical_uncertainty = 'none')
-                        
+                              working_dir = paste0('./shelf EBS NBS VAST/',sp,'/'),
+                          n_proj = n_proj,
+                          n_samples = n_sim,
+                          new_covariate_data = new_data,
+                          historical_uncertainty = 'none')
+                          
       #historical_uncertainty = 'none')
     
       #ps<-pm
@@ -308,8 +309,6 @@ for (sbt in paste0('SBT',1:12)) {
 #mean projection
 df2<-aggregate(index ~ year + sbt,df,FUN = function(x) c(mean = mean(x), sd = sd(x) ) )
 
-
-
 ###################################
 # SBT projections
 ###################################
@@ -335,6 +334,7 @@ ggplot()+
   geom_line(data=df22,aes(x=year,y=index[,'mean']),color='black')+
   theme_bw()+
   facet_wrap(~sbt2)
+
 
 ##############################
 # PLOT MAP PROJECTIONS
