@@ -137,6 +137,8 @@ df_sbt<-data.frame(y2022=c(0,0,0,0,0,0,0,0,0,0,0,0),
                               'cold moderate variation','warm high variation','cold high variation',
                               'warm very high variation','warm extreme variation'))
   
+#remove cold SBT scenarios
+df_sbt<-df_sbt[-grep('cold',df_sbt$Scenario),]    
 df_sbt$sbt_n<-1:nrow(df_sbt)
 
 #save SBT table
