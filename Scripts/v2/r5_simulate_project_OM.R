@@ -1,8 +1,7 @@
 ####################################################################
 ####################################################################
 ##    
-##    simulate data and survey for historical and projected years
-##    prepare estimates to compute design-based indices
+##    simulate data from OM for historical and projected years
 ##    danielvilasgonzalez@gmail.com/dvilasg@uw.edu
 ##
 ####################################################################
@@ -29,7 +28,7 @@ if (!('VAST' %in% installed.packages())) {
 pacman::p_load(pack_cran,character.only = TRUE)
 
 #setwd
-out_dir<-'C:/Users/Daniel.Vilas/Work/Adapting Monitoring to a Changing Seascape/'
+out_dir<-'C:/Users/Daniel.Vilas/Work/Adapting Monitoring to a Changing Seascape/'  #out_dir<-'/Users/daniel/Work/Adapting Monitoring to a Changing Seascape/'
 setwd(out_dir)
 
 #list of sp
@@ -59,46 +58,58 @@ yrs<-1982:2022
 n_proj<-5
 
 #project_yrs
-project_yrs<-(last(yrs)+1):(last(yrs)+n_proj)
+project_yrs<-((yrs[length(yrs)])+1):(yrs[length(yrs)]+n_proj)
 
 ###################################
 # # GRID NBS AND EBS
 # ###################################
 # 
 # #load grid of NBS and EBS
-# load('./extrapolation grids/northern_bering_sea_grid.rda')
-# load('./extrapolation grids/eastern_bering_sea_grid.rda')
-# grid<-as.data.frame(rbind(data.frame(northern_bering_sea_grid,region='NBS'),data.frame(eastern_bering_sea_grid,region='EBS')))
-# grid$cell<-1:nrow(grid)
-# 
-# #load grid
-# load('./extrapolation grids/lastversion_grid_EBS.RData')
-# yrs<-1982:2022
-# grid_ebs<-grid.ebs_year[which(grid.ebs_year$region != 'EBSslope' & grid.ebs_year$Year %in% yrs),]
-# dim(grid_ebs)
-# 
-# #load baseline strata and specify corner stations
-# load('./output/baseline_strata.RData')
-# baseline_strata$locations[grep('GF|HG|JI|IH|ON|QP|PO',baseline_strata$locations$stationid),]
-# baseline_strata$locations$corner<-ifelse(grepl('GF|HG|JI|IH|ON|QP|PO',baseline_strata$locations$stationid),'TRUE','FALSE')
-# 
-# ###################################
-# # Sampling designs (from script #11) 
-# ###################################
-# 
-# #sampling scenarios
-# samp_df<-expand.grid(strat_var=c('Depth_varTemp','varTemp','Depth'),
-#                      target_var=c('sumDensity'), #,'sqsumDensity'
-#                      n_samples=c(520), #c(300,500) 520 (EBS+NBS+CRAB);26 (CRAB); 350 (EBS-CRAB); 494 (NBS-CRAB)
-#                      n_strata=c(15),
-#                      stringsAsFactors = FALSE) #c(5,10,15)
-# 
-# #add scenario number
-# samp_df$samp_scn<-paste0(paste0('scn',1:nrow(samp_df)))
-# samp_df<-rbind(samp_df,c('baseline','current',520,15,'scnbase'),
-#                c('baseline w/o corner','current',494,15,'scnbase_bis'))
-# #number of simulations
+ load('./extrapolation grids/northern_bering_sea_grid.rda')
+ load('./extrapolation grids/eastern_bering_sea_grid.rda')
+ grid<-as.data.frame(rbind(data.frame(northern_bering_sea_grid,region='NBS'),data.frame(eastern_bering_sea_grid,region='EBS')))
+ grid$cell<-1:nrow(grid)
+ 
+ #load grid
+ load('./extrapolation grids/lastversion_grid_EBS.RData')
+ yrs<-1982:2022
+ grid_ebs<-grid.ebs_year[which(grid.ebs_year$region != 'EBSslope' & grid.ebs_year$Year %in% yrs),]
+ dim(grid_ebs)
+ 
+ #load baseline strata and specify corner stations
+ load('./output/baseline_strata.RData')
+ baseline_strata$locations[grep('GF|HG|JI|IH|ON|QP|PO',baseline_strata$locations$stationid),]
+ baseline_strata$locations$corner<-ifelse(grepl('GF|HG|JI|IH|ON|QP|PO',baseline_strata$locations$stationid),'TRUE','FALSE')
+ 
+ ###################################
+ # Sampling designs (from script #11) 
+ ###################################
+ 
+ #sampling scenarios
+ samp_df<-expand.grid(strat_var=c('Depth_varTemp','varTemp','Depth'),
+                      target_var=c('sumDensity'), #,'sqsumDensity'
+                      n_samples=c(520), #c(300,500) 520 (EBS+NBS+CRAB);26 (CRAB); 350 (EBS-CRAB); 494 (NBS-CRAB)
+                      n_strata=c(15),
+                      stringsAsFactors = FALSE) #c(5,10,15)
+ 
+#add scenario number
+samp_df$samp_scn<-paste0(paste0('scn',1:nrow(samp_df)))
+samp_df<-rbind(samp_df,c('baseline','current',520,15,'scnbase'),
+              c('baseline w/o corner','current',494,15,'scnbase_bis'))
 
+ 
+###################################
+# SBT projections
+###################################
+ 
+#save SBT table
+load('./tables/SBT_projection.RData')#df_sbt
+ 
+#name scenario
+df_sbt$sbt<-paste0('SBT',df_sbt$sbt_n)
+df_sbt$sbt2<-paste0(df_sbt$sbt,'_',df_sbt$Scenario)
+ 
+#number of simulations
 n_sim<- 100
 
 #loop over spp
@@ -177,7 +188,7 @@ for (sp in spp) {
   #array to store simulated densities/CPUE
   sim_dens<-array(NA,
                   dim=c(nrow(grid),length(unique(yrs)),n_sim),
-                  dimnames=c(1:nrow(grid),unique(yrs),1:n_sim))
+                  dimnames=list(1:nrow(grid),unique(yrs),1:n_sim))
   
   #create folder simulation data
   dir.create(paste0('./output/species/',sp,'/simulated historical data/'))
@@ -210,9 +221,95 @@ for (sp in spp) {
   #save data
   save(sim_dens, file = paste0("./output/species/",sp,'/simulated historical data/sim_dens.RData')) 
   
+#}
   ######################
   # PROJECTED DATA
   ######################
   
+  #get raster stack
+  stack_files<-list.files('./data processed/SBT projections/')
   
+  #list covariate data for each scenario
+  #cov_list<-list()
+  
+  #list projected data for each scenario
+  #pr_list<-list()
+  
+  #create folder simulation data
+  dir.create(paste0('./output/species/',sp,'/simulated projected data/'))
+  
+  #loop over scenarios
+  for (sbt in unique(df_sbt$sbt_n)) {
+    
+    #sbt<-unique(df_sbt$sbt_n)[1]
+    
+    #print scenario to check progress
+    cat(paste(" #############     PROJECTING    #############\n",
+              " #############   Species", sp, match(sp,spp), 'out of',length(spp),  "  #############\n",
+              " #############  SBT", sbt, " #############\n"))
+    
+    #open stack of rasters
+    st<-stack_files[grepl(paste0('SBT_',sbt),stack_files)][1]
+    st<-stack(paste0('./data processed/SBT projections/',st))
+    #plot(st)
+    #title(main='x')
+    
+    #reproject shapefile
+    #proj4string(st) <- CRS('+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs') 
+    
+    #raster to points
+    points<-data.frame(rasterToPoints(st))
+    
+    #load fit file
+    #load(paste0('./shelf EBS NBS VAST/',sp,'/',ff))
+    
+    #create a df to store
+    points3<-data.frame(matrix(nrow = 0,ncol = ncol(fit$covariate_data)))
+    names(points3)<-names(fit$covariate_data)
+    
+    for (y in project_yrs) {
+      
+      #y<-project_yrs[1]
+      
+      #get points for year
+      points1<-points[,c('x','y',paste0('y',y))]
+      names(points1)<-c('Lon',"Lat",'BotTemp')
+      
+      #reproject df
+      coordinates(points1)<- ~ Lon + Lat
+      proj4string(points1) <- CRS('+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs') 
+      points1<-spTransform(points1,CRSobj = CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"))
+      
+      #create a new df
+      points2<-data.frame(cbind(Year=y,Lat=points1$Lat,Lon=points1$Lon,ScaleLogDepth=NA,LogDepth=NA,ScaleBotTemp=NA,BotTemp=points1$BotTemp,CPUE_kg=NA))
+      
+      #add year
+      points3<-rbind(points3,points2)
+      
+    }
+    
+    #add year to covariate data from fit
+    #cov_list[[sbt]]<-points3
+    
+    #add covariate data
+    new_data<-rbind(fit$covariate_data,points3)
+    
+    #project model example
+    pm<-VAST::project_model(x = fit,
+                            working_dir = paste0('./shelf EBS NBS VAST/',sp,'/'),
+                            n_proj = n_proj,
+                            n_samples = 1,
+                            new_covariate_data = new_data,
+                            historical_uncertainty = 'none')
+    
+    #remove fit
+    #rm(fit)
+    #dyn.unload('C:/Program Files/R/R-4.2.2/library/VAST/executables/VAST_v13_1_0_TMBad.dll')
+    
+    #save list projections
+    save(pm, file = paste0("./output/species/",sp,'/simulated projected data/fit_projection_SBT',sbt,'.RData'))
+    
+    rm(pm)
+    gc()
+  }
 }
