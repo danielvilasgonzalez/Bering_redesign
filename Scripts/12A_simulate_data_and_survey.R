@@ -21,7 +21,7 @@ pack_cran<-c('ggplot2','units','splines','raster','sp')
 if (!('pacman' %in% installed.packages())) {
   install.packages("pacman")}
 
-#install coldpool to extract SBT for the EBS
+#install VAST if it is not
 if (!('VAST' %in% installed.packages())) {
   devtools::install_github("james-thorson/VAST@main", INSTALL_opts="--no-staged-install")};library(VAST)
 
@@ -118,7 +118,6 @@ for (sp in spp) {
   
   #read data_geostat_temp file
   df1<-readRDS(paste0('./data processed/species/',sp,'/data_geostat_temp.rds'))
-  #df1[which(df1$year==2020),'bottom_temp_c']<-NA
   df2<-subset(df1,year %in% 1982:2022)
   
   #select rows and rename
@@ -171,7 +170,7 @@ for (sp in spp) {
   #loop over simulations
   for (isim in 1:n_sim) { #simulations
     
-    isim<-1
+    #isim<-1
     
     #print simulation to check progress
     cat(paste(" #############   Species", sp, match(sp,spp), 'out of',length(spp),  "  #############\n",
@@ -186,19 +185,19 @@ for (sp in spp) {
     #create folder simulation number
     dir.create(paste0('./output/species/',sp,'/simulated historical data/',sim_fold))
     
-    # #simulate data from OM
-     Sim1 <- FishStatsUtils::simulate_data(fit = fit, #kg/km2
+    #simulate data from OM
+    Sim1 <- FishStatsUtils::simulate_data(fit = fit, #kg/km2
                                            type = 1, 
                                            random_seed = isim)
      
-    # #select simulated data that belong to grid points
-     sim_bio <-matrix(data = Sim1$b_i[pred_TF == 1], 
-                       nrow = nrow(grid), 
-                       ncol = length(unique(yrs)))
+    #select simulated data that belong to grid points
+    sim_bio <-matrix(data = Sim1$b_i[pred_TF == 1], #kg
+                     nrow = nrow(grid), 
+                     ncol = length(unique(yrs)))
      
      
-     #biomass to CPUE
-     sim_dens<-sim_bio/grid$Area_in_survey_km2 
+    #biomass (kg) to CPUE (kg/km2)
+    sim_dens<-sim_bio/grid$Area_in_survey_km2 
     
     #save data
     save(sim_dens, file = paste0("./output/species/",sp,'/simulated historical data/',sim_fold,'/sim_dens.RData')) 
@@ -229,8 +228,9 @@ for (sp in spp) {
       
       for (y in 1:length(1982:2022)) { #years
         
-        #i<-dimnames(all_points)[[3]][1]
+        #y<-dimnames(all_points)[[3]][1]
         
+        #year
         yy<-c(1982:2022)[y]
         
         #get points iterations
@@ -247,13 +247,13 @@ for (sp in spp) {
       
       #store results
       save(sim_survey, file = paste0("./output/species/",sp,'/survey simulation historical data/',sim_fold,'/sim_survey_',samp,'_dynamic.RData'))  
-   }
+    }
   }
- }
+}
 #}
 
-rm(fit)
-rm(Sim1)
+#remove objects
+rm(fit);rm(Sim1)
 
 ######################
 # PROJECTED DATA
@@ -320,24 +320,22 @@ for (sp in spp) {
                                               c('current','random')))
             
           for (y in 1:length(2022:2027)) { #years
+            
+            #y<-1  
               
-              
+            #years
             yy<-c(2022:2027)[y]
               
             #get points iterations
             pointsc<-data.frame(unlist(all_points[,,y,'current']))
             #pointsb<-data.frame(unlist(all_points[,,y,'buffer']))   
             pointsr<-data.frame(unlist(all_points[,,y,'random']))                          
-              
-              
+            
             #append survey densities for each iteration and simulated data
             sim_survey[,,'current']<-cbind(sim_dens[pointsc$cell,],pointsc$strata)
             #sim_survey[,,'buffer']<-cbind(sim_dens[pointsb$cell,],pointsb$strata)
             sim_survey[,,'random']<-cbind(sim_dens[pointsr$cell,],pointsr$strata)
-            
-            ###extra
-            #gc()
-              
+
           }
             
           #store results
@@ -345,10 +343,15 @@ for (sp in spp) {
           gc();rm(sim_survey)
         }
       }
-    gc();rm(pm)
-    }
-  }
-#}
+   gc();rm(pm)
+   }
+}
     
+######################
+# PROJECTED DATA TEST
+######################
+
+#project just one 
+
 
   
