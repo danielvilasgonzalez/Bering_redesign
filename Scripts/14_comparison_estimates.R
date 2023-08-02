@@ -90,6 +90,7 @@ load('./tables/SBT_projection.RData')#df_sbt
 #name SBT scenarios
 df_sbt$sbt<-paste0('SBT',df_sbt$sbt_n)
 df_sbt$sbt2<-paste0(df_sbt$sbt,'_',df_sbt$Scenario)
+df_sbt$old_sbt<-paste0('SBT',row.names(df_sbt))
 
 ###################################
 ###################################
@@ -118,7 +119,7 @@ df_sbt$sbt2<-paste0(df_sbt$sbt,'_',df_sbt$Scenario)
   #true index from VAST (unit t)
   index_true<-fit$Report$Index_ctl[1,,1] #index_true=CPUE_index$true_index[,1]
   
-  #time series of index (t) over replicates (0001:0100), approaches (current or random), and sampling scn (5: scn1,2,3,baseline,baseline_bis)
+  #time series of index (kg) over replicates (0001:0100), approaches (current or random), and sampling scn (5: scn1,2,3,baseline,baseline_bis)
   ind<-index_hist['index',,,,]
   
   #array to dataframe
@@ -143,7 +144,7 @@ df_sbt$sbt2<-paste0(df_sbt$sbt,'_',df_sbt$Scenario)
    ggplot()+
      geom_ribbon(data=df,aes(x=year,ymax=index[,'q95']/1000,ymin=index[,'q5']/1000,group=interaction(scn,approach),fill=scn),alpha=0.1)+
      geom_line(data=df,aes(x=year,y=index[,'mean']/1000,color=scn,group=interaction(scn,approach),linetype=approach),linewidth=0.7,alpha=0.8)+
-     #geom_line(data=index_true_plot,aes(x=year,y=index_true,group=1),color='black',linewidth=0.7)+
+     geom_line(data=index_true_plot,aes(x=year,y=index_true/1000,group=1),color='black',linewidth=0.7)+
      labs(y='t',x='')+
      scale_fill_manual(values=c('scn1'='#4e79a7','scn2'='#59a14f','scn3'='#edc948','scnbase'='#79706E','scnbase_bis'='#e15759'),
                        labels = c('baseline','baseline w/o corner','depth','var temp','depth + var temp'),name='sampling design')+
@@ -270,11 +271,11 @@ df_sbt$sbt2<-paste0(df_sbt$sbt,'_',df_sbt$Scenario)
   #load design-based index time series for each replicate, sampling scenario and approach 
   load(paste0("./output/species/",sp,'/historical design-based indices/indices.RData'))  #index_hist
 
-  #get estimated index SD for each survey across years for each replicate, sampling scenario and approach
+  #get estimated index SD for each survey across years, sampling scenario and approach
   index_hist1<-index_hist['index',,,,]
-  #index_sd<-apply(index_hist1,c(1,2,4),sd)
-  index_sd<-apply(sqrt(index_hist['STRS_var',,,,]),c(1,2,4),mean)
-  
+  index_sd<-apply(index_hist1,c(1,2,4),sd)
+  #index_sd1<-apply(sqrt(index_hist['STRS_var',,,,]),c(1,2,4),mean) #
+
   #compute the true CV time series for each sampling scenario and approach as EstIndexSD/TrueIndex
   cv_true<-sweep(index_sd,MARGIN =1,STATS = index_true,FUN = '/') 
   
@@ -297,10 +298,19 @@ df_sbt$sbt2<-paste0(df_sbt$sbt,'_',df_sbt$Scenario)
      #get true CV time series
      cv_true1<- cv_true[,apr,scn]
      
+     #for (y in paste0('y',1982:2022)) {
+       
+     
+     #y<-'y1982'
+     
+     #hist(cv_sim1[y,],nclass=20)
+     #abline(v=cv_true1[y])
+     #}
+     
      #get RRMSE relative to the estimated CV as
      ### for each simulated CV replica difference true CV and squared, 
-     rrmse[,apr,scn]<-apply(sweep(cv_sim1,MARGIN = 1,STATS = cv_true1,'-')^2,
-                  MARGIN = 1,'mean')/apply(cv_sim1,MARGIN = 1,mean)
+     rrmse[,apr,scn]<-sqrt(apply(sweep(cv_sim1,MARGIN = 1,STATS = cv_true1,'-')^2,
+                  MARGIN = 1,'mean'))/apply(cv_sim1,MARGIN = 1,mean)
        
     }}
   
@@ -388,6 +398,8 @@ df_sbt$sbt2<-paste0(df_sbt$sbt,'_',df_sbt$Scenario)
   names(ind1)<-c('year','approach','sim','scn','sbt','index')
   ind1$year<-gsub('y','',ind1$year)
   
+  
+  
   #test plot to get projected design-based indices
   ##the color pattern reflects that the major difference is due to replicates
   ggplot()+
@@ -403,12 +415,14 @@ df_sbt$sbt2<-paste0(df_sbt$sbt,'_',df_sbt$Scenario)
   df_sbt$sbt2<-paste0(df_sbt$sbt,'_',df_sbt$Scenario)
 
   #get sbt names and sort for plotting purposes  
-  df1<-merge(df,df_sbt,by='sbt',all.x=TRUE)
+  #df1<-merge(df,df_sbt,by='sbt',all.x=TRUE)
+  df1<-merge(df,df_sbt,by.x='sbt',by.y='old_sbt',all.x=TRUE)
   df1$sbt2<-factor(df1$sbt2,levels = unique(df1$sbt2)[c(1,5:12,2:4)])
   df1$Scenario<-factor(df1$Scenario,levels = unique(df1$Scenario)[c(1,5:12,2:4)])
   
   #if removing cold scenarios
   df2<-df1[which(!grepl('cold',df1$sbt2)),]
+  df2 <- df2[complete.cases(df2$sbt2), ]
   
   #plot
   p<-
@@ -473,6 +487,8 @@ df_sbt$sbt2<-paste0(df_sbt$sbt,'_',df_sbt$Scenario)
   
   #removing cold scenarios
   df2<-df1[which(!grepl('cold',df1$sbt2)),]
+  df2 <- df2[complete.cases(df2), ]
+  
   df2$scn<-factor(df2$scn,levels=c('scnbase','scnbase_bis',paste0('scn',3:1)))
   
   #plot
@@ -533,7 +549,7 @@ df_sbt$sbt2<-paste0(df_sbt$sbt,'_',df_sbt$Scenario)
     geom_boxplot(data=df2,aes(x=scn,y=index[,'mean'],fill=scn,group =interaction(scn,approach),linetype=approach),alpha=0.8)+
     labs(y='CV',x='')+
     theme_bw()+
-      theme(axis.text.x = element_text(angle=90,vjust=0.5),
+      theme(axis.text.x = element_blank(),#element_text(angle=90,vjust=0.5),
             panel.spacing = unit(0, "lines"),
             strip.background = element_rect('white'),
             axis.line = element_line(colour = "grey"),
@@ -591,7 +607,7 @@ df_sbt$sbt2<-paste0(df_sbt$sbt,'_',df_sbt$Scenario)
         
         #get tru index
         true_ind<-sim_data$sim_ind
-        #true_ind<-colSums(sim_data$sim_dens*grid$Area_in_survey_km2)/1000
+        #true_ind1<-colSums(sim_data$sim_dens*grid$Area_in_survey_km2)
         
         #store tru index for each projection and simulations
         index_true[,isim,sbt]<-true_ind
@@ -599,23 +615,74 @@ df_sbt$sbt2<-paste0(df_sbt$sbt,'_',df_sbt$Scenario)
         
   #get the mean true index time series for each projection as the mean over simulations
   index_true1<-apply(index_true,c(1,3),mean)    
+  sd_true1<-apply(index_true,c(1,3),sd)   
+  
+  #get estimated index SD for each survey across years, sampling scenario and approach
+  index_proj1<-index_proj['index',,,,,]
+  index_sd<-apply(index_proj1,c(1,2,4,5),sd)
+  index_hist1<-index_hist['index',,,,]
+  index_sd1<-apply(index_hist1,c(1,2,4),sd)
+  
+  for (scn in dimnames(index_proj)[[5]]) {
+    for (apr in dimnames(index_proj)[[3]]) {
+      
+      hist<-index_sd1[,apr,scn]
+      proj<-index_sd[,apr,scn,]
+      
+      
+    }
+  }
+  
+  
+  #array true cv
+  cv_truee<-array(NA,
+                 dim=list(5,length(ld),length(dimnames(index_proj)[[3]]),length(dimnames(index_proj)[[5]]),length(dimnames(index_proj)[[6]])),
+                 dimnames = list(gsub('y','',dimnames(index_proj)[[2]]),ld,dimnames(index_proj)[[3]],dimnames(index_proj)[[5]],paste0('SBT',1:12)))
+  
+  
   
   #loop over sampling scenarios
   for (sbt in dimnames(index_proj)[[6]]) {   
       for (scn in dimnames(index_proj)[[5]]) {
           for (apr in dimnames(index_proj)[[3]]) {
-        
+            for (isim in ld) {
             #sd<-get sd for each scenario over replicas
-            sd<-apply(sqrt(index_proj['STRS_var',,apr,,scn,sbt]),1,mean)
+            #sd<-apply(sqrt(index_proj['STRS_var',,apr,,scn,sbt]),1,mean)
+            #sd1<-apply(index_proj['index',,apr,,scn,sbt],1,sd)
+            #sd2<-sd_true1[,sbt]
+             
+            sd<-index_sd[,apr,scn,sbt]
             
             #get true CV for each scenario
-            cv_true[,apr,scn,sbt]<-sd/index_true1[,sbt]
+            cv_truee[,isim,apr,scn,sbt]<-sd/index_true[,isim,sbt]
+            }
       }
     }
   }
   
+  
+  #loop over sampling scenarios
+  for (sbt in dimnames(index_proj)[[6]]) {   
+    for (scn in dimnames(index_proj)[[5]]) {
+      for (apr in dimnames(index_proj)[[3]]) {
+        
+        #sd<-get sd for each scenario over replicas
+        #sd<-apply(sqrt(index_proj['STRS_var',,apr,,scn,sbt]),1,mean)
+        #sd1<-apply(index_proj['index',,apr,,scn,sbt],1,sd)
+        #sd2<-sd_true1[,sbt]
+        
+        sd<-index_sd[,apr,scn,sbt]
+        
+        #get true CV for each scenario
+        cv_true[,apr,scn,sbt]<-sd/index_true[,isim,sbt]
+      }
+    }
+  }
+  
+  
+  
   mean(cv_true) #too high
-
+  hist(cv_true)
   #get the estimated CV for each survey
   cv_sim<-index_proj['cv',,,,,]
   mean(cv_sim) #too high  
@@ -638,10 +705,16 @@ df_sbt$sbt2<-paste0(df_sbt$sbt,'_',df_sbt$Scenario)
       
       #get true CV
       cv_true1<- cv_true[,apr,scn,sbt]
-
+      cv_truee1<- cv_truee[,,apr,scn,sbt]
+      
+      cv_sim1-cv_truee1
+      
+      sqrt(apply((cv_sim1-cv_truee1)^2,
+                 MARGIN = 1,mean))/apply(cv_sim1,MARGIN = 1,mean)
+      
       #get RRMSE relative to the estimated CV
-      rrmse[,apr,scn,sbt]<-apply(sweep(cv_sim1,MARGIN = 2,STATS = cv_true1,'-')^2,
-                             MARGIN = 1,mean)/apply(cv_sim1,MARGIN = 1,mean)
+      rrmse[,apr,scn,sbt]<-sqrt(apply(sweep(cv_sim1,MARGIN = 2,STATS = cv_true1,'-')^2,
+                             MARGIN = 1,mean))/apply(cv_sim1,MARGIN = 1,mean)
       #MAE for testing
       mae[,apr,scn,sbt]<-apply(abs(sweep(cv_sim1,MARGIN = 2,STATS = cv_true1,'-')),
                                  MARGIN = 1,mean)/apply(cv_sim1,MARGIN = 1,mean)
@@ -663,6 +736,7 @@ df_sbt$sbt2<-paste0(df_sbt$sbt,'_',df_sbt$Scenario)
   
   #removing cold scenarios
   df2<-df1[which(!grepl('cold',df1$sbt2)),]
+  df2 <- df2[complete.cases(df2), ]
   df2$scn<-factor(df2$scn,levels=c('scnbase','scnbase_bis',paste0('scn',3:1)))
   
   #plot boxplot distribution
