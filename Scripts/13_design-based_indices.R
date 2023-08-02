@@ -182,8 +182,8 @@ for (sp in spp) {
                        by=list(strata=yy$strata,year=yy$variable),
                        FUN = function(x) c('mean' = mean(x,na.rm=T), 'sum' = sum(x),'var' = var(x,na.rm=T) ))
         
-        yyy$x[,c('mean')] #strata_mean
-        yyy$x[,c('var')]/length(yy$value) #strata var
+        #yyy$x[,c('mean')] #strata_mean
+        #yyy$x[,c('var')]/length(yy$value) #strata var
         
         #create df
         zzz<-data.frame('strata'=yyy$strata,'year'=yyy$year,'mean'=yyy$x[,c('mean')],'var'=yyy$x[,c('var')]) #/length(yy$value)
@@ -205,7 +205,7 @@ for (sp in spp) {
         STRS_mean <- zzzz1$index_strata
         STRS_var <- zzzz1$strs_var
         CV <- sqrt(STRS_var) / STRS_mean
-        index<- zzzz1$index
+        index<- zzzz1$index_strata
           
         index_hist['STRS_mean',,apr,sim,samp]<-STRS_mean
         index_hist['STRS_var',,apr,sim,samp]<-STRS_var
@@ -339,8 +339,8 @@ for (sp in spp) {
                          FUN = function(x) c(mean = mean(x,na.rm=T), sum = sum(x),var = var(x,na.rm=T) ))
             
           
-           yyy$x[,c('mean')] #strata_mean
-           yyy$x[,c('var')]/length(yy$value) #strata var
+           #yyy$x[,c('mean')] #strata_mean
+           #yyy$x[,c('var')]/length(yy$value) #strata var
            
            #create df
            zzz<-data.frame('strata'=yyy$strata,'year'=yyy$year,'mean'=yyy$x[,c('mean')],'var'=yyy$x[,c('var')]) #/length(yy$value)
@@ -362,7 +362,7 @@ for (sp in spp) {
            STRS_mean <- zzzz1$index_strata
            STRS_var <- zzzz1$strs_var
            CV <- sqrt(STRS_var) / STRS_mean
-           index<- zzzz1$index
+           index<- zzzz1$index_strata
            
            #append results
            index_proj['STRS_mean',,apr,sim,samp,sbt]<-STRS_mean
@@ -380,3 +380,19 @@ for (sp in spp) {
   
 }
   
+#comparison estimates proj and hist
+#CV (STRS_var/index)
+mean(index_hist['cv',,,,])
+mean(index_proj['cv',,,,,])
+#STRS_var
+mean(index_hist['STRS_var',,,,])
+mean(index_proj['STRS_var',,,,,])
+#index
+mean(index_hist['index',,,,])
+mean(index_proj['index',,,,,])
+
+
+
+
+
+
