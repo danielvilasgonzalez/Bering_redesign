@@ -100,13 +100,13 @@ load('./tables/SBT_projection.RData')#df_sbt
 df_sbt$sbt<-paste0('SBT',df_sbt$sbt_n)
 df_sbt$sbt2<-paste0(df_sbt$sbt,'_',df_sbt$Scenario)
 
-#number of simulations
+#number of historical simulations and projected simulations
 n_sim<- 100
 
 #loop over spp
 for (sp in spp) {
   
-  sp<-"Gadus macrocephalus"
+  #sp<-"Gadus macrocephalus"
   
   # #load fit file
   # load(paste0('./shelf EBS NBS VAST/',sp,'/fit.RData')) #fit
@@ -273,7 +273,7 @@ for (sp in spp) {
 #loop over spp
 for (sp in spp) {
   
-  sp<-"Gadus macrocephalus"
+  #sp<-"Gadus macrocephalus"
   
   #create folder simulation number
   dir.create(paste0('./output/species/',sp,'/survey simulation projected data/'))
