@@ -61,10 +61,10 @@ n_proj<-5
 project_yrs<-((yrs[length(yrs)])+1):(yrs[length(yrs)]+n_proj)
 
 ###################################
-# # GRID NBS AND EBS
-# ###################################
-# 
-# #load grid of NBS and EBS
+# GRID NBS AND EBS
+###################################
+
+#load grid of NBS and EBS
  load('./extrapolation grids/northern_bering_sea_grid.rda')
  load('./extrapolation grids/eastern_bering_sea_grid.rda')
  grid<-as.data.frame(rbind(data.frame(northern_bering_sea_grid,region='NBS'),data.frame(eastern_bering_sea_grid,region='EBS')))
@@ -113,9 +113,12 @@ df_sbt$sbt2<-paste0(df_sbt$sbt,'_',df_sbt$Scenario)
 n_sim<- 100
 
 #loop over spp
-for (sp in spp) {
+for (sp in spp[3:15]) {
   
   #sp<-"Gadus macrocephalus"
+  
+  #create folder simulation data
+  dir.create(paste0('./output/species/',sp,'/'))
   
   #get list of fit data
   ff<-list.files(paste0('./shelf EBS NBS VAST/',sp),'fit',recursive = TRUE)
@@ -278,7 +281,8 @@ for (sp in spp) {
       #reproject df
       coordinates(points1)<- ~ Lon + Lat
       proj4string(points1) <- CRS('+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs') 
-      points1<-spTransform(points1,CRSobj = CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"))
+      points1<-data.frame(spTransform(points1,CRSobj = CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")))
+      names(points1)<-c('BotTemp','Lon',"Lat")
       
       #create a new df
       points2<-data.frame(cbind(Year=y,Lat=points1$Lat,Lon=points1$Lon,ScaleLogDepth=NA,LogDepth=NA,ScaleBotTemp=NA,BotTemp=points1$BotTemp,CPUE_kg=NA))
@@ -298,7 +302,7 @@ for (sp in spp) {
     pm<-VAST::project_model(x = fit,
                             working_dir = paste0('./shelf EBS NBS VAST/',sp,'/'),
                             n_proj = n_proj,
-                            n_samples = 1,
+                            n_samples = 1, #n_sim?
                             new_covariate_data = new_data,
                             historical_uncertainty = 'none')
     

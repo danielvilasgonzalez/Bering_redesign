@@ -27,7 +27,8 @@ if (!('pacman' %in% installed.packages())) {
 pacman::p_load(pack_cran,character.only = TRUE)
 
 #setwd
-out_dir<-'C:/Users/Daniel.Vilas/Work/Adapting Monitoring to a Changing Seascape/'  #out_dir<-'/Users/daniel/Work/Adapting Monitoring to a Changing Seascape/'
+out_dir<-'C:/Users/Daniel.Vilas/Work/Adapting Monitoring to a Changing Seascape/'  
+out_dir<-'/Users/daniel/Work/Adapting Monitoring to a Changing Seascape/'
 setwd(out_dir)
 
 #range years of data
@@ -53,7 +54,7 @@ spp<-c('Limanda aspera',
 
 #get files from google drive and set up
 files<-googledrive::drive_find()
-2 #for dvilasg@uw.edu
+32 #for dvilasg@uw.edu
 
 #get id shared folder from google drive
 id.bering.folder<-files[which(files$name=='Bering redesign RWP project'),'id']

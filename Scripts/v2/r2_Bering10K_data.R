@@ -29,6 +29,7 @@ pacman::p_load(pack_cran,character.only = TRUE)
 
 #setwd
 out_dir<-'C:/Users/Daniel.Vilas/Work/Adapting Monitoring to a Changing Seascape/'  #out_dir<-'/Users/daniel/Work/Adapting Monitoring to a Changing Seascape/'
+out_dir<-'/Users/daniel/Work/Adapting Monitoring to a Changing Seascape/'
 setwd(out_dir)
 
 #range years of data
@@ -54,7 +55,7 @@ spp<-c('Limanda aspera',
 
 #get files from google drive and set up
 files<-googledrive::drive_find()
-2 #for dvilasg@uw.edu
+32 #for dvilasg@uw.edu
 
 #get id shared folder from google drive
 id.bering.folder<-files[which(files$name=='Bering redesign RWP project'),'id']
@@ -107,7 +108,7 @@ bering_sea_slope_grid<-as.data.frame(bering_sea_slope_grid)
 bering_sea_slope_grid$Stratum<-'NA'
 bering_sea_slope_grid$region<-'EBSslope'
 
-EBSgrid<-rbind(northern_bering_sea_grid,
+grid.ebs<-rbind(northern_bering_sea_grid,
                eastern_bering_sea_grid,
                bering_sea_slope_grid[,c("Lat","Lon","Area_in_survey_km2",'Stratum',"region")])
 
@@ -347,9 +348,6 @@ save(grid.ebs_year,file = './data processed/grid_EBS_NBS.RData')
 #####################################
 # LOOP OVER SPP
 #####################################
-
-#get species name
-spp<-list.dirs('./data processed/species/',full.names = FALSE,recursive = FALSE)
 
 #loop over species to add SBT to data_geostat
 for (sp in spp) {
