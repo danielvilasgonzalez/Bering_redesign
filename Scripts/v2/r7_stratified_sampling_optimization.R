@@ -225,7 +225,7 @@ names(df)[((ncol(df)-length(tar_var))+1):ncol(df)]<-tar_var
   #loop through sampling designs
   for (s in 1:nrow(samp_df)) {
     
-    s<-1
+    #s<-1
     
     #print scenario to check progress
     cat(paste(" #############   Species", sp, match(sp,spp), 'out of',length(spp),  "  #############\n",
@@ -317,47 +317,6 @@ names(df)[((ncol(df)-length(tar_var))+1):ncol(df)]<-tar_var
     # Run optimization
     ###################################
     
-    
-    solution <- SamplingStrata::optimStrata(method = "continuous", #continous variables
-                                            errors = cv_df, #precision level - maximum allowable coefficient of variation set by the simple random sampling 
-                                            framesamp = frame, #df of input variables
-                                            iter = 20, #300 #aximum number of iterations
-                                            pops = 10, #100  #dimension of each generations
-                                            elitism_rate = 0.1, #0.1
-                                            mut_chance = 1 / (no_strata[1] + 1), #mutation chance
-                                            nStrata = no_strata, #maximum strata
-                                            showPlot = TRUE, #FALSE
-                                            writeFiles = FALSE)
-    
-    
-    
-    solution$aggr_strata$STRATO <- as.integer(solution$aggr_strata$STRATO)
-    solution$aggr_strata <- 
-      solution$aggr_strata[order(solution$aggr_strata$DOM1,
-                                 solution$aggr_strata$STRATO), ]
-    
-    sum_stats <- SamplingStrata::summaryStrata(solution$framenew,
-                                               solution$aggr_strata,
-                                               progress=FALSE)
-    sum_stats$stratum_id <- 1:nrow(sum_stats)
-    sum_stats$wh <- sum_stats$Allocation / sum_stats$Population
-    sum_stats$Wh <- sum_stats$Population / nrow(frame)
-    sum_stats <- cbind(sum_stats,
-                       subset(x = solution$aggr_strata,
-                              select = -c(STRATO, N, COST, CENS, DOM1, X1)))
-    
-    plot_solution <- solution$indices$X1
-    
-    ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    ##   6) Save results ----
-    ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~  
-    result_list <- list(solution = solution,
-                        sum_stats = sum_stats,
-                        cvs = as.numeric(calc_expected_CV(sum_stats)),
-                        n = sum(sum_stats$Allocation),
-                        sol_by_cell = plot_solution)
-    
-    
     #while loop until the desired number of strata  
     flag<-TRUE
     while (flag) {
@@ -367,8 +326,8 @@ names(df)[((ncol(df)-length(tar_var))+1):ncol(df)]<-tar_var
       
       #run optimization
       solution <- optimStrata(method = "continuous", #continous variables
-                              errors = cv,  #precision level - maximum allowable coefficient of variation set by the simple random sampling 
-                              framesamp = frame_df, #df of input variables
+                              errors = cv_df,  #precision level - maximum allowable coefficient of variation set by the simple random sampling 
+                              framesamp = frame, #df of input variables
                               iter = 20, #300 #aximum number of iterations
                               pops = 10, #100  #dimension of each generations
                               elitism_rate = 0.1, #0.1
@@ -387,27 +346,29 @@ names(df)[((ncol(df)-length(tar_var))+1):ncol(df)]<-tar_var
         cv$CV1<-cv$CV1+(cv$CV1*0.01)} #increase 1%
     }
     
-    
-    #store strata CV
-    cv_strata_final<-cv
-    
     ###################################
     # Store solutions from optimizations
     ###################################
     
-    #check ZO code the sum(N/n_years) = n cells gris
-    solution$aggr_strata$N <- solution$aggr_strata$N / n_years
+    #store strata CV
+    cv_strata_final<-cv
     
-    #results from optimization
-    framenew<-solution$framenew
-    outstrata<-solution$aggr_strata
-    ss<-summaryStrata(framenew,outstrata)
-    
-    #organize result outputs
     solution$aggr_strata$STRATO <- as.integer(solution$aggr_strata$STRATO)
     solution$aggr_strata <- 
       solution$aggr_strata[order(solution$aggr_strata$DOM1,
                                  solution$aggr_strata$STRATO), ]
+    
+    sum_stats <- SamplingStrata::summaryStrata(solution$framenew,
+                                               solution$aggr_strata,
+                                               progress=FALSE)
+    sum_stats$stratum_id <- 1:nrow(sum_stats)
+    sum_stats$wh <- sum_stats$Allocation / sum_stats$Population
+    sum_stats$Wh <- sum_stats$Population / nrow(frame)
+    sum_stats <- cbind(sum_stats,
+                       subset(x = solution$aggr_strata,
+                              select = -c(STRATO, N, COST, CENS, DOM1, X1)))
+    
+    plot_solution <- solution$indices$X1
     
     #save optimization stats  
     sum_stats <- summaryStrata(solution$framenew,
@@ -423,54 +384,192 @@ names(df)[((ncol(df)-length(tar_var))+1):ncol(df)]<-tar_var
     
     #add scn and sp
     sum_stats$samp_scn<-samp_df[s,'samp_scn']
-    sum_stats$sp<-sp
     
     #if one stratifying factor add columns  
     if (!grepl('_',samp_df[s,'strat_var'])) {
       
       sum_stats<-data.frame(sum_stats[,c("Domain","Stratum","Population","Allocation","SamplingRate","Lower_X1","Upper_X1")],
                             "Lower_X2"=NA,"Upper_X2"=NA,
-                            sum_stats[,c("stratum_id","wh","Wh","M1",'S1',"SOLUZ","samp_scn","sp")])
+                            sum_stats[,c("stratum_id","wh","Wh","M1",'S1',"SOLUZ","samp_scn")])
       
     }
     
     #append stat results  
     sp_sum_stats<-rbind(sp_sum_stats,sum_stats)
     
-    ###################################
-    # Multimariate optimal allocation
-    ###################################
+    #store results
+    result_list <- list(solution = solution,
+                        sum_stats = sum_stats,
+                        cvs = as.numeric(calc_expected_CV(sum_stats)),
+                        n = sum(sum_stats$Allocation),
+                        sol_by_cell = plot_solution)
+    save(list = "result_list", file = "result_list.RData")
     
-    #error srs for starting optimization
-    error_df <- data.frame("DOM" = "DOM1",
-                           "CV1" = srs_cv,
-                           #"CV1" = cv_final$CV1,
-                           "domainvalue"  = 1)
-    
-    #df to run bethel algorithm
-    temp_stratif <- solution$aggr_strata
-    temp_stratif$N <- temp_stratif$N / n_years
-    temp_stratif$DOM1 <- 1
-    
-    #loop to ensure that the number of total samples is the desired (520)
-    flag<-TRUE
-    while (flag) {
+    ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    ##   7) Single-Species Optimization ----
+    ##   Calculate single-species CV subject to the initial stratification
+    ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~  
+
+    ss_sample_allocations <- expand.grid(n = n_samples, species = spp_list)
+    for (ispp in 1:n_spp) {
+      temp_n <- result_list$n
       
-      #run multivariate allocation
-      temp_bethel <- SamplingStrata::bethel(errors = error_df,
-                                            stratif = temp_stratif,
-                                            realAllocation = T,
-                                            printa = T)
+      ## Subset density data for species ispp
+      ss_df <- subset(x = frame, 
+                      select = c("domainvalue", "id", "WEIGHT", "X1", "X2", 
+                                 paste0("Y", ispp), paste0("Y", ispp, "_SQ_SUM")))
+      names(ss_df)[grep(x = names(ss_df), pattern = "Y")] <- c("Y1", "Y1_SQ_SUM")
       
-      #flag if still on the while loop
-      flag<-ifelse(sum(as.integer(temp_bethel))!=unique(samp_df$n_samples),TRUE,FALSE)
+      ## Create CV inputs to the Bethel algorithm; initialize at SRS CV
+        error_df <- data.frame("DOM" = "DOM1",
+                               as.numeric(srs_cv)[ispp],
+                               "domainvalue"  = 1)
+        names(error_df)[2] <- "CV1"
+        
+        ## subset stratum stats for the species of interest as inputs to the 
+        ## Bethel algorithm
+        temp_stratif <- 
+          solution$aggr_strata[, c("STRATO", "N", 
+                                   paste0("M", ispp), paste0("S", ispp), 
+                                   "COST", "CENS", "DOM1", "X1" , "SOLUZ"
+          )]
+        temp_stratif$N <- temp_stratif$N / n_years
+        temp_stratif$DOM1 <- 1
+        names(temp_stratif)[3:4] <- paste0(c("M", "S"), 1)
+        
+        ## run bethel at the SRS CV
+        temp_bethel <- SamplingStrata::bethel(
+          errors = error_df,
+          stratif = temp_stratif, 
+          realAllocation = T, 
+          printa = T)
+        
+        ## Save the current n and cv constraint
+        temp_n <- sum(ceiling(temp_bethel))
+        updated_cv_constraint <- 
+          as.numeric(attributes(temp_bethel)$outcv[, "PLANNED CV "])
+        
+        ## modify CV, rerun bethel, save temp_n, run until temp_n == n_samples
+        while (temp_n != n_samples){
+          over_under <- temp_n > n_samples
+          CV_adj <- ifelse(over_under == TRUE, 
+                           yes = 1.01,
+                           no = 0.999)
+          
+          updated_cv_constraint <- updated_cv_constraint * CV_adj
+          
+          error_df[, "CV1"] <- updated_cv_constraint
+          
+          temp_bethel <- SamplingStrata::bethel(stratif = temp_stratif,
+                                                errors = error_df, 
+                                                printa = TRUE)
+          
+          temp_n <- sum(as.numeric(temp_bethel))
+          updated_cv_constraint <- 
+            as.numeric(attributes(temp_bethel)$outcv[, "PLANNED CV "])
+          print(paste0("n = ", temp_n, ", ", updated_cv_constraint) )
+        }
+        
+        ## Save the CV and station allocations that corresponds to n_samples
+        temp_idx <- ss_sample_allocations$n == n_samples & 
+          ss_sample_allocations$species == spp_list[ispp]
+        
+        ss_sample_allocations[temp_idx, "CV"] <- 
+          as.numeric(attributes(temp_bethel)$outcv[, "ACTUAL CV"])
+        
+        ss_sample_allocations[temp_idx, paste0("Str_", 1:length(temp_bethel))] <- 
+          as.integer(temp_bethel)
+        
       
-      if (sum(as.integer(temp_bethel))<unique(samp_df$n_samples)) {
-        error_df$CV1<-error_df$CV1-(error_df$CV1*0.001) #reduce 0.1% CV
-      } else if (sum(as.integer(temp_bethel))>unique(samp_df$n_samples)){
-        error_df$CV1<-error_df$CV1+(error_df$CV1*0.01) #increase 1%
-      } 
     }
+    
+    ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    ##   8) Adjust MS solution ----
+    ##   Optimize allocation across a range of sample sizes, given the original
+    ##   stratification.
+    ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~  
+    ms_sample_allocations <- expand.grid(n = n_samples)
+    temp_n <- result_list$n
+    
+    ## Subset lower limits of CVs from the ss cvs
+    ss_cvs <- subset(ss_sample_allocations, n == n_samples)$CV
+      
+    ## CV dataframe input to Bethel algorithm
+    error_df <-  data.frame("DOM" = "DOM1",
+                            srs_cv,
+                            "domainvalue"  = 1)
+    names(error_df)[2:(1 + n_spp)] <- paste0("CV", 1:n_spp)
+      
+      ## Stratum statistics input to the Bethel algorithm
+      temp_stratif <- solution$aggr_strata
+      temp_stratif$N <- temp_stratif$N / n_years
+      temp_stratif$DOM1 <- 1
+      
+      ## Run Bethel algorithm and save current n and cv constraints
+      temp_bethel <- SamplingStrata::bethel(
+        errors = error_df,
+        stratif = temp_stratif, 
+        realAllocation = T, 
+        printa = T)
+      
+      temp_n <- sum(ceiling(temp_bethel))
+      updated_cv_constraint <- 
+        as.numeric(attributes(temp_bethel)$outcv[, "PLANNED CV "])
+      
+      ## Rerun Bethel algorithm, modifying the CVs relative to the distances
+      ## between the SRS and SS CVs given n_samples stations. First we calculate 
+      ## CVs calculated under SRS for each species with n_samples stations
+      temp_srs_var <- 
+        srs_stats[, paste0("S", 1:n_spp)]^2 * (1 - isample / n_cells) / isample
+      temp_srs_cv <- sqrt(temp_srs_var) / srs_stats[, paste0("M", 1:n_spp)]
+      
+      while (temp_n != n_samples) {
+        over_under <- temp_n > n_samples
+        
+        ## If the current n is < n_samples, decrease the CV by a small amount
+        ## relative to the distance between the current CV and the SS CV
+        if (over_under == FALSE) {
+          CV_adj <- 0.95
+          updated_cv_constraint <- 
+            updated_cv_constraint * (CV_adj) + ss_cvs * (1  - CV_adj)
+        }
+        
+        ## If the current n is > n_samples, increase the CV by a small amount
+        ## relative to the distance between the current CV and the SRS CV
+        if(over_under == TRUE) {
+          CV_adj = .05
+          updated_cv_constraint <- 
+            temp_srs_cv * (CV_adj) + updated_cv_constraint * (1  - CV_adj)
+        }
+        
+        ## Update the CV dataframe input with the updated_cv_constraint
+        error_df[, paste0("CV", 1:n_spp)] <- updated_cv_constraint
+        
+        ## Rerun Bethel algorithm
+        temp_bethel <- SamplingStrata::bethel(stratif = temp_stratif,
+                                              errors = error_df, 
+                                              printa = TRUE)
+        
+        ## Save sample size and CV constraint
+        temp_n <- sum(as.numeric(temp_bethel))
+        updated_cv_constraint <- 
+          as.numeric(attributes(temp_bethel)$outcv[, "PLANNED CV "])
+        
+        ## Print out result to console
+        print(paste0("n = ", temp_n) )
+      }
+      
+      ## Save optimized CV 
+      temp_idx <- ms_sample_allocations$n == isample
+      
+      ms_sample_allocations[temp_idx, paste0("CV", 1:n_spp)] <- 
+        as.numeric(attributes(temp_bethel)$outcv[, "ACTUAL CV"])
+      
+      ms_sample_allocations[temp_idx, paste0("Str_", 1:length(temp_bethel))] <- 
+        as.integer(temp_bethel)
+      
+    
+
     #store bethel CV
     cv_bethel_final<-error_df
     
@@ -500,13 +599,11 @@ names(df)[((ncol(df)-length(tar_var))+1):ncol(df)]<-tar_var
     
     #save plot list
     save(result_list,file=paste0('./output/species/',sp,'/optimization data/optimization_results_',samp_df[s,'samp_scn'],'.RData'))
-  }  
-  
-  
-  #save locations
-  save(sp_sum_stats,file = paste0('./output/species/',sp,'/optimization data/optimization_summary_stats.RData'))
   
 }  
+
+#save locations
+save(sp_sum_stats,file = paste0('./output/species/',sp,'/optimization data/optimization_summary_stats.RData'))
 
 #check CVs
 s<-1
