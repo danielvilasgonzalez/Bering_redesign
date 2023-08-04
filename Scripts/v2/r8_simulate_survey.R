@@ -100,14 +100,11 @@ load('./tables/SBT_projection.RData')#df_sbt
 df_sbt$sbt<-paste0('SBT',df_sbt$sbt_n)
 df_sbt$sbt2<-paste0(df_sbt$sbt,'_',df_sbt$Scenario)
 
-#number of simulations
+#number of historical simulations and projected simulations
 n_sim<- 100
 
 #loop over spp
-for (sp in spp) {
-  
-  sp<-"Gadus macrocephalus"
-  
+
   # #load fit file
   # load(paste0('./shelf EBS NBS VAST/',sp,'/fit.RData')) #fit
   # #getLoadedDLLs() #if check loaded DLLs
@@ -225,8 +222,52 @@ for (sp in spp) {
     #loop over sampling designs
     for (samp in unique(samp_df$samp_scn)) { #sampling designs
       
-      #get station locations for each sampling design
-      load(file=paste0('./output/species/',sp,'/optimization data/samples_optimization_',samp,'_dynamic.RData')) #all_points
+      
+      ############################################
+      ############################################
+      ############################################
+      
+      if (grepl('base',samp_df[s,'samp_scn'])) { #if it contains base is baseline scenario
+        
+        strata<-baseline_strata$cell_strata[,c('cell','Lat','Lon','Stratum')]
+        names(strata)[4]<-c('Strata')
+        D8<-strata
+        
+        #allocations<-
+        if(samp_df[s,'samp_scn']=='scnbase'){
+          allocations<-data.frame('Strata'=baseline_strata$n_samples$stratum,
+                                  'n_samples'=baseline_strata$n_samples$scnbase)
+        }else{
+          allocations<-data.frame('Strata'=baseline_strata$n_samples$stratum,
+                                  'n_samples'=baseline_strata$n_samples$scnbase_bis)
+        }
+        
+      } else {
+        
+        #load results_optimization
+        load(file=paste0('./output/species/',sp,'/optimization data/optimization_results_',samp_df[s,'samp_scn'],'.RData')) #result_list
+        strata<-result_list$solution$indices
+        colnames(strata)<-c('cell','Strata')
+        allocations<-data.frame('Strata'=1:length(result_list$sample_allocations),
+                                'n_samples'=result_list$sample_allocations)
+        
+        #add a strata value to each cell
+        D8<-merge(D6,strata,by='cell',all.x=TRUE)
+        D8<-D8[,c("cell","Lat","Lon","Strata")]
+        D8$Strata<-as.numeric(D8$Strata)
+        D8$Strata<-ifelse(is.na(D8$Strata),999,D8$Strata)
+        
+      }
+      
+      
+      
+      
+      
+      
+      ############################################
+      ############################################
+      ############################################   
+
       
       #to store results
       sim_survey <- array(data = NA, dim = c(length(dimnames(all_points)[[1]]),
@@ -263,18 +304,13 @@ for (sp in spp) {
       save(sim_survey, file = paste0("./output/species/",sp,'/survey simulation historical data/',sim_fold,'/sim_survey_',samp,'_dynamic.RData'))  
     }
   }
-}
+
 
 
 ######################
 # PROJECTED DATA
 ######################
 
-#loop over spp
-for (sp in spp) {
-  
-  sp<-"Gadus macrocephalus"
-  
   #create folder simulation number
   dir.create(paste0('./output/species/',sp,'/survey simulation projected data/'))
   
@@ -316,8 +352,22 @@ for (sp in spp) {
         
         #samp<-"scn1"
         
-        #get station locations for each sampling design
-        load(file=paste0('./output/species/',sp,'/optimization data/samples_optimization_',samp,'_dynamic.RData')) #all_points
+        
+        ############################################
+        ############################################
+        ############################################
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        ############################################
+        ############################################
+        ############################################
         
         #to store results
         sim_survey <- array(data = NA, dim = c(length(dimnames(all_points)[[1]]),
@@ -355,4 +405,3 @@ for (sp in spp) {
     }
     gc();rm(pm)
   }
-}

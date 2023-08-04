@@ -54,7 +54,8 @@ spp<-c('Limanda aspera',
        'Paralithodes camtschaticus')
 
 #years
-n_years<-length(c(1982:2022))
+yrs<-c(1982:2022)
+n_yrs<-length(yrs)
 
 #load grid of NBS and EBS
 load('./extrapolation grids/northern_bering_sea_grid.rda')
