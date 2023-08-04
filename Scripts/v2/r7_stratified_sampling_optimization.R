@@ -249,9 +249,6 @@ names(df)[((ncol(df)-length(tar_var))+1):ncol(df)]<-tar_var
     
     
     #target variables
-    target_var_input<-data.frame(Y1 = static_df1$sumDensity,
-                                 Y1_SQ_SUM = static_df1$sumDensity_sq) #D7$sqsumDensity #Ynspp #set different scenarios and spp ############ TO CHECK
-    
     target_var_input<-static_df1[,tar_var]
     
     #create df
@@ -387,7 +384,7 @@ names(df)[((ncol(df)-length(tar_var))+1):ncol(df)]<-tar_var
                         cvs = as.numeric(calc_expected_CV(sum_stats)),
                         n = sum(sum_stats$Allocation),
                         sol_by_cell = plot_solution)
-    save(list = "result_list", file = "./output/ms_optim_strata_result_list_',",samp_df[s,'samp_scn'],".RData")
+    save(list = "result_list", file = paste0("./output/ms_optim_strata_result_list_",samp_df[s,'samp_scn'],".RData"))
     
     ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     ##   7) Single-Species Optimization ----
@@ -401,16 +398,16 @@ names(df)[((ncol(df)-length(tar_var))+1):ncol(df)]<-tar_var
       temp_n <- result_list$n
       
       #if one stratifying factor add columns  
-      if (!grepl('_',samp_df[s,'strat_var'])) {
+      # if (!grepl('_',samp_df[s,'strat_var'])) {
       ## Subset density data for species ispp
       ss_df <- subset(x = frame, 
                       select = c("domainvalue", "id", "WEIGHT", "X1", #"X2", 
                                  paste0("Y", ispp), paste0("Y", ispp, "_SQ_SUM")))
-      } else {
-        ss_df <- subset(x = frame, 
-                        select = c("domainvalue", "id", "WEIGHT", "X1", "X2", 
-                                   paste0("Y", ispp), paste0("Y", ispp, "_SQ_SUM"))) 
-      }
+      # } else {
+      #   ss_df <- subset(x = frame, 
+      #                   select = c("domainvalue", "id", "WEIGHT", "X1", "X2", 
+      #                              paste0("Y", ispp), paste0("Y", ispp, "_SQ_SUM"))) 
+      # }
       names(ss_df)[grep(x = names(ss_df), pattern = "Y")] <- c("Y1", "Y1_SQ_SUM")
       
       ## Create CV inputs to the Bethel algorithm; initialize at SRS CV
@@ -422,17 +419,17 @@ names(df)[((ncol(df)-length(tar_var))+1):ncol(df)]<-tar_var
         ## subset stratum stats for the species of interest as inputs to the 
         ## Bethel algorithm
         #if one stratifying factor add columns  
-        if (!grepl('_',samp_df[s,'strat_var'])) {
-        temp_stratif <- 
-          solution$aggr_strata[, c("STRATO", "N", 
-                                   paste0("M", ispp), paste0("S", ispp), 
-                                   "COST", "CENS", "DOM1", "X1" , "SOLUZ")]
-        } else {
+        # if (grepl('_',samp_df[s,'strat_var'])) {
+        # temp_stratif <- 
+        #   solution$aggr_strata[, c("STRATO", "N", 
+        #                            paste0("M", ispp), paste0("S", ispp), 
+        #                            "COST", "CENS", "DOM1", "X1",'X2' , "SOLUZ")]
+        # } else {
           temp_stratif <- 
             solution$aggr_strata[, c("STRATO", "N", 
                                      paste0("M", ispp), paste0("S", ispp), 
-                                     "COST", "CENS", "DOM1", "X1" , "X2","SOLUZ")]
-        } 
+                                     "COST", "CENS", "DOM1", "X1" ,"SOLUZ")]
+        # } 
         temp_stratif$N <- temp_stratif$N / n_years
         temp_stratif$DOM1 <- 1
         names(temp_stratif)[3:4] <- paste0(c("M", "S"), 1)
