@@ -238,64 +238,6 @@ for (sp in spp) {
 
 save(df,file=paste0('./output/species/multisp_optimization_static_data.RData'))
 
-#####################################
-# BERING SHAPEFILES
-#####################################
-
-#get files from google drive and set up
-files<-googledrive::drive_find()
-2
-
-#create directory
-dir.create('./shapefiles/',showWarnings = FALSE)
-
-#name shapefiles 
-shfiles<-c('EBSshelfThorson','NBSThorson','EBSslopeThorson')
-
-#get id shared folder from google drive
-id.bering.folder<-files[which(files$name=='Shapefiles'),'id']
-
-#list of files and folder
-files.1<-googledrive::drive_ls(id.bering.folder$id)
-
-#loop over shapefiles
-for (i in shfiles) {
-  
-  #i=shfiles[1]
-  
-  id.data<-files.1[which(grepl(i,files.1$name)),]
-  
-  for (j in 1:nrow(id.data)) {
-    
-    #download data
-    googledrive::drive_download(file=id.data$id[j],
-                                path = paste0('./shapefiles/',id.data$name[j]),
-                                overwrite = TRUE)
-    
-  }
-  
-  #shapefile EBS
-  sh<-rgdal::readOGR(dsn='./shapefiles/',layer = i)
-  
-  if (i=='EBSslopeThorson') {
-    
-    #reproject shapefile
-    proj4string(sh) <- CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0") 
-    sh<-spTransform(sh,CRSobj = CRS('+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs'))
-    
-  }
-  
-  #shapefile name
-  shname<-paste0(gsub('Thorson','',i),'_sh')
-  
-  #assign shapefiles
-  assign(shname,sh)
-  
-}
-
-#merge shapefiles
-bs_sh1<-union(EBSshelf_sh,NBS_sh)
-
 #################################################
 # CREATE DATA SAMPLING SCENARIO BASELINE
 #################################################
