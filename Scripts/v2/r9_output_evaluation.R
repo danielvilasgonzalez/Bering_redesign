@@ -389,12 +389,10 @@ for (samp in samp_df$samp_scn) {
 #save object
 save(index_proj, file = paste0("./output/species/projected design estimates.RData" ))
 
-
-
 #comparison estimates proj and hist
 #CV (STRS_var/index)
-mean(index_hist[,'CV_sim',,,,])
-mean(index_proj[,'CV_sim',,,,,])
+mean(index_hist[,'CV_sim',,,,],na.rm=TRUE)
+mean(index_proj[,'CV_sim',,,,,],na.rm=TRUE)
 #index
 mean(index_hist[,'STRS_mean',,,,])
 mean(index_proj[,'STRS_mean',,,,,])
