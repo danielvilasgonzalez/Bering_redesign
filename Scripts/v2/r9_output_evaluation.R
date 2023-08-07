@@ -3,7 +3,7 @@
 ##    
 ##    simulate survey by extracting predicted densities for
 ##    each location under each sampling design for each SBT projection
-##    get design-based estimates for each year and iteration
+##    get design-based estimates for each year, species and iteration
 ##    
 ##    danielvilasgonzalez@gmail.com/dvilasg@uw.edu
 ##
