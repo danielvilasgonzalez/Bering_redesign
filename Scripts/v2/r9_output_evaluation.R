@@ -31,6 +31,7 @@ pacman::p_load(pack_cran,character.only = TRUE)
 
 #setwd
 out_dir<-'C:/Users/Daniel.Vilas/Work/Adapting Monitoring to a Changing Seascape/'
+out_dir<-'/Users/daniel/Work/Adapting Monitoring to a Changing Seascape/'
 setwd(out_dir)
 
 #list of sp
@@ -69,9 +70,184 @@ load('./output/baseline_strata.RData') #baseline_strata
 #add percent of total area per strata
 baseline_strata$strata_areas$pct<-baseline_strata$strata_areas$Area_in_survey_km2/sum(baseline_strata$strata_areas$Area_in_survey_km2)
 
+###################################
+# Sampling designs (from script #11) 
+###################################
+
+#sampling scenarios
+samp_df<-expand.grid(strat_var=c('Depth_varTemp','varTemp','Depth'),
+                     target_var=c('sumDensity'), #,'sqsumDensity'
+                     n_samples=c(520), #c(300,500) 520 (EBS+NBS+CRAB);26 (CRAB); 350 (EBS-CRAB); 494 (NBS-CRAB)
+                     n_strata=c(15),
+                     stringsAsFactors = FALSE) #c(5,10,15)
+
+#add scenario number
+samp_df$samp_scn<-paste0(paste0('scn',1:nrow(samp_df)))
+samp_df<-rbind(samp_df,c('baseline','current',520,15,'scnbase'),
+               c('baseline w/o corner','current',494,15,'scnbase_bis'))
+
+###################################
+# SBT scenarios
+###################################
+
+#load SBT scenarios table
+load('./tables/SBT_projection.RData')#df_sbt
+
+#name SBT scenarios
+df_sbt$sbt<-paste0('SBT',df_sbt$sbt_n)
+df_sbt$sbt2<-paste0(df_sbt$sbt,'_',df_sbt$Scenario)
+
+#number of historical simulations and projected simulations
+n_sim<- 100
+
 ######################
-# DESIGN-BASED INDEX HISTORICAL DATA
+# HISTORICAL DATA
 ######################
+
+#INDEX TRUE (MODEL$BASED)
+load(file = paste0("./output/species/dens_index_hist_OM.RData"))  #dens_index_hist_OM, 
+
+#loop over sampling designs
+for (samp in unique(samp_df$samp_scn)) { #sampling designs
+  
+  samp<-unique(samp_df$samp_scn)[1]
+  
+  s<-match(samp,samp_df$samp_scn)
+  
+  #store results
+  load(file = paste0('./output/species/sim_hist_survey_',samp,'.RData'))  #sim_survey
+  load(file = paste0('./output/species/allocations_hist_survey_',samp,'.RData'))     #all_points
+
+  #when base sampling other files
+  if (grepl('base',samp)) {
+    
+    #conditions on baseline scenarios
+    if (samp == 'scnbase') {
+      baseline_strata$locations2<-baseline_strata$locations
+    } else if (samp == 'scnbase_bis') {
+      baseline_strata$locations2<-baseline_strata$locations[which(baseline_strata$locations$corner=='FALSE'),]
+    } 
+    
+    #sort by strata
+    baseline_strata$strata_areas<-baseline_strata$strata_areas[order(baseline_strata$strata_areas$X1),]
+    baseline_strata$locations2<-baseline_strata$locations2[order(baseline_strata$locations2$stratum),]
+    
+    #area by strata
+    strata_areas <- baseline_strata$strata_areas
+    
+    #strata data
+    survey_detail <- data.frame("Stratum" = baseline_strata$strata_areas$X1, #strata
+                                'Nh' = baseline_strata$strata_areas$pct*53464, #number of cells
+                                "nh" = data.frame(table(baseline_strata$locations2$stratum))[,c('Freq')]) #number of sample allocations
+    
+    #weight of strata for each
+    survey_detail$Wh <- survey_detail$Nh / sum(survey_detail$Nh)
+    survey_detail$wh <- with(survey_detail, nh/Nh)
+    
+  } else {
+    
+    #load optimization results
+    load(paste0("./output/ms_optim_allocations_",samp_df[s,'samp_scn'],".RData")) #all
+    
+    #area
+    area_cell<-merge(all$result_list$solution$indices, grid, by.x='ID',by.y='cell')
+    
+    #area by strata
+    strata_areas <- aggregate(Area_in_survey_km2 ~ X1, 
+                              FUN = sum,
+                              data = area_cell)
+    
+    #strata data
+    survey_detail <- data.frame("Stratum" = all$samples_strata$strata, #strata
+                                'Nh' = as.integer(table(all$result_list$solution$indices$X1)), #number of cells
+                                "nh" = all$samples_strata$n_samples) #number of sample allocations
+    
+    #weight of strata for each
+    survey_detail$Wh <- survey_detail$Nh / sum(survey_detail$Nh)
+    survey_detail$wh <- with(survey_detail, nh/Nh)
+    
+  }   
+  
+  #loop over simulation (n_sim=100)
+  for (isim in 1:100) {
+    
+    isim<-1
+    
+ 
+  #INDEX SIMULATED (DESIGN$BASED)
+  
+    
+  #RRMSE INDEX
+  
+  #CV TRUE
+  
+  #CV SIM
+  
+  #RRMSE CV
+
+
+    #loop over approaches  
+    for (apr in dimnames(sim_survey)[[4]]) {
+      
+      apr<-dimnames(sim_survey)[[4]][1]
+      
+      #loop over approaches  
+      for (y in dimnames(sim_survey)[[3]]) {
+        
+      
+        y<-'1982'
+          
+      #get strata mean density over year  
+      dens<-unlist(sim_survey[,,y,apr,isim])
+      y<-data.frame(dens[,-ncol(dens)],check.names = FALSE)
+      rowMeans(y[,-ncol(y)])
+      yy<-reshape2::melt(y,id.vars=c('strata'))
+      #yy$value<-yy$value/1000 #t/km²
+      
+      #mean, sum and var by strata and year (variable)
+      yyy<-aggregate(x=yy$value,
+                     by=list(strata=yy$strata,year=yy$variable),
+                     FUN = function(x) c('mean' = mean(x,na.rm=T), 'sum' = sum(x),'var' = var(x,na.rm=T) ))
+      
+      #yyy$x[,c('mean')] #strata_mean
+      #yyy$x[,c('var')]/length(yy$value) #strata var
+      
+      #create df
+      zzz<-data.frame('strata'=yyy$strata,'year'=yyy$year,'mean'=yyy$x[,c('mean')],'var'=yyy$x[,c('var')]) #/length(yy$value)
+      zzzz<-merge(zzz,strata_areas,by.x='strata',by.y='X1',all.x=TRUE)
+      zzzz<-merge(zzzz,survey_detail,by.x='strata',by.y='Stratum',all.x=TRUE)
+      #add index strata for sum to compute index (mean strata density * area of strata) t!
+      zzzz$index_strata<-zzzz$mean*zzzz$Area_in_survey_km2
+      #add strata var 
+      zzzz$strs_var<-zzzz$var*(zzzz$Area_in_survey_km2^2)/zzzz$nh #sum(survey_detail$Nh) 
+      #sum of strata var and mean density across years (kg/km2)
+      zzzz1 <- aggregate(zzzz[,c('strs_var','index_strata')], by= list(zzzz$year) , 
+                         FUN = sum)
+      #get CV across years
+      zzzz1$cv<- sqrt(zzzz1$strs_var) / zzzz1$index_strata
+      #mean CV 
+      mean(zzzz1$cv)
+      
+      #get outputs
+      STRS_mean <- zzzz1$index_strata
+      STRS_var <- zzzz1$strs_var
+      CV <- sqrt(STRS_var) / STRS_mean
+      index<- zzzz1$index_strata
+      
+      index_hist['STRS_mean',,apr,sim,samp]<-STRS_mean
+      index_hist['STRS_var',,apr,sim,samp]<-STRS_var
+      index_hist['cv',,apr,sim,samp]<-CV
+      index_hist['index',,apr,sim,samp]<-index
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
 
 #loop over species
 for (sp in spp) {
