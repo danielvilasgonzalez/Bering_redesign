@@ -150,9 +150,9 @@ df_sbt$sbt2<-paste0(df_sbt$sbt,'_',df_sbt$Scenario)
 n_sim<- 100
 
     #loop over sampling designs
-    for (samp in unique(samp_df$samp_scn)) { #sampling designs
+    for (samp in unique(samp_df$samp_scn)[4:5]) { #sampling designs
       
-      #samp<-unique(samp_df$samp_scn)[4]
+      #samp<-unique(samp_df$samp_scn)[1]
       
       s<-match(samp,samp_df$samp_scn)
       
@@ -180,12 +180,12 @@ n_sim<- 100
         
         #cell - strata
         strata<-all$result_list$solution$indices #all$result_list$sol_by_cell
-        colnames(strata)<-c('cell','Strata')
+        colnames(strata)<-c('cell','strata')
         strata<-strata[order(strata$cell),]
 
         #add a strata value to each cell
         D8<-merge(df,strata,by='cell',all.x=TRUE)
-        D8<-D8[,c("cell","Lat","Lon","Strata")]
+        D8<-D8[,c("cell","Lat","Lon","strata")]
         names(D8)[4]<-'strata'
         D8$strata<-as.numeric(D8$strata)
         D8$strata<-ifelse(is.na(D8$strata),999,D8$strata)
@@ -363,9 +363,8 @@ n_sim<- 100
 # PROJECTED DATA
 ######################
 
-    
-  #loop over sampling designs
-  for (samp in unique(samp_df$samp_scn)) { #sampling designs
+    #loop over sampling designs
+    for (samp in unique(samp_df$samp_scn)) { #sampling designs
       
       #samp<-unique(samp_df$samp_scn)[1]
       
@@ -395,12 +394,12 @@ n_sim<- 100
         
         #cell - strata
         strata<-all$result_list$solution$indices #all$result_list$sol_by_cell
-        colnames(strata)<-c('cell','Strata')
+        colnames(strata)<-c('cell','strata')
         strata<-strata[order(strata$cell),]
         
         #add a strata value to each cell
         D8<-merge(df,strata,by='cell',all.x=TRUE)
-        D8<-D8[,c("cell","Lat","Lon","Strata")]
+        D8<-D8[,c("cell","Lat","Lon","strata")]
         names(D8)[4]<-'strata'
         D8$strata<-as.numeric(D8$strata)
         D8$strata<-ifelse(is.na(D8$strata),999,D8$strata)
@@ -410,13 +409,11 @@ n_sim<- 100
                                 'n_samples'=all$samples_strata$n_samples)
         
       }
-
       
       #to store all points
       all_points<-array(NA,
                         dim = list(sum(allocations$n_samples),4,length(project_yrs),2,n_sim),
                         dimnames = list(c(1:sum(allocations$n_samples)),c('Lon','Lat','cell','strata'),1:length(project_yrs),c('systematic','random'),1:n_sim))
-      
       
       #to store survey samples
       sim_survey <- array(data = NA, dim = c(length(dimnames(all_points)[[1]]),
@@ -445,6 +442,7 @@ n_sim<- 100
         
         #simulation folder
         #sim_fold<-formatC(isim, width = 4, format = "d", flag = "0")
+        
         
         for (y in 1:length(project_yrs)) { #years
           
@@ -566,10 +564,9 @@ n_sim<- 100
           #pointsb<-data.frame(unlist(all_points[,,y,'buffer']))                          
           pointsr<-data.frame(unlist(all_points[,,y,'random',isim]))   
           
+          
           #loop over SBT scenarios
           for (sbt in paste0(df_sbt$sbt_n)) {
-            
-            #sbt<-'1'
             
             #dimnames(sim_proj_dens)
             sim_proj_dens1<-sim_proj_dens[,,1,sbt,]
@@ -579,19 +576,13 @@ n_sim<- 100
           #sim_survey[,,'buffer']<-cbind(sim_dens[pointsb$cell,],pointsb$strata)
           sim_survey[,,as.character(yy),'random',paste0('SBT',sbt),isim]<-cbind(sim_proj_dens1[pointsr$cell,y,],'strata'=pointsr$strata,'cell'=pointsr$cell)
           }
+          
         }
       }
       #store results
-      #save(sim_survey, file = paste0('./output/species/sim_hist_survey_',samp,'.RData'))  
-      #save(all_points, file = paste0('./output/species/allocations_survey_',samp,'.RData'))     
-      
-      #store results
-      save(sim_survey, file = paste0("./output/species/sim_proj_survey_",samp,'.RData'))  
-      save(all_points, file = paste0('./output/species/allocations_proj_survey_',samp,'.RData'))          
-      gc();rm(sim_survey,all_points)
+      save(sim_survey, file = paste0('./output/species/sim_proj_survey_',samp,'.RData'))  
+      save(all_points, file = paste0('./output/species/allocations_proj_survey_',samp,'.RData'))  
       
     }
-        
 
-  
 
