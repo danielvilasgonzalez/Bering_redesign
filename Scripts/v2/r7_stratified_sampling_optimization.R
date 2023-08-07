@@ -225,7 +225,7 @@ names(df)[((ncol(df)-length(tar_var))+1):ncol(df)]<-tar_var
   #loop through sampling designs
   for (s in 1:nrow(samp_df)) {
     
-    #s<-2
+    #s<-1
     
     #print scenario to check progress
     cat(paste(" #############  Sampling Scenario", samp_df[s,"samp_scn"], " #############\n"))
@@ -250,6 +250,7 @@ names(df)[((ncol(df)-length(tar_var))+1):ncol(df)]<-tar_var
     
     #target variables
     target_var_input<-static_df1[,tar_var]
+    n_samples<-srs_n<-samp_df[s,'n_samples']
     
     #create df
     frame <- data.frame(domainvalue = domain_input, #domain
@@ -272,7 +273,7 @@ names(df)[((ncol(df)-length(tar_var))+1):ncol(df)]<-tar_var
     }
     
     ## SRS statistics
-    srs_var <- srs_stats[, paste0("S", 1:n_spp)]^2 * (1 - srs_n / n_cells) / srs_n
+    srs_var <- srs_stats[, paste0("S", 1:n_spp)]^2 * (1 -  srs_n/ n_cells) / srs_n
     srs_cv <- sqrt(srs_var) / srs_stats[, paste0("M", 1:n_spp)]
     
     #CV
@@ -349,7 +350,7 @@ names(df)[((ncol(df)-length(tar_var))+1):ncol(df)]<-tar_var
                        subset(x = solution$aggr_strata,
                               select = -c(STRATO, N, COST, CENS, DOM1, X1)))
     
-    plot_solution <- solution$indices$X1
+    plot_solution <- solution$indices
     
     #save optimization stats  
     sum_stats <- summaryStrata(solution$framenew,
@@ -384,7 +385,7 @@ names(df)[((ncol(df)-length(tar_var))+1):ncol(df)]<-tar_var
                         cvs = as.numeric(calc_expected_CV(sum_stats)),
                         n = sum(sum_stats$Allocation),
                         sol_by_cell = plot_solution)
-    save(list = "result_list", file = paste0("./output/ms_optim_strata_result_list_",samp_df[s,'samp_scn'],".RData"))
+    #save(list = "result_list", file = paste0("./output/ms_optim_strata_result_list_",samp_df[s,'samp_scn'],".RData"))
     
     ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     ##   7) Single-Species Optimization ----
@@ -563,23 +564,33 @@ names(df)[((ncol(df)-length(tar_var))+1):ncol(df)]<-tar_var
       ## Save optimized CV 
       temp_idx <- ms_sample_allocations$n == n_samples
       
+      
       ms_sample_allocations[temp_idx, paste0("CV", 1:n_spp)] <- 
         as.numeric(attributes(temp_bethel)$outcv[, "ACTUAL CV"])
       
       ms_sample_allocations[temp_idx, paste0("Str_", 1:length(temp_bethel))] <- 
         as.integer(temp_bethel)
       
-    
+      #store number samples per strata
+    samples_strata<-as.integer(temp_bethel)
 
     #store bethel CV
     cv_bethel_final<-error_df
     
     #cv
-    cv_temp <- data.frame(CV_random=cv_initial, #max
+    cv_temp <- rbind(CV_random=cv_initial, #max
                           CV_strata=cv_strata_final, #min to achieve strata
                           CV_bethel=cv_bethel_final) #min to achieve naximum sample
     
-    save(list = c('ss_sample_allocations','ms_sample_allocations','cv_temp'),
-         file = paste0("./output/ms_optim_allocations",samp_df[s,'samp_scn'],".RData"))
+    all<-list(result_list=result_list,
+              ss_sample_allocations=ss_sample_allocations,
+              ms_sample_allocations=ms_sample_allocations,
+              samples_strata=data.frame(strata=1:no_strata,n_samples=samples_strata),
+              cv=cv_temp)
+    
+    save(all,
+         file = paste0("./output/ms_optim_allocations_",samp_df[s,'samp_scn'],".RData"))
     
 }  
+
+  
