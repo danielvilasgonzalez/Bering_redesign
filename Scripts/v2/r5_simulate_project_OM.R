@@ -28,7 +28,8 @@ if (!('VAST' %in% installed.packages())) {
 pacman::p_load(pack_cran,character.only = TRUE)
 
 #setwd
-out_dir<-'C:/Users/Daniel.Vilas/Work/Adapting Monitoring to a Changing Seascape/'  #out_dir<-'/Users/daniel/Work/Adapting Monitoring to a Changing Seascape/'
+out_dir<-'C:/Users/Daniel.Vilas/Work/Adapting Monitoring to a Changing Seascape/'  
+out_dir<-'/Users/daniel/Work/Adapting Monitoring to a Changing Seascape/'
 setwd(out_dir)
 
 #list of sp
@@ -112,8 +113,23 @@ df_sbt$sbt2<-paste0(df_sbt$sbt,'_',df_sbt$Scenario)
 #number of simulations
 n_sim<- 100
 
+#store index and dens
+dens_index_hist_OM<-list()
+dens_index_proj_OM<-list()
+
+#array to store simulated densities/CPUE
+sim_hist_dens_spp<-array(NA,
+                    dim=c(nrow(grid),length(unique(yrs)),n_sim,length(spp)),
+                    dimnames=list(1:nrow(grid),unique(yrs),1:n_sim,spp))
+
+
+#array to store simulated densities/CPUE
+sim_proj_dens_spp<-array(NA,
+                         dim=c(nrow(grid),length(project_yrs),1,length(1:8),length(spp)),
+                         dimnames=list(1:nrow(grid),project_yrs,1,1:8,spp))
+
 #loop over spp
-for (sp in spp[3:15]) {
+for (sp in spp) {
   
   #sp<-"Gadus macrocephalus"
   
@@ -130,6 +146,12 @@ for (sp in spp[3:15]) {
   #reload model
   fit<-
     reload_model(x = fit)
+  
+  
+  #store index and dens
+  index<-fit$Report$Index_ctl
+  dens<-fit$Report$D_gct
+  dens_index_hist_OM[[sp]]<-list('index'=index,'dens'=dens)
   
   #check observation and predicted densities at each obs
   #observations
@@ -224,7 +246,9 @@ for (sp in spp[3:15]) {
   #save data
   save(sim_dens, file = paste0("./output/species/",sp,'/simulated historical data/sim_dens.RData')) 
   
-#}
+  #store
+  sim_hist_dens_spp[,,,sp]<-sim_dens
+
   ######################
   # PROJECTED DATA
   ######################
@@ -310,6 +334,15 @@ for (sp in spp[3:15]) {
     #rm(fit)
     #dyn.unload('C:/Program Files/R/R-4.2.2/library/VAST/executables/VAST_v13_1_0_TMBad.dll')
     
+    #store
+    sim_proj_dens_spp[,,1,sbt,sp]<-pm$D_gct[,1,42:46]
+    
+    #store index and dens
+    index<-pm$Report$Index_ctl
+    dens<-pm$Report$D_gct
+    dens_index_proj_OM[[sp]]<-list('index'=index,'dens'=dens)
+    
+    
     #save list projections
     save(pm, file = paste0("./output/species/",sp,'/simulated projected data/fit_projection_SBT',sbt,'.RData'))
     
@@ -317,3 +350,16 @@ for (sp in spp[3:15]) {
     gc()
   }
 }
+
+
+#save 100 simulated historical densities for all species
+save(sim_hist_dens_spp, file = paste0("./output/species/sim_hist_dens_spp.RData"))
+#save true densities and index for all species
+save(dens_index_hist_OM, file = paste0("./output/species/dens_index_hist_OM.RData")) 
+#save 1 simulated projected densities under 8 SBT scenarios for all species
+save(sim_proj_dens_spp, file = paste0("./output/species/sim_proj_dens_spp.RData")) 
+#save true densities and index under 8 SBT scenarios for all species
+save(dens_index_proj_OM, file = paste0("./output/species/dens_index_proj_OM.RData")) 
+
+
+
