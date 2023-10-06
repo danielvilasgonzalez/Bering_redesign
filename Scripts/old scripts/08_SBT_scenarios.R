@@ -24,8 +24,8 @@ if (!('pacman' %in% installed.packages())) {
 pacman::p_load(pack_cran,character.only = TRUE)
 
 #setwd
-out_dir<-'C:/Users/Daniel.Vilas/Work/Adapting Monitoring to a Changing Seascape/'  #out_dir<-'/Users/daniel/Work/Adapting Monitoring to a Changing Seascape/'
-out_dir<-'/Users/daniel/Work/Adapting Monitoring to a Changing Seascape/'
+out_dir<-'C:/Users/Daniel.Vilas/Work/Adapting Monitoring to a Changing Seascape/'
+out_dir<-'/Users/daniel/Work/Adapting to a Changing Seascape/'
 setwd(out_dir)
 
 #range years of data
@@ -34,7 +34,7 @@ end_y<-2022
 
 #get files from google drive and set up
 files<-googledrive::drive_find()
-2 #for dvilasg@uw.edu
+3 #for dvilasg@uw.edu
 
 #get id shared folder from google drive
 id.bering.folder<-files[which(files$name=='Bering redesign RWP project'),'id']
@@ -61,7 +61,6 @@ files.1<-googledrive::drive_ls(id.bering.folder$id)
 id.data<-files.1[which(files.1$name=='data raw'),'id']
 files.2<-googledrive::drive_ls(id.data$id)
 
-#check temperature example for Pcod
 #for (sp in spp) {
   
   #sp
@@ -122,6 +121,7 @@ files.2<-googledrive::drive_ls(id.data$id)
       theme_bw())
 #}
 
+
 ######################################
 # SBT PROJECTIONS
 ######################################
@@ -146,7 +146,7 @@ df_sbt$sbt_n<-1:nrow(df_sbt)
 save(df_sbt,file = './tables/SBT_projection.RData')
 
 #load grid
-load('./data processed/grid_EBS_NBS.RData')
+load('./extrapolation grids/lastversion_grid_EBS.RData')
 
 #subset to year 2022
 df2022<-subset(grid.ebs_year,Year==2022)
@@ -179,6 +179,10 @@ dir.create('./data processed/SBT projections/')
 #create folder
 dir.create('./figures/SBT/')
 
+#legends
+#numberOfBreaks <- 10
+#brksUniv <- seq(-8,10, length.out=numberOfBreaks)
+
 #loop over scenarios and projected years
 for (sbt in unique(df_sbt$sbt_n)) {
 
@@ -191,7 +195,6 @@ for (sbt in unique(df_sbt$sbt_n)) {
   sbt_stack<-addLayer(sbt_stack,r2)
   names(sbt_stack)<-'y2022'
   
-  #loop over projected years
   for (y in 1:5) {
     #y<-1
     

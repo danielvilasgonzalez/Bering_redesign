@@ -30,6 +30,7 @@ pacman::p_load(pack_cran,character.only = TRUE)
 
 #setwd
 out_dir<-'C:/Users/Daniel.Vilas/Work/Adapting Monitoring to a Changing Seascape/'
+out_dir<-'/Users/daniel/Work/Adapting to a Changing Seascape/'
 setwd(out_dir)
 
 #list of sp
@@ -352,6 +353,90 @@ for (sp in spp) {
 ######################
 
 #project just one 
+sp<-"Gadus macrocephalus"
+
+#create folder simulation number
+dir.create(paste0('./output/species/',sp,'/survey simulation projected data/'))
+
+#loop over SBT scenarios
+for (sbt in paste0('SBT',1:12)) {
+  
+  sbt<-'SBT1'
+  
+  #print scenario to check progress
+  cat(paste(" #############   Species", sp, match(sp,spp), 'out of',length(spp),  "  #############\n",
+            " #############  projected simulation", sbt, "of", 'SBT12' , " #############\n"))
+  
+  
+  #load sbt data
+  load(paste0('./output/species/',sp,'/simulated projected data/fit_projection_SBT',sbt,'.RData'))
+  
+  #loop over simulations  
+  for (isim in 1) { #simulations
+    
+    isim<-1
+    
+    #simulation folder
+    sim_fold<-formatC(isim, width = 4, format = "d", flag = "0")
+    
+    #create folder simulation number
+    dir.create(paste0('./output/species/',sp,'/simulated projected data/',sim_fold),showWarnings = FALSE)
+    
+    #create folder simulation number
+    dir.create(paste0('./output/species/',sp,'/survey simulation projected data/',sim_fold),showWarnings = FALSE)
+    
+    #simulated data
+    sim_dens<-drop_units(unlist(pm$D_gct[,1,42:46]))
+    sim_ind<-drop_units(unlist(pm$Index_ctl[,42:46,]))
+    
+    #list of results of sbt
+    sim_data<-list(sim_dens=sim_dens,sim_ind=sim_ind)
+    
+    #save data
+    save(sim_data, file = paste0("./output/species/",sp,'/simulated projected data/',sim_fold,'/sim_data_',sbt,'.RData'))  
+    
+    for (samp in unique(samp_df$samp_scn)) { #sampling designs
+      
+      #samp<-"scn1"
+      
+      #get station locations for each sampling design
+      load(file=paste0('./output/species/',sp,'/optimization data/samples_optimization_',samp,'_dynamic.RData')) #all_points
+      
+      #to store results
+      sim_survey <- array(data = NA, dim = c(length(dimnames(all_points)[[1]]),
+                                             5+1, #add strata number
+                                             2),
+                          dimnames = list(dimnames(all_points)[[1]],
+                                          c(2023:2027,'strata'),
+                                          c('current','random')))
+      
+      for (y in 1:length(2022:2027)) { #years
+        
+        #y<-1  
+        
+        #years
+        yy<-c(2022:2027)[y]
+        
+        #get points iterations
+        pointsc<-data.frame(unlist(all_points[,,y,'current']))
+        #pointsb<-data.frame(unlist(all_points[,,y,'buffer']))   
+        pointsr<-data.frame(unlist(all_points[,,y,'random']))                          
+        
+        #append survey densities for each iteration and simulated data
+        sim_survey[,,'current']<-cbind(sim_dens[pointsc$cell,],pointsc$strata)
+        #sim_survey[,,'buffer']<-cbind(sim_dens[pointsb$cell,],pointsb$strata)
+        sim_survey[,,'random']<-cbind(sim_dens[pointsr$cell,],pointsr$strata)
+        
+      }
+      
+      #store results
+      save(sim_survey, file = paste0("./output/species/",sp,'/survey simulation projected data/',sim_fold,'/sim_survey_',samp,'_',sbt,'_dynamic.RData'))  
+      gc();rm(sim_survey)
+    }
+  }
+  gc();rm(pm)
+}
+}
 
 
   

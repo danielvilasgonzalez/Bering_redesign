@@ -1,3 +1,63 @@
+library(VAST)
+
+#check errors in models
+
+#ssp with problems
+spp<-c('Reinhardtius hippoglossoides', #missbehave model - year 2019 peack of biomass
+       'Anoplopoma fimbria', #may be the reality for sablefish
+       'Lepidopsetta polyxystra') #missbehave model - from 1982-1995 very low biomass (almost 0)
+
+sp<-spp[1]
+sp<-'Gadus macrocephalus'
+load(paste0('./shelf EBS NBS VAST/',sp,'/fit-001.RData'))
+load(paste0('./shelf EBS NBS VAST/',sp,'/fit.RData'))
+plot(fit$data_frame$t_i,fit$data_frame$b_i)
+
+y<-readRDS(paste0('./shelf EBS NBS VAST/',sp,'/data_geostat_temp.RDS'))
+plot(y$Year,y$CPUE_kg)
+subset(y,Year==2020)
+
+#save data_geostat with SBT
+yy<-readRDS(paste0('./data processed/species/',sp,'/data_geostat_temp.rds'))
+subset(yy,year==2020)
+
+
+z<-readRDS(paste0('./data processed/species/',sp,'/data_geostat.rds'))
+subset(z,year==2020)
+plot(z$year,z$cpue_kgha)
+tapply(z$bottom_temp_c, z$year, summary)
+zz<-subset(z,year==2019)
+
+
+hist(zz$bottom_temp_c,breaks=20)
+
+#plot(fit,working_dir ='./test/')
+plot(x=1982:2022,y=drop_units(fit$Report$Index_ctl[,,1]))
+
+plot(fit$data_frame$t_i,fit$data_frame$b_i)
+
+xx<-subset(fit$data_frame,t_i>=2010)
+
+
+x<-readRDS('./shelf EBS NBS VAST/',sp,'/data_geostat_temp.rds')
+summary(x)
+xx<-x[which(x$Year==2019),]
+summary(xx$CPUE_kg)
+
+
+######################################################
+######################################################
+
+#VARIANCE AMONG PROJECTIONS 
+
+# Calculate Mean: For each time point, calculate the mean (average) value across all the projections. This will give you a baseline reference point.
+# Calculate Variance: For each time point, calculate the squared difference between each projection's value and the mean value calculated in step 3. Sum up these squared differences for all projections and divide by the number of projections minus 1 (to get an unbiased estimate) to calculate the variance at that time point.
+# Variance = Σ(projection_value - mean_value)^2 / (number_of_projections - 1)
+# Repeat for All Time Points: Repeat step 4 for every time point in your time series to obtain a variance value for each time point.
+# Interpret Results: The calculated variances at different time points represent the variability or spread of projections around the mean. Larger variance values indicate more disagreement or uncertainty among the projections, while smaller variance values suggest greater agreement.
+
+
+
 ####################################################################
 ####################################################################
 ##    
@@ -66,72 +126,65 @@ project_yrs<-((yrs[length(yrs)])+1):(yrs[length(yrs)]+n_proj)
 ###################################
 
 #load grid of NBS and EBS
- load('./extrapolation grids/northern_bering_sea_grid.rda')
- load('./extrapolation grids/eastern_bering_sea_grid.rda')
- grid<-as.data.frame(rbind(data.frame(northern_bering_sea_grid,region='NBS'),data.frame(eastern_bering_sea_grid,region='EBS')))
- grid$cell<-1:nrow(grid)
- 
- #load grid
- load('./extrapolation grids/lastversion_grid_EBS.RData')
- yrs<-1982:2022
- grid_ebs<-grid.ebs_year[which(grid.ebs_year$region != 'EBSslope' & grid.ebs_year$Year %in% yrs),]
- dim(grid_ebs)
- 
- #load baseline strata and specify corner stations
- load('./output/baseline_strata.RData')
- baseline_strata$locations[grep('GF|HG|JI|IH|ON|QP|PO',baseline_strata$locations$stationid),]
- baseline_strata$locations$corner<-ifelse(grepl('GF|HG|JI|IH|ON|QP|PO',baseline_strata$locations$stationid),'TRUE','FALSE')
- 
- ###################################
- # Sampling designs (from script #11) 
- ###################################
- 
- #sampling scenarios
- samp_df<-expand.grid(strat_var=c('Depth_varTemp','varTemp','Depth'),
-                      target_var=c('sumDensity'), #,'sqsumDensity'
-                      n_samples=c(520), #c(300,500) 520 (EBS+NBS+CRAB);26 (CRAB); 350 (EBS-CRAB); 494 (NBS-CRAB)
-                      n_strata=c(15),
-                      stringsAsFactors = FALSE) #c(5,10,15)
- 
+load('./extrapolation grids/northern_bering_sea_grid.rda')
+load('./extrapolation grids/eastern_bering_sea_grid.rda')
+grid<-as.data.frame(rbind(data.frame(northern_bering_sea_grid,region='NBS'),data.frame(eastern_bering_sea_grid,region='EBS')))
+grid$cell<-1:nrow(grid)
+
+#load grid
+load('./extrapolation grids/lastversion_grid_EBS.RData')
+yrs<-1982:2022
+grid_ebs<-grid.ebs_year[which(grid.ebs_year$region != 'EBSslope' & grid.ebs_year$Year %in% yrs),]
+dim(grid_ebs)
+
+#load baseline strata and specify corner stations
+load('./output/baseline_strata.RData')
+baseline_strata$locations[grep('GF|HG|JI|IH|ON|QP|PO',baseline_strata$locations$stationid),]
+baseline_strata$locations$corner<-ifelse(grepl('GF|HG|JI|IH|ON|QP|PO',baseline_strata$locations$stationid),'TRUE','FALSE')
+
+###################################
+# Sampling designs (from script #11) 
+###################################
+
+#sampling scenarios
+samp_df<-expand.grid(strat_var=c('Depth_varTemp','varTemp','Depth'),
+                     target_var=c('sumDensity'), #,'sqsumDensity'
+                     n_samples=c(520), #c(300,500) 520 (EBS+NBS+CRAB);26 (CRAB); 350 (EBS-CRAB); 494 (NBS-CRAB)
+                     n_strata=c(15),
+                     stringsAsFactors = FALSE) #c(5,10,15)
+
 #add scenario number
 samp_df$samp_scn<-paste0(paste0('scn',1:nrow(samp_df)))
 samp_df<-rbind(samp_df,c('baseline','current',520,15,'scnbase'),
-              c('baseline w/o corner','current',494,15,'scnbase_bis'))
+               c('baseline w/o corner','current',494,15,'scnbase_bis'))
 
- 
+
 ###################################
 # SBT projections
 ###################################
- 
+
 #save SBT table
 load('./tables/SBT_projection.RData')#df_sbt
- 
+
 #name scenario
 df_sbt$sbt<-paste0('SBT',df_sbt$sbt_n)
 df_sbt$sbt2<-paste0(df_sbt$sbt,'_',df_sbt$Scenario)
- 
+
+df_sbt1<-subset(df_sbt,sbt %in% paste0('SBT',c(1,2,3,5,7))) #status quo, warm moderate variation, warm very high variation, gradually warm, severe gradually warm
+
 #number of simulations
-n_sim<- 100
+n_sim<- 30
 
 #store index and dens
-dens_index_hist_OM<-list()
 dens_index_proj_OM<-list()
 
 #array to store simulated densities/CPUE
-sim_hist_dens_spp<-array(NA,
-                    dim=c(nrow(grid),length(unique(yrs)),n_sim,length(spp)),
-                    dimnames=list(1:nrow(grid),unique(yrs),1:n_sim,spp))
+# sim_proj_dens_spp<-array(NA,
+#                          dim=c(nrow(grid),length(project_yrs),1,length(1:8),length(spp)),
+#                          dimnames=list(1:nrow(grid),project_yrs,1,1:8,spp))
 
 
-#array to store simulated densities/CPUE
-sim_proj_dens_spp<-array(NA,
-                         dim=c(nrow(grid),length(project_yrs),1,length(1:8),length(spp)),
-                         dimnames=list(1:nrow(grid),project_yrs,1,1:8,spp))
-
-#loop over spp
-for (sp in spp) {
-  
-  #sp<-"Gadus macrocephalus"
+sp<-"Gadus macrocephalus"
   
   #create folder simulation data
   dir.create(paste0('./output/species/',sp,'/'))
@@ -144,17 +197,8 @@ for (sp in spp) {
   #getLoadedDLLs() #if check loaded DLLs
   
   #reload model
-  fit<-
-    reload_model(x = fit)
-  
-  
-  #store index and dens
-  index<-fit$Report$Index_ctl
-  dens<-fit$Report$D_gct
-  dens_index_hist_OM[[sp]]<-list('index'=index,'dens'=dens)
-  
-  #check observation and predicted densities at each obs
-  #observations
+  #fit<-
+  #  reload_model(x = fit)
   data_geostat<-readRDS(paste0('./shelf EBS NBS VAST/',sp,'/data_geostat_temp.rds'))
   
   #predictions
@@ -207,66 +251,17 @@ for (sp in spp) {
   pred_TF[1:nrow(data_geostat)] <- 0
   
   ######################
-  # HISTORICAL DATA
-  ######################
-  
-  #array to store simulated densities/CPUE
-  sim_dens<-array(NA,
-                  dim=c(nrow(grid),length(unique(yrs)),n_sim),
-                  dimnames=list(1:nrow(grid),unique(yrs),1:n_sim))
-  
-  #create folder simulation data
-  dir.create(paste0('./output/species/',sp,'/simulated historical data/'))
-  
-  #loop over simulations
-  for (isim in 1:n_sim) { #simulations
-    
-    #isim<-1
-    
-    #print simulation to check progress
-    cat(paste(" #############   Species", sp, match(sp,spp), 'out of',length(spp),  "  #############\n",
-              " #############  historical simulation", isim, "of",n_sim, " #############\n"))
-
-    #simulate data from OM
-    Sim1 <- FishStatsUtils::simulate_data(fit = fit, #kg/km2
-                                          type = 1, 
-                                          random_seed = isim)
-    
-    #select simulated data that belong to grid points
-    sim_bio <-matrix(data = Sim1$b_i[pred_TF == 1], #kg
-                     nrow = nrow(grid), 
-                     ncol = length(unique(yrs)))
-    
-    
-    #biomass (kg) to CPUE (kg/km2)
-    sim_dens[,,isim]<-sim_bio/grid$Area_in_survey_km2 
-    
-  }
-  
-  #save data
-  save(sim_dens, file = paste0("./output/species/",sp,'/simulated historical data/sim_dens.RData')) 
-  
-  #store
-  sim_hist_dens_spp[,,,sp]<-sim_dens
-
-  ######################
   # PROJECTED DATA
   ######################
   
   #get raster stack
   stack_files<-list.files('./data processed/SBT projections/')
   
-  #list covariate data for each scenario
-  #cov_list<-list()
-  
-  #list projected data for each scenario
-  #pr_list<-list()
-  
   #create folder simulation data
   dir.create(paste0('./output/species/',sp,'/simulated projected data/'))
   
   #loop over scenarios
-  for (sbt in unique(df_sbt$sbt_n)) {
+  for (sbt in unique(df_sbt1$sbt_n)) {
     
     #sbt<-unique(df_sbt$sbt_n)[1]
     
@@ -326,40 +321,40 @@ for (sp in spp) {
     pm<-VAST::project_model(x = fit,
                             working_dir = paste0('./shelf EBS NBS VAST/',sp,'/'),
                             n_proj = n_proj,
-                            n_samples = 1, #n_sim?
+                            n_samples = n_sim, #n_sim?
                             new_covariate_data = new_data,
                             historical_uncertainty = 'none')
     
     #remove fit
     #rm(fit)
     #dyn.unload('C:/Program Files/R/R-4.2.2/library/VAST/executables/VAST_v13_1_0_TMBad.dll')
+    save(pm, file = paste0("./output/species/",sp,'/simulated projected data/test_fit_projection_SBT',sbt,'.RData'))
     
     #store
-    sim_proj_dens_spp[,,1,sbt,sp]<-pm$D_gct[,1,42:46]
+    #sim_proj_dens_spp[,,1,sbt,sp]<-pm$D_gct[,1,42:46]
     
     #store index and dens
-    index<-pm$Report$Index_ctl
-    dens<-pm$Report$D_gct
-    dens_index_proj_OM[[sp]]<-list('index'=index,'dens'=dens)
-    
-    
-    #save list projections
-    save(pm, file = paste0("./output/species/",sp,'/simulated projected data/fit_projection_SBT',sbt,'.RData'))
-    
+    #index<-pm$Index_ctl
+    #dens<-pm$D_gct[,1,]
+    #dens_index_proj_OM[[sbt]]<-pm
+
     rm(pm)
     gc()
   }
-}
 
 
-#save 100 simulated historical densities for all species
-save(sim_hist_dens_spp, file = paste0("./output/species/sim_hist_dens_spp.RData"))
-#save true densities and index for all species
-save(dens_index_hist_OM, file = paste0("./output/species/dens_index_hist_OM.RData")) 
-#save 1 simulated projected densities under 8 SBT scenarios for all species
-save(sim_proj_dens_spp, file = paste0("./output/species/sim_proj_dens_spp.RData")) 
-#save true densities and index under 8 SBT scenarios for all species
-save(dens_index_proj_OM, file = paste0("./output/species/dens_index_proj_OM.RData")) 
-
-
-
+  #######################
+  # VARIANCE PROJECTIONS - COMPARE/RANK AMONG SBT SCENARIOS
+  #######################
+  
+  
+  #VARIANCE AMONG PROJECTIONS 
+  
+  # Calculate Mean: For each time point, calculate the mean (average) value across all the projections. This will give you a baseline reference point.
+  # Calculate Variance: For each time point, calculate the squared difference between each projection's value and the mean value calculated in step 3. Sum up these squared differences for all projections and divide by the number of projections minus 1 (to get an unbiased estimate) to calculate the variance at that time point.
+  # Variance = Σ(projection_value - mean_value)^2 / (number_of_projections - 1)
+  # Repeat for All Time Points: Repeat step 4 for every time point in your time series to obtain a variance value for each time point.
+  # Interpret Results: The calculated variances at different time points represent the variability or spread of projections around the mean. Larger variance values indicate more disagreement or uncertainty among the projections, while smaller variance values suggest greater agreement.
+  
+  
+  

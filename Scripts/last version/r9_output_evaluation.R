@@ -54,6 +54,9 @@ spp<-c('Limanda aspera',
        'Paralithodes platypus',
        'Paralithodes camtschaticus')
 
+#remove Anoploma and Reinhardtius because habitat preference reasons
+spp<-setdiff(spp, c('Anoplopoma fimbria','Reinhardtius hippoglossoides'))
+
 #years
 yrs<-c(1982:2022)
 n_yrs<-length(yrs)
@@ -90,8 +93,8 @@ samp_df<-expand.grid(strat_var=c('Depth_varTemp','varTemp','Depth'),
 
 #add scenario number
 samp_df$samp_scn<-paste0(paste0('scn',1:nrow(samp_df)))
-samp_df<-rbind(samp_df,c('baseline','current',520,15,'scnbase'),
-               c('baseline w/o corner','current',494,15,'scnbase_bis'))
+samp_df<-rbind(samp_df,c('baseline','systematic',520,15,'scnbase'),
+               c('baseline w/o corner','systematic',494,15,'scnbase_bis'))
 
 ###################################
 # SBT scenarios
@@ -250,16 +253,19 @@ save(index_hist, file = paste0("./output/species/historical design estimates.RDa
 #INDEX TRUE (MODEL$BASED)
 #load(file = paste0("./output/species/dens_index_project_OM.RData"))  #dens_index_hist_OM, 
 
+n_sim<-1
+n_sur<-100
+
 #array to store
 index_proj<-array(NA,
-                  dim=list(length(spp),3,n_proj,2,length(1:n_sim),nrow(df_sbt),nrow(samp_df)),
-                  dimnames=list(spp,c('STRS_mean','STRS_var','CV_sim'),paste0('y',project_yrs),c('systematic','random'),1:n_sim,df_sbt$sbt,samp_df$samp_scn))
+                  dim=list(length(spp),3,n_proj,2,length(1:n_sim),length(1:n_sur),nrow(df_sbt),nrow(samp_df)),
+                  dimnames=list(spp,c('STRS_mean','STRS_var','CV_sim'),paste0('y',project_yrs),c('systematic','random'),1:n_sim,1:n_sur,df_sbt$sbt,samp_df$samp_scn))
 
  
 #loop over sampling designs
 for (samp in samp_df$samp_scn) {
   
-  #samp<-samp_df$samp_scn[1]
+  #samp<-samp_df$samp_scn[3]
   
   s<-match(samp,samp_df$samp_scn)
   
@@ -325,9 +331,11 @@ for (samp in samp_df$samp_scn) {
     cat(paste(" #############  SBT projection -", sbt, " #############\n"))
     
     #sbt<-'SBT1'
-          
     #loop over simulation
     for (isim in 1:n_sim) {
+      
+    #loop over simulation
+    for (isur in 1:n_sur) {
       
       #isim<-1
     
@@ -342,7 +350,7 @@ for (samp in samp_df$samp_scn) {
           #year<-'2023'
           
           #get strata mean over year  
-          dens<-unlist(sim_survey[,,as.character(year),apr,sbt,isim])
+          dens<-unlist(sim_survey[,,as.character(year),apr,sbt,isim,isur])
           y<-data.frame(dens[,c(spp,'strata')],check.names = FALSE)
           yy<-reshape2::melt(y,id.vars=c('strata'))
           
@@ -350,6 +358,9 @@ for (samp in samp_df$samp_scn) {
           yyy<-aggregate(x=yy$value,
                          by=list(strata=yy$strata,sp=yy$variable),
                          FUN = function(x) c('mean' = mean(x,na.rm=T), 'sum' = sum(x),'var' = var(x,na.rm=T) ))
+          
+          
+          
           
           #create df
           zzz<-data.frame('strata'=yyy$strata,'sp'=yyy$sp,'mean'=yyy$x[,c('mean')],'var'=yyy$x[,c('var')]) #/length(yy$value)
@@ -377,9 +388,10 @@ for (samp in samp_df$samp_scn) {
           CV <- sqrt(STRS_var) / STRS_mean #simulated CV
           
           #append results
-          index_proj[,'STRS_mean',paste0('y',year),apr,isim,sbt,samp]<-STRS_mean
-          index_proj[,'STRS_var',paste0('y',year),apr,isim,sbt,samp]<-STRS_var
-          index_proj[,'CV_sim',paste0('y',year),apr,isim,sbt,samp]<-CV
+          index_proj[,'STRS_mean',paste0('y',year),apr,isim,isur,sbt,samp]<-STRS_mean
+          index_proj[,'STRS_var',paste0('y',year),apr,isim,isur,sbt,samp]<-STRS_var
+          index_proj[,'CV_sim',paste0('y',year),apr,isim,isur,sbt,samp]<-CV
+        }
         }
       }  
     }
@@ -392,7 +404,7 @@ save(index_proj, file = paste0("./output/species/projected design estimates.RDat
 #comparison estimates proj and hist
 #CV (STRS_var/index)
 mean(index_hist[,'CV_sim',,,,],na.rm=TRUE)
-mean(index_proj[,'CV_sim',,,,,],na.rm=TRUE)
+mean(index_proj[,'CV_sim',,,,,,],na.rm=TRUE)
 #index
 mean(index_hist[,'STRS_mean',,,,])
-mean(index_proj[,'STRS_mean',,,,,])
+mean(index_proj[,'STRS_mean',,,,,,])

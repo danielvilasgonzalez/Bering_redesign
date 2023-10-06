@@ -42,6 +42,8 @@ pacman::p_load(pack_cran,character.only = TRUE)
 
 #setwd
 out_dir<-'C:/Users/Daniel.Vilas/Work/Adapting Monitoring to a Changing Seascape/'
+out_dir<-'/Users/daniel/Work/Adapting to a Changing Seascape/'
+
 setwd(out_dir)
 
 #version VAST (cpp)
@@ -410,8 +412,8 @@ for (sp in spp) {
     solution <- optimStrata(method = "continuous", #continous variables
                             errors = cv,  #precision level - maximum allowable coefficient of variation set by the simple random sampling 
                             framesamp = frame, #df of input variables
-                            iter = 300, #300 #aximum number of iterations
-                            pops = 100, #100  #dimension of each generations
+                            #iter = 300, #300 #aximum number of iterations
+                            #pops = 100, #100  #dimension of each generations
                             elitism_rate = 0.1, #0.1
                             mut_chance = 1 / (no_strata[1] + 1), #mutation chance
                             nStrata = no_strata, #maximum strata

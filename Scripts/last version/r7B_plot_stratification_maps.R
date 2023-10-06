@@ -23,7 +23,7 @@ gc()
 #libraries from cran to call or install/load
 pack_cran<-c("splines",'SamplingStrata','wesanderson','dplyr','sp',
              'sf','maptools','parallel','rasterVis','rgeos','scales',
-             'rnaturalearth','grid','ggplot2','spatstat')
+             'rnaturalearth','grid','ggplot2','spatstat','raster')
 
 #install pacman to use p_load function - call library and if not installed, then install
 if (!('pacman' %in% installed.packages())) {
@@ -42,7 +42,7 @@ pacman::p_load(pack_cran,character.only = TRUE)
 
 #setwd
 out_dir<-'C:/Users/Daniel.Vilas/Work/Adapting Monitoring to a Changing Seascape/'
-out_dir<-'G:/dell_hp/'
+out_dir<-'/Users/daniel/Work/Adapting Monitoring to a Changing Seascape/'
 setwd(out_dir)
 
 #version VAST (cpp)
@@ -85,7 +85,7 @@ shfiles<-c('EBSshelfThorson','NBSThorson','EBSslopeThorson')
 
 #get files from google drive and set up
 files<-googledrive::drive_find()
-1 #for dvilasg@uw.edu
+3 #for dvilasg@uw.edu
 
 #get id shared folder from google drive
 id.bering.folder<-files[which(files$name=='Shapefiles'),'id']
@@ -281,7 +281,7 @@ load('./output/baseline_strata.RData') #baseline_strata
 ###################################
 
 #sampling scenarios
-samp_df<-expand.grid(strat_var=c('Depth_varTemp','varTemp','Depth'),
+samp_df<-expand.grid(strat_var=c('depth + SBT variance','SBT variance','depth'),
                      target_var=c('sumDensity'), #,'sqsumDensity'
                      n_samples=c(520), #c(300,500) 520 (EBS+NBS+CRAB);26 (CRAB); 350 (EBS-CRAB); 494 (NBS-CRAB)
                      n_strata=c(15)) #c(5,10,15)
@@ -293,6 +293,8 @@ samp_df$samp_scn<-paste0(paste0('scn',1:nrow(samp_df)))
 # RUN LOOP SPECIES
 #########################
 
+
+
 #loop over species
 for (sp in spp) {
   
@@ -303,7 +305,7 @@ for (sp in spp) {
   #load(paste0('./output/species/',sp,'/projection_data.RData')) #temp_dens_vals
   
   #load fit OM
-  load(paste0('./shelf EBS NBS VAST/',sp,'/fit.RData'))
+  load(paste0('./shelf EBS NBS VAST/',sp,'/fit-001.RData'))
   
   #removed cells because of depth
   rem_cells<-D6[which(D6$include==FALSE),'cell']
@@ -316,23 +318,35 @@ for (sp in spp) {
   # CREATE SPATIAL OBJECT BASED ON CELLS STRATA
   ###################################
   
+  plot_list_nsamples<-list()
+  plot_list_sampleprop<-list()
+  
   for (s in 1:nrow(samp_df)) {
   
       
-  #s<-1
+  #s<-3
   
   #load solutions
-  load(file=paste0('./output/species/',sp,'/optimization data/optimization_results_',samp_df[s,'samp_scn'],'.RData')) #result_list
+  #load(file=paste0('./output/species/',sp,'/optimization data/optimization_results_',samp_df[s,'samp_scn'],'.RData')) #result_list
   
-  strata<-rbind(result_list$solution$indices,
+  load(file = paste0("./output/ms_optim_allocations_",samp_df[s,'samp_scn'],".RData")) #all
+  
+  strata<-rbind(all$result_list$solution$indices,
                 data.frame(ID=rem_cells,X1=NA))
   colnames(strata)<-c('cell','Strata')
   
+  #n cells by strata
+  strata_sum<-aggregate(cell ~ Strata, data = strata, FUN = length)
+  names(strata_sum)[2]<-'total_cell'
+  #merge
+  strata<-merge(strata,all$samples_strata,by.x='Strata',by.y='strata')
+  strata<-merge(strata,strata_sum,by='Strata')
+  strata$prop<-strata$n_samples/strata$total_cell
   dim(strata)
   
   D8<-merge(D6,strata,by='cell')
   D8$Strata[is.na(D8$Strata)]<-99
-  
+
   #df to spatialpoint df
   coordinates(D8) <- ~ Lon + Lat
   crs(D8)<-c(crs="+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
@@ -348,65 +362,97 @@ for (sp in spp) {
   r1 <- raster(ext=extent(D8_1),ncol=xycells, nrow=xycells) #c(15800,15800) 7000
   
   #create raster
-  r2<-rasterize(D8_1, r1 ,field='Strata')
+  r2<-rasterize(D8_1, r1 ,field=c('Strata','n_samples','prop'))
   crs(r2) <- CRS('+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs')
   #plot(r2)
   
   r2[r2==99]<-NA
-  r3<-as.data.frame(r2,xy=TRUE)
-  r4<-rasterToPolygons(r2,dissolve=TRUE,)
   
-
-    p<-
+  r3<-as.data.frame(r2,xy=TRUE)
+  r4<-rasterToPolygons(r2$Strata,dissolve=TRUE,)
+  
+  pal <- wes_palette("Zissou1", 15, type = "continuous")
+  
+  r3<-r3[complete.cases(r3$Strata),] 
+  
+  r3$prop<-as.factor(r3$prop)
+  r3$n_samples<-as.factor(r3$n_samples)
+  # Create a named vector for scale_colour_manual
+  color_scale <- setNames(as.character(pal), sort(unique(r3$n_samples)))
+  
+  p1<-
     ggplot()+
-    geom_raster(data=r3,aes(x=x,y=y,fill=layer))+
+    geom_raster(data=r3,aes(x=x,y=y,fill=n_samples))+
     geom_polygon(data=r4,aes(x=long,y=lat,group=group), colour="black", fill=NA)+
     #geom_point(data=D8_2, aes(Lon, Lat, fill=Strata, group=NULL),size=2, stroke=0,shape=21)+
-    scale_fill_gradientn(colours=c("#ea5545", "#f46a9b", "#ef9b20", "#edbf33", "#ede15b", "#bdcf32", "#87bc45", "#27aeef", "#b33dc6"),
-                         guide = guide_legend(frame.colour = "black", 
-                                                 ticks.colour = "black"),breaks=sort(unique(D8_2$Strata)),na.value = "transparent",labels=paste0(sort(unique(D8_2$Strata))," (n=",result_list$sample_allocations,')'))+
-    #geom_point(data=df,aes(x=Lon,y=Lat,color=Stations,shape=Stations),fill='white',color='black',size=2)+
-    #scale_shape_manual(values = c('optimization'=21,
-    #                              'current design'=4,
-    #                              'corner crab'=8),
-    #                   breaks=unique(df$Stations),
-    #                   labels=paste0(unique(df$Stations)," (n=",c(nrow(points1),nrow(st_EBS),nrow(st_corners1)),')'))+
-    #geom_point(data=st_EBS,aes(x=longitude,y=latitude),shape=4,size=1)+
-    #geom_point(data=st_corners1,aes(x=longitude,y=latitude),color='red',shape=20,size=1)+
-    geom_polygon(data=ak_sppoly,aes(x=long,y=lat,group=group),fill = 'grey60')+
-    #geom_polygon(data=eez_sh33,aes(x=long,y=lat,group=group),fill=NA,color='grey40')+
-    scale_x_continuous(expand = c(0,0),position = 'bottom',
-                       breaks = c(-175,-170,-165,-160,-155),sec.axis = dup_axis())+
-    #geom_polygon(data=NBS_sh,aes(x=long,y=lat,group=group),fill=NA,col='black')+
-    #geom_polygon(data=EBSshelf_sh,aes(x=long,y=lat,group=group),fill=NA,col='black')+
-    #geom_polygon(data=EBSslope_sh,aes(x=long,y=lat,group=group),fill=NA,col='black')+
-    coord_sf(crs = '+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs',
-             xlim = panel_extent$x,
-             ylim = panel_extent$y-c(0,300000),
-             label_axes = "-NE-")+
-    theme(aspect.ratio = 1,panel.grid.major = element_line(color = rgb(0, 0, 0,20, maxColorValue = 285), linetype = 'dashed', linewidth =  0.5),
-          panel.background = element_rect(fill = NA),panel.ontop = TRUE,text = element_text(size=10),
-          legend.background =  element_rect(fill = "transparent", colour = "transparent"),legend.key.height= unit(20, 'points'),
-          legend.key.width= unit(20, 'points'),axis.title = element_blank(),legend.position = c(0.12,0.47),
-          panel.border = element_rect(fill = NA, colour = 'black'),legend.key = element_rect(color="black"),
-          axis.text = element_text(color='black'),legend.spacing.y = unit(8, 'points'),
-          axis.text.y.right =  element_text(hjust= 0.1 ,margin = margin(0,7,0,-25, unit = 'points'),color='black'),
-          axis.text.x = element_text(vjust = 6, margin = margin(-7,0,7,0, unit = 'points'),color='black'),
-          plot.margin = margin(0.01,0.01,0.01,0.01), 
-          axis.ticks.length = unit(-5,"points"),plot.title = element_text(size=12,vjust = -15, hjust=0.06,face="bold"))+
-    #annotate("text", x = -256559, y = 1354909, label = "Alaska",parse=TRUE,size=7)+
-    #annotate("text", x = -1296559, y = 2049090, label = "Russia",parse=TRUE,size=7)+
-    scale_y_continuous(expand = c(0,0),position = 'right',sec.axis = dup_axis())+
-    #annotate("text", x = -1296559, y = 744900, label = "italic('Bering Sea')",parse=TRUE,size=9)+
-    guides(fill = guide_legend(order=2,override.aes=list(shape = 22,size=8)),
-           color = guide_legend(order=1,override.aes=list(size=8)),
-           shape = guide_legend(order=1),override.aes=list(size=8))+
+      #scale_fill_gradientn(colours=c("#ea5545", "#f46a9b", "#ef9b20", "#edbf33", "#ede15b", "#bdcf32", "#87bc45", "#27aeef", "#b33dc6"))+
+      scale_fill_manual(values = color_scale)+ 
+      #scale_fill_gradientn(colors=pal,values = sort(unique(r3$prop)))+ 
+      scale_x_continuous(expand = c(0,0),position = 'bottom',
+                         breaks = c(-175,-170,-165,-160,-155),sec.axis = dup_axis())+
+      coord_sf(crs = '+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs',
+               xlim = panel_extent$x-c(000000,100000),
+               ylim = panel_extent$y-c(0,300000),
+               label_axes = "-NE-")+
+      theme(aspect.ratio = 1,panel.grid.major = element_blank(),
+            panel.background = element_rect(fill = NA),panel.ontop = TRUE,
+            legend.background =  element_rect(fill = "transparent", colour = "transparent"),legend.key.height= unit(20, 'points'),
+            legend.key.width= unit(20, 'points'),axis.title = element_blank(),legend.position = 'none',
+            panel.border = element_rect(fill = NA, colour = NA),legend.key = element_rect(color="black"),
+            legend.spacing.y = unit(8, 'points'),
+            axis.text=element_blank(),axis.ticks = element_blank(),
+            plot.margin = margin(0.01,0.01,0.01,0.01), 
+            axis.ticks.length = unit(-5,"points"),plot.title = element_text(size=18,hjust = 0.5,vjust=-5, face="bold"))+
+      scale_y_continuous(expand = c(0,0),position = 'right',sec.axis = dup_axis())+
+      guides(fill = guide_legend(order=2,override.aes=list(shape = 22,size=8)),
+             color = guide_legend(order=1,override.aes=list(size=8)),
+             shape = guide_legend(order=1),override.aes=list(size=8))+
     labs(title=paste0(gsub('_',' + ',samp_df[s,'strat_var'])),fill='')
+    
+
+    
+    plot_list_nsamples[[s]]<-p1
+    
+    color_scale <- setNames(as.character(pal), sort(unique(r3$prop)))
+    
+    p2<-
+      ggplot()+
+      geom_raster(data=r3,aes(x=x,y=y,fill=prop))+
+      geom_polygon(data=r4,aes(x=long,y=lat,group=group), colour="black", fill=NA)+
+      #geom_point(data=D8_2, aes(Lon, Lat, fill=Strata, group=NULL),size=2, stroke=0,shape=21)+
+      #scale_fill_gradientn(colours=c("#ea5545", "#f46a9b", "#ef9b20", "#edbf33", "#ede15b", "#bdcf32", "#87bc45", "#27aeef", "#b33dc6"))+
+      scale_fill_manual(values = color_scale)+ 
+      #scale_fill_gradientn(colors=pal,values = sort(unique(r3$prop)))+ 
+      scale_x_continuous(expand = c(0,0),position = 'bottom',
+                         breaks = c(-175,-170,-165,-160,-155),sec.axis = dup_axis())+
+      coord_sf(crs = '+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs',
+               xlim = panel_extent$x-c(000000,100000),
+               ylim = panel_extent$y-c(0,300000),
+               label_axes = "-NE-")+
+      theme(aspect.ratio = 1,panel.grid.major = element_blank(),
+            panel.background = element_rect(fill = NA),panel.ontop = TRUE,
+            legend.background =  element_rect(fill = "transparent", colour = "transparent"),legend.key.height= unit(20, 'points'),
+            legend.key.width= unit(20, 'points'),axis.title = element_blank(),legend.position = 'none',
+            panel.border = element_rect(fill = NA, colour = NA),legend.key = element_rect(color="black"),
+            legend.spacing.y = unit(8, 'points'),
+            axis.text=element_blank(),axis.ticks = element_blank(),
+            plot.margin = margin(0.01,0.01,0.01,0.01), 
+            axis.ticks.length = unit(-5,"points"),plot.title = element_text(size=18,hjust = 0.5,vjust=-5, face="bold"))+
+      scale_y_continuous(expand = c(0,0),position = 'right',sec.axis = dup_axis())+
+      guides(fill = guide_legend(order=2,override.aes=list(shape = 22,size=8)),
+             color = guide_legend(order=1,override.aes=list(size=8)),
+             shape = guide_legend(order=1),override.aes=list(size=8))+
+      labs(title=paste0(gsub('_',' + ',samp_df[s,'strat_var'])),fill='')  
+
+
+    plot_list_sampleprop[[s]]<-p2
+
+    
   
   #save plot
-ragg::agg_png(paste0('./figures/species/',sp,'/optimized_stratification_',samp_df[s,'samp_scn'],'.png'), width = 7, height = 7, units = "in", res = 300)
-print(p)
-dev.off()
+# ragg::agg_png(paste0('./figures/species/',sp,'/optimized_stratification_',samp_df[s,'samp_scn'],'.png'), width = 7, height = 7, units = "in", res = 300)
+# print(p)
+# dev.off()
   }
 }
 #}
@@ -415,6 +461,17 @@ dev.off()
 ##################3baseline
 
 load('./output/baseline_strata.RData')
+
+baseline_strata$cell_strata<-as.data.frame(baseline_strata$cell_strata)
+baseline_strata$cell_strata<-merge(baseline_strata$cell_strata,baseline_strata$n_samples,by.x='Stratum',by.y='stratum')
+
+#n cells by strata
+strata_sum<-aggregate(cell ~ Stratum, data = baseline_strata$cell_strata, FUN = length)
+names(strata_sum)[2]<-'total_cell'
+#merge
+baseline_strata$cell_strata<-merge(baseline_strata$cell_strata,strata_sum,by='Stratum')
+baseline_strata$cell_strata$prop<-baseline_strata$cell_strata$scnbase/baseline_strata$cell_strata$total_cell
+names(baseline_strata$cell_strata)[7]<-'n_samples'
 
 #df to spatialpoint df
 coordinates(baseline_strata$cell_strata) <- ~ Lon + Lat
@@ -431,7 +488,7 @@ xycells<-as.integer(sqrt(dim(D8_1)[1]))
 r1 <- raster(ext=extent(D8_1),ncol=xycells, nrow=xycells) #c(15800,15800) 7000
 
 #create raster
-r2<-rasterize(D8_1, r1 ,field='Stratum')
+r2<-rasterize(D8_1, r1 ,field=c('Stratum','n_samples','prop'))
 crs(r2) <- CRS('+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs')
 #plot(r2)
 
@@ -440,60 +497,127 @@ r3<-as.data.frame(r2,xy=TRUE)
 r4<-rasterToPolygons(r2,dissolve=TRUE)
 
 #aggregate(r3$layer,by=list(r3$layer),FUN=length)
+# 
+# p<-
+#   ggplot()+
+#   geom_raster(data=r3,aes(x=x,y=y,fill=as.character(layer)))+
+#   geom_polygon(data=r4,aes(x=long,y=lat,group=group), colour="black", fill=NA)+
+#   scale_fill_gradientn(colours=c("#ea5545", "#f46a9b", "#ef9b20", "#edbf33", "#ede15b", "#bdcf32", "#87bc45", "#27aeef", "#b33dc6"),
+#                            guide = guide_legend(frame.colour = "black", 
+#                                                 ticks.colour = "black"),breaks=sort(unique(D8_2$Strata)),na.value = "transparent",labels=paste0(sort(unique(D8_2$Strata))," (n=",result_list$sample_allocations,')'))+
+#       scale_x_continuous(expand = c(0,0),position = 'bottom',
+#                          breaks = c(-175,-170,-165,-160,-155),sec.axis = dup_axis())+
+#       coord_sf(crs = '+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs',
+#                xlim = panel_extent$x-c(100000,100000),
+#                ylim = panel_extent$y-c(0,300000),
+#                label_axes = "-NE-")+
+#       theme(aspect.ratio = 1,panel.grid.major = element_blank(),
+#             panel.background = element_rect(fill = NA),panel.ontop = TRUE,
+#             legend.background =  element_rect(fill = "transparent", colour = "transparent"),legend.key.height= unit(20, 'points'),
+#             legend.key.width= unit(20, 'points'),axis.title = element_blank(),legend.position = 'none',
+#             panel.border = element_rect(fill = NA, colour = NA),legend.key = element_rect(color="black"),
+#             legend.spacing.y = unit(8, 'points'),
+#            axis.text=element_blank(),axis.ticks = element_blank(),
+#             plot.margin = margin(0.01,0.01,0.01,0.01), 
+#             axis.ticks.length = unit(-5,"points"),plot.title = element_text(size=14,hjust = 0.5,vjust=-10, face="bold"))+
+#       scale_y_continuous(expand = c(0,0),position = 'right',sec.axis = dup_axis())+
+#       guides(fill = guide_legend(order=2,override.aes=list(shape = 22,size=8)),
+#              color = guide_legend(order=1,override.aes=list(size=8)),
+#              shape = guide_legend(order=1),override.aes=list(size=8))+
+#       labs(title=paste0(gsub('_',' + ',samp_df[s,'strat_var'])),fill='')
 
-p<-
+
+r3<-r3[complete.cases(r3$Stratum),] 
+r3$Stratum<-as.character(r3$Stratum)
+#as.vector(unique(g$data[[1]]["fill"]))
+
+r3$prop<-as.factor(r3$prop)
+r3$n_samples<-as.factor(r3$n_samples)
+# Create a named vector for scale_colour_manual
+color_scale <- setNames(as.character(pal), sort(unique(r3$prop)))
+
+p2<-
   ggplot()+
-  geom_raster(data=r3,aes(x=x,y=y,fill=as.character(layer)))+
+  geom_raster(data=r3,aes(x=x,y=y,fill=prop))+
   geom_polygon(data=r4,aes(x=long,y=lat,group=group), colour="black", fill=NA)+
-  #geom_point(data=D8_2, aes(Lon, Lat, fill=Strata, group=NULL),size=2, stroke=0,shape=21)+
-    scale_fill_manual(values = c("#EA5545","#F16176","#F5728C",
-                                          "#F28E4D","#EFA526","#EDBA30",    
-                                          "#EDCE45","#EDE15B","#D2D745",
-                                          "#B6CC35","#97C140",    
-                                          "#82B77A","#51B0D8","#8486DD","#B33DC6"),
-                                          guide = guide_legend(frame.colour = "black", 
-                                                               ticks.colour = "black"),
-                      breaks=sort(unique(D8_2$Stratum)),na.value = "transparent",labels=paste0(sort(unique(D8_2$Stratum))," (n=",baseline_strata$n_samples$scnbase,')'))+
-    
-    #geom_point(data=df,aes(x=Lon,y=Lat,color=Stations,shape=Stations),fill='white',color='black',size=2)+
-  #scale_shape_manual(values = c('optimization'=21,
-  #                              'current design'=4,
-  #                              'corner crab'=8),
-  #                   breaks=unique(df$Stations),
-  #                   labels=paste0(unique(df$Stations)," (n=",c(nrow(points1),nrow(st_EBS),nrow(st_corners1)),')'))+
-  #geom_point(data=st_EBS,aes(x=longitude,y=latitude),shape=4,size=1)+
-  #geom_point(data=st_corners1,aes(x=longitude,y=latitude),color='red',shape=20,size=1)+
-  geom_polygon(data=ak_sppoly,aes(x=long,y=lat,group=group),fill = 'grey60')+
-  #geom_polygon(data=eez_sh33,aes(x=long,y=lat,group=group),fill=NA,color='grey40')+
+  # scale_fill_manual(values=c('82'="#86BA59",'81'= "#4CA5EB",'90'= "#87BC45",'71'= "#629CE7",'70'= "#B33DC6",
+  #                            '61'= "#B8CD34",'41'= "#EDC237",'62'= "#B3CB37",'43'= "#EDC940",'20'= "#F46A9B",
+  #                            '10'= "#EA5545",'42'= "#EDC63C",'31'= "#EF9F22",'32'= "#EFA224",'50'= "#EDE15B"))+
+  scale_fill_manual(values = color_scale)+ 
   scale_x_continuous(expand = c(0,0),position = 'bottom',
                      breaks = c(-175,-170,-165,-160,-155),sec.axis = dup_axis())+
-  #geom_polygon(data=NBS_sh,aes(x=long,y=lat,group=group),fill=NA,col='black')+
-  #geom_polygon(data=EBSshelf_sh,aes(x=long,y=lat,group=group),fill=NA,col='black')+
-  #geom_polygon(data=EBSslope_sh,aes(x=long,y=lat,group=group),fill=NA,col='black')+
   coord_sf(crs = '+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs',
-           xlim = panel_extent$x,
+           xlim = panel_extent$x-c(000000,100000),
            ylim = panel_extent$y-c(0,300000),
            label_axes = "-NE-")+
-  theme(aspect.ratio = 1,panel.grid.major = element_line(color = rgb(0, 0, 0,20, maxColorValue = 285), linetype = 'dashed', linewidth =  0.5),
-        panel.background = element_rect(fill = NA),panel.ontop = TRUE,text = element_text(size=10),
+  theme(aspect.ratio = 1,panel.grid.major = element_blank(),
+        panel.background = element_rect(fill = NA),panel.ontop = TRUE,
         legend.background =  element_rect(fill = "transparent", colour = "transparent"),legend.key.height= unit(20, 'points'),
-        legend.key.width= unit(20, 'points'),axis.title = element_blank(),legend.position = c(0.12,0.47),
-        panel.border = element_rect(fill = NA, colour = 'black'),legend.key = element_rect(color="black"),
-        axis.text = element_text(color='black'),legend.spacing.y = unit(8, 'points'),
-        axis.text.y.right =  element_text(hjust= 0.1 ,margin = margin(0,7,0,-25, unit = 'points'),color='black'),
-        axis.text.x = element_text(vjust = 6, margin = margin(-7,0,7,0, unit = 'points'),color='black'),
-        plot.margin = margin(0.01,0.01,0.01,0.01), 
-        axis.ticks.length = unit(-5,"points"),plot.title = element_text(size=12,vjust = -15, hjust=0.06,face="bold"))+
-  #annotate("text", x = -256559, y = 1354909, label = "Alaska",parse=TRUE,size=7)+
-  #annotate("text", x = -1296559, y = 2049090, label = "Russia",parse=TRUE,size=7)+
+        legend.key.width= unit(20, 'points'),axis.title = element_blank(),
+        panel.border = element_rect(fill = NA, colour = NA),legend.key = element_rect(color="black"),
+        legend.spacing.y = unit(8, 'points'),
+        axis.text=element_blank(),axis.ticks = element_blank(),
+        plot.margin = margin(0.01,0.01,0.01,0.01), legend.position = 'none',
+        axis.ticks.length = unit(-5,"points"),plot.title = element_text(size=18,hjust = 0.5,vjust=-5, face="bold"))+
   scale_y_continuous(expand = c(0,0),position = 'right',sec.axis = dup_axis())+
-  #annotate("text", x = -1296559, y = 744900, label = "italic('Bering Sea')",parse=TRUE,size=9)+
   guides(fill = guide_legend(order=2,override.aes=list(shape = 22,size=8)),
          color = guide_legend(order=1,override.aes=list(size=8)),
          shape = guide_legend(order=1),override.aes=list(size=8))+
   labs(title='baseline',fill='')
 
-  ragg::agg_png(paste0('./figures/species/',sp,'/baseline_stratification.png'), width = 7, height = 7, units = "in", res = 300)
-  print(p)
+pal1 <- wes_palette("Zissou1", length(unique(r3$n_samples)), type = "continuous")
+
+color_scale <- setNames(as.character(pal1), sort(unique(r3$n_samples)))
+
+p1<-
+  ggplot()+
+  geom_raster(data=r3,aes(x=x,y=y,fill=n_samples))+
+  geom_polygon(data=r4,aes(x=long,y=lat,group=group), colour="black", fill=NA)+
+  # scale_fill_manual(values=c('82'="#86BA59",'81'= "#4CA5EB",'90'= "#87BC45",'71'= "#629CE7",'70'= "#B33DC6",
+  #                            '61'= "#B8CD34",'41'= "#EDC237",'62'= "#B3CB37",'43'= "#EDC940",'20'= "#F46A9B",
+  #                            '10'= "#EA5545",'42'= "#EDC63C",'31'= "#EF9F22",'32'= "#EFA224",'50'= "#EDE15B"))+
+  scale_fill_manual(values = color_scale)+ 
+  scale_x_continuous(expand = c(0,0),position = 'bottom',
+                     breaks = c(-175,-170,-165,-160,-155),sec.axis = dup_axis())+
+  coord_sf(crs = '+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs',
+           xlim = panel_extent$x-c(000000,100000),
+           ylim = panel_extent$y-c(0,300000),
+           label_axes = "-NE-")+
+  theme(aspect.ratio = 1,panel.grid.major = element_blank(),
+        panel.background = element_rect(fill = NA),panel.ontop = TRUE,
+        legend.background =  element_rect(fill = "transparent", colour = "transparent"),legend.key.height= unit(20, 'points'),
+        legend.key.width= unit(20, 'points'),axis.title = element_blank(),
+        panel.border = element_rect(fill = NA, colour = NA),legend.key = element_rect(color="black"),
+        legend.spacing.y = unit(8, 'points'),
+        axis.text=element_blank(),axis.ticks = element_blank(),
+        plot.margin = margin(0.01,0.01,0.01,0.01), legend.position = 'none',
+        axis.ticks.length = unit(-5,"points"),plot.title = element_text(size=18,hjust = 0.5,vjust=-5, face="bold"))+
+  scale_y_continuous(expand = c(0,0),position = 'right',sec.axis = dup_axis())+
+  guides(fill = guide_legend(order=2,override.aes=list(shape = 22,size=8)),
+         color = guide_legend(order=1,override.aes=list(size=8)),
+         shape = guide_legend(order=1),override.aes=list(size=8))+
+  labs(title='baseline',fill='')
+
+  g <- ggplot_build(p1)
+  unique(g$data[[1]]["fill"])
+  
+  
+plot_list_nsamples[['baseline']]<-p1
+plot_list_sampleprop[['baseline']]<-p2
+
+cowplot::plot_grid(plot_list_nsamples[['baseline']],plot_list_nsamples[[3]],plot_list_nsamples[[2]],plot_list_nsamples[[1]])
+
+
+
+
+
+
+  ragg::agg_png(paste0('./figures/sampling designs nsamples.png'), width = 10, height = 10, units = "in", res = 300)
+  cowplot::plot_grid(plot_list_nsamples[['baseline']],plot_list_nsamples[[3]],plot_list_nsamples[[2]],plot_list_nsamples[[1]])
+  dev.off()
+
+  ragg::agg_png(paste0('./figures/sampling designs propsamples.png'), width = 10, height = 10, units = "in", res = 300)
+  cowplot::plot_grid(plot_list_sampleprop[['baseline']],plot_list_sampleprop[[3]],plot_list_sampleprop[[2]],plot_list_sampleprop[[1]])
   dev.off()
   
+    

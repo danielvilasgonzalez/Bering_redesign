@@ -13,7 +13,7 @@ rm(list = ls(all.names = TRUE))
 gc() 
 
 #libraries from cran to call or install/load
-pack_cran<-c("splines",'ragg','ggplot2','cowplot')
+pack_cran<-c("splines",'ragg','ggplot2','cowplot','sf','sp','raster')
 
 #install pacman to use p_load function - call library and if not installed, then install
 if (!('pacman' %in% installed.packages())) {
@@ -32,6 +32,7 @@ pacman::p_load(pack_cran,character.only = TRUE)
 
 #setwd
 out_dir<-'C:/Users/Daniel.Vilas/Work/Adapting Monitoring to a Changing Seascape/'
+out_dir<-'/Users/daniel/Work/Adapting to a Changing Seascape/'
 setwd(out_dir)
 
 #version VAST (cpp)
@@ -135,7 +136,7 @@ grid<-as.data.frame(rbind(data.frame(northern_bering_sea_grid,region='NBS'),data
 grid$cell<-1:nrow(grid)
 
 #number of simulation on model projection
-n_sim<-100
+n_sim<-50
 
 #create sp folder
 dir.create('./output/species/')
@@ -143,7 +144,7 @@ dir.create('./output/species/')
 #loop over species
 for (sp in spp) {
 
-  sp<-spp[1]
+  #sp<-'Gadus macrocephalus'
   
   #create sp folder
   dir.create(paste0('./output/species/',sp))
@@ -192,7 +193,7 @@ for (sp in spp) {
     #loop over scenarios
     for (sbt in unique(df_sbt$sbt_n)) {
       
-      sbt<-unique(df_sbt$sbt_n)[1]
+      #sbt<-unique(df_sbt$sbt_n)[1]
       
       #print scenario to check progress
       cat(paste(" #############     PROJECTING    #############\n",
@@ -212,7 +213,7 @@ for (sp in spp) {
       points<-data.frame(rasterToPoints(st))
       
       #load fit file
-      load(paste0('./shelf EBS NBS VAST/',sp,'/',ff))
+      #load(paste0('./shelf EBS NBS VAST/',sp,'/',ff))
       
       #create a df to store
       points3<-data.frame(matrix(nrow = 0,ncol = ncol(fit$covariate_data)))

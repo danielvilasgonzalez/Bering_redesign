@@ -45,7 +45,8 @@ cl <- parallel::makeCluster(parallel::detectCores() - 2)
 doParallel::registerDoParallel(cl)
 
 #setwd
-out_dir<-'C:/Users/Daniel.Vilas/Work/Adapting Monitoring to a Changing Seascape/'  #out_dir<-'/Users/daniel/Work/Adapting Monitoring to a Changing Seascape/'
+out_dir<-'C:/Users/Daniel.Vilas/Work/Adapting Monitoring to a Changing Seascape/'  
+out_dir<-'/Users/daniel/Work/Adapting Monitoring to a Changing Seascape/'
 setwd(out_dir)
 
 #version VAST (cpp)
@@ -67,6 +68,9 @@ spp<-c('Limanda aspera',
        'Chionoecetes opilio',
        'Paralithodes platypus',
        'Paralithodes camtschaticus')
+
+#remove Anoploma and Reinhardtius because habitat preference reasons
+spp<-setdiff(spp, c('Anoplopoma fimbria','Reinhardtius hippoglossoides'))
 
 df_spp<-data.frame('spp'=spp,
                    'n'=c(1:length(spp)),
@@ -93,8 +97,8 @@ coordinates(x1)=~x + y
 crs(x1)<-c(crs="+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
 x2<-spTransform(x1,'+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs')
 x3<-data.frame(x2)
-x3$x<-as.integer(x3$x)
-x3$y<-as.integer(x3$y)
+x3$x<-as.integer(x3$coords.x1)
+x3$y<-as.integer(x3$coords.x2)
 lon<-sort(unique(x3$x),decreasing = FALSE) #1556
 lat<-sort(unique(x3$y),decreasing = TRUE) #1507
 lons<-data.frame(x=lon,col=1:length(lon))
@@ -225,7 +229,7 @@ names(df)[((ncol(df)-length(tar_var))+1):ncol(df)]<-tar_var
   #loop through sampling designs
   for (s in 1:nrow(samp_df)) {
     
-    #s<-1
+    #s<-3
     
     #print scenario to check progress
     cat(paste(" #############  Sampling Scenario", samp_df[s,"samp_scn"], " #############\n"))

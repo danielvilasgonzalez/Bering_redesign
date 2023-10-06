@@ -1,4 +1,4 @@
-####################################################################
+ ####################################################################
 ####################################################################
 ##    
 ##    get estimates for historical and projection simulations
@@ -803,5 +803,11 @@ df_sbt$old_sbt<-paste0('SBT',row.names(df_sbt))
   ragg::agg_png(paste0('./figures/species/',sp,'/proj_indices_rmse.png'), width = 12, height = 4, units = "in", res = 300)
   p
   dev.off()
+  
+  
+  
+  
+  #mean over replicas!
+  
   
   

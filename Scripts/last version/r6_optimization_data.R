@@ -32,7 +32,8 @@ if (!('akgfmaps' %in% installed.packages())) {
 pacman::p_load(pack_cran,character.only = TRUE)
 
 #setwd
-out_dir<-'C:/Users/Daniel.Vilas/Work/Adapting Monitoring to a Changing Seascape/'  #out_dir<-'/Users/daniel/Work/Adapting Monitoring to a Changing Seascape/'
+out_dir<-'C:/Users/Daniel.Vilas/Work/Adapting Monitoring to a Changing Seascape/'  
+out_dir<-'/Users/daniel/Work/Adapting Monitoring to a Changing Seascape/'
 setwd(out_dir)
 
 #version VAST (cpp)
@@ -54,6 +55,9 @@ spp<-c('Limanda aspera',
        'Chionoecetes opilio',
        'Paralithodes platypus',
        'Paralithodes camtschaticus')
+
+#remove Anoploma and Reinhardtius because habitat preference reasons
+spp<-setdiff(spp, c('Anoplopoma fimbria','Reinhardtius hippoglossoides'))
 
 ###################################
 # LOAD GRID EBS (remember to keep the same order as in fit_model if multiple grids)

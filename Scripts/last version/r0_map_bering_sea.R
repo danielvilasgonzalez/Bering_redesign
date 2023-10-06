@@ -18,7 +18,7 @@ rm(list = ls(all.names = TRUE))
 gc() 
 
 #libraries from cran to call or install/load
-pack_cran<-c('rasterVis','rgeos','scales','rnaturalearth','grid','ggplot2')
+pack_cran<-c('ggspatial','raster','rasterVis','rgeos','scales','rnaturalearth','grid','ggplot2')
 
 #install pacman to use p_load function - call library and if not installed, then install
 if (!('pacman' %in% installed.packages())) {
@@ -32,8 +32,8 @@ if (!('akgfmaps' %in% installed.packages())) {
 pacman::p_load(pack_cran,character.only = TRUE)
 
 #set working directory
-out_dir<-'E:/UW/Adapting Monitoring to a Changing Seascape/'
 out_dir<-'C:/Users/Daniel.Vilas/Work//Adapting Monitoring to a Changing Seascape/'
+out_dir<-'/Users/daniel/Work/Adapting Monitoring to a Changing Seascape/'
 setwd(out_dir)
 
 # Define plot extent (through trial end error) units km
@@ -46,7 +46,7 @@ ak_sppoly<-as(ebs_layers$akland, 'Spatial')
 
 #get files from google drive and set up
 files<-googledrive::drive_find()
-2 #for dvilasg@uw.edu
+32 #for dvilasg@uw.edu
 
 #####################################
 # Depth raster (from gebco)
@@ -164,12 +164,88 @@ proj4string(eez_sh2) <- CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +t
 eez_sh2<-spTransform(eez_sh2,CRSobj = CRS('+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs'))
 
 ## crop and mask
-ak_bathy_3 <- crop(ak_bathy_2, extent(bs_sh1))
-ak_bathy_4 <- mask(ak_bathy_3, bs_sh1)
+ak_bathy_3 <- crop(ak_bathy_2, extent(bs_sh))
+ak_bathy_4 <- mask(ak_bathy_3, bs_sh)
 
 #positive values equal to zero and convert negative to positive values
 ak_bathy_4[ak_bathy_4>0]<-0 
 ak_bathy_4<--ak_bathy_4 
+
+#####################################
+# sampling stations locations
+#####################################
+
+#create directory
+dir.create('./data raw/',showWarnings = FALSE)
+
+#get id shared folder from google drive
+id.bering.folder<-files[which(files$name=='Bering redesign RWP project'),'id']
+
+#list of files and folder
+files.1<-googledrive::drive_ls(id.bering.folder$id)
+id.data<-files.1[which(files.1$name=='data raw'),'id']
+files.2<-googledrive::drive_ls(id.data$id)
+
+#get haul (stations) data
+file<-files.2[grep('haul',files.2$name),]
+#file.id<-files.2[which(files.2$name %in% file),]
+
+#download file
+googledrive::drive_download(file=file$id,
+                            path = paste0('./data raw/',file$name),
+                            overwrite = TRUE)
+
+#read csv file
+haul<-readRDS(paste0('./data raw/',file$name))
+dim(haul);length(unique(haul$hauljoin))
+
+haul$year<-year(as.POSIXlt(haul$date, format="%d/%m/%Y"))
+
+#select year where slope sheld and nbs were carried out
+haul1<-subset(haul,year=='2010')
+
+#convert to spatial object
+coordinates(haul1)<-c('lon_start','lat_start')
+proj4string(haul1) <- CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0") 
+
+#change CRS
+haul1<-spTransform(haul1,CRSobj = CRS('+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs'))
+
+#convert to dataframe
+haul1<-as.data.frame(haul1)
+
+#plot
+ggplot()+
+  geom_sf(data=ebs_layers$survey.strata,fill = NA)+
+  geom_point(data=haul1,aes(x=lon_start,y=lat_start,fill=survey_name),shape=21)+
+  geom_polygon(data=ak_sppoly,aes(x=long,y=lat,group=group),fill = 'grey60')+
+  scale_x_continuous(expand = c(0,0),position = 'bottom',
+                     breaks = c(-175,-170,-165,-160,-155),sec.axis = dup_axis())+
+  geom_polygon(data=NBS_sh,aes(x=long,y=lat,group=group),fill=NA,col='black')+
+  geom_polygon(data=EBSshelf_sh,aes(x=long,y=lat,group=group),fill=NA,col='black')+
+  geom_polygon(data=EBSslope_sh,aes(x=long,y=lat,group=group),fill=NA,col='black')+
+  coord_sf(crs = '+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs',
+           #xlim = c(panel_extent$x[1]+200000,panel_extent$x[2]),
+           xlim = c(panel_extent$x[1]+200000,panel_extent$x[2]+100000),
+           ylim = c(panel_extent$y[1]-100000,panel_extent$y[2]-200000),
+           label_axes = "-NE-")+
+  theme(aspect.ratio = 1,panel.grid.major = element_line(color = rgb(0, 0, 0,20, maxColorValue = 285), linetype = 'dashed', linewidth =  0.5),
+        panel.background = element_rect(fill = NA),panel.ontop = TRUE,text = element_text(size=10),
+        legend.background =  element_rect(fill = "transparent", colour = "transparent"),legend.key.height= unit(25, 'points'),
+        legend.key.width= unit(25, 'points'),axis.title = element_blank(),legend.position = 'none', #c(0.12,0.47)
+        panel.border = element_rect(fill = NA, colour = 'black'),legend.key = element_rect(color="black"),
+        axis.text = element_text(color='black'),legend.spacing.y = unit(10, 'points'),
+        axis.text.y.right = element_text(hjust= 0.1 ,margin = margin(0,7,0,-25, unit = 'points'),color='black'),
+        axis.text.x = element_text(vjust = 6, margin = margin(-7,0,7,0, unit = 'points'),color='black'),
+        axis.ticks.length = unit(-5,"points"))+
+  scale_fill_manual(values=c("Northern Bering Sea Crab/Groundfish Survey - Eastern Bering Sea Shelf Survey Extension"="#4682B4",
+                              "Eastern Bering Sea Crab/Groundfish Bottom Trawl Survey"="#B4464B",
+                              "Eastern Bering Sea Slope Bottom Trawl Survey"="#B4AF46"))+
+  scale_y_continuous(expand = c(0,0),position = 'right',sec.axis = dup_axis())#+
+
+
+
+
 
 #####################################
 # Current sampling stations 
@@ -224,6 +300,9 @@ load('./output/baseline_strata.RData')
 
 baseline_strata$locations[grep('GF|HG|JI|IH|ON|QP|PO',baseline_strata$locations$stationid),]
 baseline_strata$locations$corner<-ifelse(grepl('GF|HG|JI|IH|ON|QP|PO',baseline_strata$locations$stationid),'TRUE','FALSE')
+tapply(baseline_strata$locations$stratum, baseline_strata$locations$corner, function(x) {length(x[!is.na(x)])})
+
+aggregate(baseline_strata$locations, by=list(baseline_strata$locations$stratum, baseline_strata$locations$corner), FUN=length)
 
 baseline_strata$locations<-baseline_strata$locations[order(baseline_strata$locations$cell),]
 baseline_strata$locations$difference <- c( NA, diff( baseline_strata$locations$cell ) )
@@ -503,15 +582,15 @@ zoomin<-
                        breaks = c(-175,-170,-165,-160,-155),sec.axis = dup_axis())+
     geom_polygon(data=NBS_sh,aes(x=long,y=lat,group=group),fill=NA,col='black')+
     geom_polygon(data=EBSshelf_sh,aes(x=long,y=lat,group=group),fill=NA,col='black')+
-    #geom_polygon(data=EBSslope_sh,aes(x=long,y=lat,group=group),fill=NA,col='black')+
+    geom_polygon(data=EBSslope_sh,aes(x=long,y=lat,group=group),fill=NA,col='black')+
     coord_sf(crs = '+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs',
              xlim = panel_extent$x,
              ylim = panel_extent$y,
              #lim = c(panel_extent$x[1]+200000,panel_extent$x[2]),
              #ylim = c(panel_extent$y[1],panel_extent$y[2]-200000),
              label_axes = "-NE-")+
-    scale_fill_gradient2(low = '#c1f2fe',
-                        high = '#007c9b',
+    scale_fill_gradient2(low = '#B2EBF2','grey90',#'#c1f2fe',
+                        high = '#006064',#'#007c9b',
                        limits=c(0,200),oob = scales::squish,breaks=c(0,50,100,200),
                        labels=c('0','50','100',paste0('200 - ',round(maxValue(ak_bathy_4)))),
                         na.value = 'white',
@@ -528,6 +607,9 @@ zoomin<-
           axis.ticks.length = unit(-5,"points"))+
     annotate("text", x = -256559, y = 1354909, label = "Alaska",parse=TRUE,size=7)+
     annotate("text", x = -1376559, y = 2049090, label = "Russia",parse=TRUE,size=7)+
+    annotate("text", x = -816559, y = 1454909, label = "NBS",parse=TRUE,size=7)+
+    annotate("text", x = -816559, y = 954909, label = "EBS_shelf",parse=TRUE,size=7)+
+    annotate("text", x = -986559, y = 654909, label = "EBS_slope",parse=TRUE,size=7)+
     scale_y_continuous(expand = c(0,0),position = 'right',sec.axis = dup_axis())+
     annotate("text", x = -1376559, y = 744900, label = "italic('Bering Sea')",parse=TRUE,size=9)
 
@@ -568,7 +650,7 @@ zoomout<-
     annotation_scale()
 
 #save plot
-ragg::agg_png(paste0('./figures/map_bering.png'), width = 7, height = 7, units = "in", res = 300)
+ragg::agg_png(paste0('./figures/map_bering2.png'), width = 7, height = 7, units = "in", res = 300)
 grid.newpage()
 vp_b <- viewport(width = 1, height = 1, x = 0.5, y = 0.5)  # the larger map
 vp_a <- viewport(width = 0.4, height = 0.3, x = 0.219, y = 0.846)  # the inset in upper left

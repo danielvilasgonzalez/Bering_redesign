@@ -51,7 +51,8 @@ spp<-c('Limanda aspera',
            'Anoplopoma fimbria',
            'Chionoecetes opilio',
            'Paralithodes platypus',
-           'Paralithodes camtschaticus')
+           'Paralithodes camtschaticus',
+            'Chionoecetes bairdi')
 
 #get files from google drive and set up
 files<-googledrive::drive_find()
@@ -139,11 +140,12 @@ rr<-extract(r, SpatialPoints(cbind(grid.ebs$Lon,grid.ebs$Lat)))
 grid.ebs$DepthGEBCO<--rr
 grid.ebs$depth_m <- ifelse(is.na(grid.ebs$Depth), grid.ebs$DepthGEBCO, grid.ebs$Depth)
 
-#same but last version of the grid
-coordinates(EBSgrid)<- ~Lon+Lat
-proj4string(EBSgrid)<-crs('+proj=longlat +datum=WGS84 +no_defs ')
-EBSgrid$Depth<--raster::extract(r,EBSgrid)
-
+# #same but last version of the grid
+# coordinates(EBSgrid)<- ~Lon+Lat
+# proj4string(EBSgrid)<-crs('+proj=longlat +datum=WGS84 +no_defs ')
+# EBSgrid$Depth<--raster::extract(r,EBSgrid)
+EBSgrid<-grid.ebs
+  
 #####################################
 # LOOP OVER YEARS for the last version grid
 #####################################
@@ -284,7 +286,7 @@ for (y in 1982:2024) {
   
   #create spatial object from grid
   spg <- EBSgrid
-  #coordinates(spg) <- ~ Lon + Lat
+  coordinates(spg) <- ~ Lon + Lat
   
   #get the nearests points from one df to other df
   nn<-get.knnx(coordinates(df_nc3),coordinates(spg),1)
@@ -344,6 +346,7 @@ for (y in 1982:2024) {
 
 #save grid Bering Sea with SBT and depth as dataframe
 save(grid.ebs_year,file = './data processed/grid_EBS_NBS.RData')
+#load(file = './data processed/grid_EBS_NBS.RData')
 
 #####################################
 # LOOP OVER SPP
@@ -352,7 +355,7 @@ save(grid.ebs_year,file = './data processed/grid_EBS_NBS.RData')
 #loop over species to add SBT to data_geostat
 for (sp in spp) {
   
-  #sp<-spp[3]
+  sp<-spp[16]
   
   #print species to check progress
   cat(paste(" ############# ", sp, " #############\n"))
@@ -367,7 +370,7 @@ for (sp in spp) {
   
   for (y in sta_y:end_y) {
     
-    #y<-2019
+    #y<-2020
     
     #print year to check progress
     cat(paste("    ---- year", y, "----\n"))
@@ -379,7 +382,7 @@ for (sp in spp) {
     if (nrow(df2)==0) {
       
       #filter year and remove negative depth values
-      st_year1<-subset(grid.ebs_year,Year==y & Depth > 0)
+      st_year1<-subset(grid.ebs_year,Year==y & depth_m > 0)
       df3<-data.frame(matrix(nrow = nrow(st_year1),ncol = ncol(df2)))
       colnames(df3)<-colnames(df2)
       df3$scientific_name<-sp
@@ -388,7 +391,7 @@ for (sp in spp) {
       df3$lat_end<-st_year1$Lat
       df3$lon_start<-st_year1$Lon
       df3$lon_end<-st_year1$Lon
-      df3$depth_m<-st_year1$Depth
+      df3$depth_m<-st_year1$depth_m
       df3$Temp<-st_year1$Temp
       df3$bottom_temp_c<-st_year1$Temp
       df2<-df3

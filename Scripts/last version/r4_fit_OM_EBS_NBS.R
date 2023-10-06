@@ -29,7 +29,8 @@ if (!('VAST' %in% installed.packages())) {
 pacman::p_load(pack_cran,character.only = TRUE)
 
 #setwd
-out_dir<-'C:/Users/Daniel.Vilas/Work/Adapting Monitoring to a Changing Seascape/'
+out_dir<-'C:/Users/Daniel.Vilas/Work/Adapting Monitoring to a Changing Seascape/'  
+out_dir<-'/Users/daniel/Work/Adapting Monitoring to a Changing Seascape/'
 setwd(out_dir)
 
 #version VAST (cpp)
@@ -59,13 +60,15 @@ spp<-c('Limanda aspera',
        'Anoplopoma fimbria',
        'Chionoecetes opilio',
        'Paralithodes platypus',
-       'Paralithodes camtschaticus')
+       'Paralithodes camtschaticus',
+       'Chionoecetes bairdi')
 
 #folder region
 fol_region<-c('shelf EBS NBS VAST')
 
 #load grid
 load('./extrapolation grids/lastversion_grid_EBS.RData')
+load('./data processed/grid_EBS_NBS.RData')
 grid_ebs<-grid.ebs_year[which(grid.ebs_year$region != 'EBSslope' & grid.ebs_year$Year %in% yrs),]
 dim(grid_ebs)
 
@@ -77,27 +80,15 @@ for (sp in spp) {
   dir.create(paste(out_dir,fol_region,sp,sep='/'))
 }
 
-#diagnostics df
-diagnostics<-array(dim = c(1,6,length(spp)),
-                   dimnames = list('BotTemp3d',c('status','maxgradient','aic','jnll','rmse','dev'),spp))
-
 #loop over species to fit models
-#for (sp in spp) {
+for (sp in spp) {
 
 #Pcod example
-sp<-'Gadus macrocephalus'
+#sp<-'Gadus macrocephalus'
+sp<-spp[16]
 
 #print year to check progress
 cat(paste("\n","    ----- ", sp, " -----\n"))  
-
-#check % of process  
-#windows progress bar
-# py <- winProgressBar(title = paste0(sp, ' (',which(spp == sp),' out of ',length(spp),')'), # Window title
-#                      label = "Percentage completed", # Window label
-#                      min = 0,      # Minimum value of the bar
-#                      max = length(spp), #(species) # Maximum value of the bar
-#                      initial = 0,  # Initial value of the bar
-#                      width = 300L) # Width of the window   
 
 #read data_geostat_temp file
 df1<-readRDS(paste0('./data processed/species/',sp,'/data_geostat_temp.rds'))
@@ -131,7 +122,7 @@ grid_df<-data.frame(Lat=grid_ebs$Lat,
                     stringsAsFactors = T)
 
 #ha to km2
-data_geostat$Effort<-data_geostat$Effort/100
+data_geostat$Effort<-data_geostat$Effort/100 #(from ha to km²)
 
 #rbind grid and data_geostat to get prediction into grid values when simulating data
 data_geostat1<-rbind(data_geostat[,c("Lat","Lon","Year","Species","CPUE_kg","Effort","Depth","BotTemp","Region")],
@@ -147,23 +138,6 @@ saveRDS(data_geostat1,paste(out_dir,fol_region,sp,'data_geostat_temp.rds',sep='/
 #regions (predefined in VAST)
 region<-c("northern_bering_sea","eastern_bering_sea")
 
-#get percentage of encounters
-xall<-data_geostat %>% count(Year)
-x0<-subset(data_geostat,CPUE_kg!=0) %>% count(Year)
-xpct<-x0[,2]/xall[,2]*100
-
-#any year with 100%encounters or 0%encounters
-enc100<-ifelse(100 %in% xpct,TRUE,FALSE)
-enc0<-ifelse(0 %in% xpct,TRUE,FALSE)
-
-#set settings based on enc100
-# if(enc100==TRUE){
-#   obs <- c(2,3)
-# }
-# if(enc100==FALSE){
-#   obs <- c(2,1)
-# }
-
 #VAST model settings
 settings <- make_settings(n_x=knots, 
                           Region=region, #c("bering_sea_slope","eastern_bering_sea",'northern_bering_sea'
@@ -176,18 +150,13 @@ settings <- make_settings(n_x=knots,
                                                 nrow=4, 
                                                 dimnames=list(c("Omega","Epsilon","Beta","Epsilon_year"),c("Component_1","Component_2"))),
                           #FieldConfig = c("Omega1"="IID", "Epsilon1"="IID", "Omega2"="IID", "Epsilon2"="IID",'Beta1'=0,'Beta2'=0),
-                          RhoConfig=c("Beta1"=2,"Beta2"=2,"Epsilon1"=4,"Epsilon2"=4), 
+                          RhoConfig=c("Beta1"=2,"Beta2"=2,"Epsilon1"=4,"Epsilon2"=4), #NON CONVERGENCE for'Lepidopsetta polyxystra','Paralithodes platypus', and Epsilon1 = 2 (RW)
                           Version = version,
                           #fine_scale=TRUE,
                           ObsModel = c(2,1), #obs
                           max_cells = Inf,
                           Options = c("Calculate_Range" =  F, 
                                       "Calculate_effective_area" = F)) 
-
-#Kmeans_knots
-# if (!file.exists(paste(out_dir,fol_region,sp,'Kmeans_knots-',knots,'.RData',sep='/'))) {
-#   file.copy(paste(out_dir,fol_region,sp,models[1],'Kmeans_knots-',knots,'.RData',sep='/'),
-#             paste(out_dir,fol_region,sp,'Kmeans_knots-',knots,'.RData',sep='/'))}
 
 #formula and predictors settings for each model
 X1_formula<-' ~ bs(BotTemp, degree=3, intercept=FALSE)'
@@ -225,51 +194,9 @@ fit <- tryCatch( {fit_model(settings=settings,
                    return(NULL)
                  })
 
-#plot(fit,
-#     working_dir=paste(out_dir,fol_region,sp,m,'/',sep='/'))
-
 #save fit
 save(list = "fit", file = paste(out_dir,fol_region,sp,'fit.RData',sep='/')) #paste(yrs_region,collapse = "")
 
-#convergence
-diagnostics['BotTemp3d','status',sp]<-ifelse(test = is.null(fit) == T | is.null(fit$parameter_estimates$max_gradient),"no_convergence","check_gradient")
-#max gradient
-
-if (diagnostics['BotTemp3d','status',sp]=="check_gradient") {
-  
-  diagnostics['BotTemp3d','maxgradient',sp]<-fit$parameter_estimates$max_gradient
-  #AIC
-  diagnostics['BotTemp3d','aic',sp]<-round(fit$parameter_estimates$AIC[1],3)
-  #JNLL
-  diagnostics['BotTemp3d','jnll',sp]<-round(fit$parameter_estimates$objective[1],3)
-  #RMSE
-  diagnostics['BotTemp3d','rmse',sp]<-round(sqrt(mean((data_geostat$CPUE_kg - fit$Report$D_i)^2,na.rm = TRUE)) / mean(data_geostat$CPUE_kg,na.rm = TRUE),3)
-  #DEVIANCE EXPLAINED
-  diagnostics['BotTemp3d','dev',sp]<-round(fit$Report$deviance,3)
-  
-}
-
-#progress bar
-pctgy <- paste0(round(which(spp == sp)/length(spp) *100, 0), "% completed")
-setWinProgressBar(py, which(spp == sp), label = pctgy) # The label will override the label set on the
-
-#}
-
-
-#percent of dev explained (only we can calculated if NULL model fitted)
-# diagnostics[,'pct.dev',sp]<-(1 - as.numeric(diagnostics[,'dev',sp])/as.numeric(diagnostics['null','dev',sp]))*100
-# 
-# #df diagnostics
-# df.diagnostics<-data.frame(diagnostics[,,sp])
-# df.diagnostics[,'pct.dev']<-(1 - as.numeric(df.diagnostics[,'dev'])/as.numeric(df.diagnostics['null','dev']))*100
-#df.diagnostics$pct.dev<-(1 - as.numeric(diagnostics[,'dev',sp])/as.numeric(diagnostics['null','dev',sp]))*100
-
-
-#save RDS effects and diagnostics - move out of the loop when end testing pcod
-saveRDS(data.frame(df.diagnostics[,,sp]),paste(out_dir,fol_region,sp,'diagnostics.RData',sep='/'))
-
 #close process window
-
-#}
-
-close(py)
+gc()
+}
