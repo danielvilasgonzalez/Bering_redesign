@@ -41,8 +41,8 @@ if (!('VAST' %in% installed.packages())) {
 pacman::p_load(pack_cran,character.only = TRUE)
 
 #parallel
-cl <- parallel::makeCluster(parallel::detectCores() - 2)
-doParallel::registerDoParallel(cl)
+#cl <- parallel::makeCluster(parallel::detectCores() - 2)
+#doParallel::registerDoParallel(cl)
 
 #setwd
 out_dir<-'C:/Users/Daniel.Vilas/Work/Adapting Monitoring to a Changing Seascape/'  
@@ -67,16 +67,16 @@ spp<-c('Limanda aspera',
        'Anoplopoma fimbria',
        'Chionoecetes opilio',
        'Paralithodes platypus',
-       'Paralithodes camtschaticus')
+       'Paralithodes camtschaticus',
+       'Chionoecetes bairdi')
 
 #remove Anoploma and Reinhardtius because habitat preference reasons
 spp<-setdiff(spp, c('Anoplopoma fimbria','Reinhardtius hippoglossoides'))
 
+#df spp, number and target variables
 df_spp<-data.frame('spp'=spp,
                    'n'=c(1:length(spp)),
                    'Y'=paste0('Y',c(1:length(spp))))
-
-tar_var<-paste0(rep(df_spp$Y,each=2),c('','_SQ_SUM'))
 
 #number sp
 n_spp<-length(spp)
@@ -97,8 +97,8 @@ coordinates(x1)=~x + y
 crs(x1)<-c(crs="+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
 x2<-spTransform(x1,'+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs')
 x3<-data.frame(x2)
-x3$x<-as.integer(x3$coords.x1)
-x3$y<-as.integer(x3$coords.x2)
+#x3$x<-as.integer(x3$coords.x1)
+#x3$y<-as.integer(x3$coords.x2)
 lon<-sort(unique(x3$x),decreasing = FALSE) #1556
 lat<-sort(unique(x3$y),decreasing = TRUE) #1507
 lons<-data.frame(x=lon,col=1:length(lon))
@@ -109,7 +109,7 @@ colnames(x5)<-c('Lat','Lon','cell','optional','col','row')
 grid<-x5[,c('Lat','Lon','cell','col','row')]
 
 ###################################
-# FXNs
+# FXNs - extracted from ZO code
 ###################################
 
 calc_expected_CV <- function (strata) {
@@ -122,8 +122,8 @@ calc_expected_CV <- function (strata) {
   names(cv) <- paste0("Y", 1:n_spp)
   
   for (ispp in 1:n_spp) {
-    S_h <- strata[, paste0("S", ispp)]
-    M_h <- strata[, paste0("M", ispp)]
+    S_h <- strata[, paste0("S", ispp)] #SD from 
+    M_h <- strata[, paste0("M", ispp)] #mean from 
     
     Y_h <- N_h * M_h
     Var_h <- (N_h^2) * (1 - n_h/N_h) * ((S_h^2)/n_h)
@@ -135,12 +135,6 @@ calc_expected_CV <- function (strata) {
   cv <- round(cv, 3)
   return(cv)
 }
-
-###################################
-# BASELINE/CURRENT SAMPLING DESIGN
-###################################
-
-load('./output/baseline_strata.RData') #baseline_strata
 
 ###################################
 # SCENARIOS
@@ -155,26 +149,19 @@ samp_df<-expand.grid(strat_var=c('Depth_varTemp','varTemp','Depth'),
 #add scenario number
 samp_df$samp_scn<-paste0(paste0('scn',1:nrow(samp_df)))
 
-#########################
-# RUN LOOP SPECIES
-#########################
+    
+###############
+# load ms data and settings
+###############
+#isp<-'Gadus macrocephalus'
 
-#load multispecies data
-load(paste0('./output/species/multisp_optimization_static_data.RData')) #df
-names(df)[((ncol(df)-length(tar_var))+1):ncol(df)]<-tar_var
+  #load multispecies data
+  load(paste0('./output/multisp_optimization_static_data.RData')) #df
+  
+  tar_var<-paste0(rep(df_spp$Y,each=2),c('','_SQ_SUM'))
+  names(df)[((ncol(df)-length(tar_var))+1):ncol(df)]<-tar_var
+  ispp<-n_spp
 
-#loop over species
-#for (sp in spp) {
-  
-  #sp<-'Gadus macrocephalus'
-  
-  #load optimization data
-  #load(paste0('./output/species/',sp,'/optimization data/optimization_static_data.RData')) #D6
-  #load(paste0('./output/species/',sp,'/projection_data.RData')) #temp_dens_vals
-  
-  #load fit OM
-  #load(paste0('./shelf EBS NBS VAST/',sp,'/fit.RData'))
-  
   #removed cells because of depth
   rem_cells<-df[which(df$include==FALSE),'cell']
   ok_cells<-df[which(df$include==1),'cell']
@@ -198,7 +185,8 @@ names(df)[((ncol(df)-length(tar_var))+1):ncol(df)]<-tar_var
   # sp_sum_stats<-data.frame(matrix(nrow = 0,ncol=18))
   # names(sp_sum_stats)<- c("Domain","Stratum","Population","Allocation","SamplingRate","Lower_X1","Upper_X1","Lower_X2","Upper_X2",
   #                         "stratum_id","wh","Wh","M1","S1","SOLUZ","samp_scn","sp")
-  # 
+  
+  
   #subset cells with appropiate depth
   static_df1<-subset(df,cell %in% ok_cells)
   
@@ -228,8 +216,9 @@ names(df)[((ncol(df)-length(tar_var))+1):ncol(df)]<-tar_var
   
   #loop through sampling designs
   for (s in 1:nrow(samp_df)) {
-    
-    #s<-3
+  #for (s in 1) {
+      
+    #s<-1
     
     #print scenario to check progress
     cat(paste(" #############  Sampling Scenario", samp_df[s,"samp_scn"], " #############\n"))
@@ -277,13 +266,13 @@ names(df)[((ncol(df)-length(tar_var))+1):ncol(df)]<-tar_var
     }
     
     ## SRS statistics
-    srs_var <- srs_stats[, paste0("S", 1:n_spp)]^2 * (1 -  srs_n/ n_cells) / srs_n
-    srs_cv <- sqrt(srs_var) / srs_stats[, paste0("M", 1:n_spp)]
+    srs_var <- srs_stats[, paste0("S", 1:ispp)]^2 * (1 -  srs_n/ n_cells) / srs_n
+    srs_cv <- sqrt(srs_var) / srs_stats[, paste0("M", 1:ispp)]
     
     #CV
     cv_df <- list()
     cv_df[["DOM"]] <- 1
-    for (ispp in 1:n_spp) cv_df[[paste0("CV", ispp)]] <- as.numeric(srs_cv[ispp])
+    for (iispp in 1:ispp) cv_df[[paste0("CV", iispp)]] <- as.numeric(srs_cv[iispp])
     cv_df[["domainvalue"]] <- 1
     cv_df <- as.data.frame(cv_df)
     
@@ -307,14 +296,14 @@ names(df)[((ncol(df)-length(tar_var))+1):ncol(df)]<-tar_var
     flag<-TRUE
     while (flag) {
       
-      #print state
+      #print state of spp[1] to get an approximation of the state
       cat(paste(" #############   OPTIMIZING STRATA - CV of ",spp[1],' ', cv_df[,2],"  #############\n"))
       
       #run optimization
       solution <- optimStrata(method = "continuous", #continous variables
                               errors = cv_df,  #precision level - maximum allowable coefficient of variation set by the simple random sampling 
                               framesamp = frame, #df of input variables
-                              iter = 20, #300 #aximum number of iterations
+                              iter = 30, #300 #maximum number of iterations
                               pops = 10, #100  #dimension of each generations
                               elitism_rate = 0.1, #0.1
                               mut_chance = 1 / (no_strata[1] + 1), #mutation chance
@@ -327,9 +316,9 @@ names(df)[((ncol(df)-length(tar_var))+1):ncol(df)]<-tar_var
       
       #if condition reduce or increase CV to achieve the objective
       if (nrow(solution$aggr_strata)<unique(samp_df$n_strata)) {
-        cv_df[,c(2:(n_spp+1))]<-cv_df[,c(2:(n_spp+1))]-(cv_df[,c(2:(n_spp+1))]*0.001) #reduce 0.1% CV
+        cv_df[,c(2:(ispp+1))]<-cv_df[,c(2:(ispp+1))]-(cv_df[,c(2:(ispp+1))]*0.001) #reduce 0.1% CV
       } else if (nrow(solution$aggr_strata)>unique(samp_df$n_strata)){
-        cv_df[,c(2:(n_spp+1))]<-cv_df[,c(2:(n_spp+1))]+cv_df[,c(2:(n_spp+1))]*0.01} #increase 1%
+        cv_df[,c(2:(ispp+1))]<-cv_df[,c(2:(ispp+1))]+cv_df[,c(2:(ispp+1))]*0.01} #increase 1%
     }
     
     ###################################
@@ -391,14 +380,15 @@ names(df)[((ncol(df)-length(tar_var))+1):ncol(df)]<-tar_var
                         sol_by_cell = plot_solution)
     #save(list = "result_list", file = paste0("./output/ms_optim_strata_result_list_",samp_df[s,'samp_scn'],".RData"))
     
-    ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    #######################
     ##   7) Single-Species Optimization ----
     ##   Calculate single-species CV subject to the initial stratification
-    ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~  
+    #######################
 
-    ss_sample_allocations <- expand.grid(n = n_samples, species = spp)
-    for (ispp in 1:n_spp) {
-      #ispp<-5
+      ss_sample_allocations <- expand.grid(n = n_samples, species = spp)
+    
+    for (iispp in 1:ispp) {
+      #iispp<-1
       
       temp_n <- result_list$n
       
@@ -407,7 +397,7 @@ names(df)[((ncol(df)-length(tar_var))+1):ncol(df)]<-tar_var
       ## Subset density data for species ispp
       ss_df <- subset(x = frame, 
                       select = c("domainvalue", "id", "WEIGHT", "X1", #"X2", 
-                                 paste0("Y", ispp), paste0("Y", ispp, "_SQ_SUM")))
+                                 paste0("Y", iispp), paste0("Y", iispp, "_SQ_SUM")))
       # } else {
       #   ss_df <- subset(x = frame, 
       #                   select = c("domainvalue", "id", "WEIGHT", "X1", "X2", 
@@ -417,7 +407,7 @@ names(df)[((ncol(df)-length(tar_var))+1):ncol(df)]<-tar_var
       
       ## Create CV inputs to the Bethel algorithm; initialize at SRS CV
         error_df <- data.frame("DOM" = "DOM1",
-                               as.numeric(srs_cv)[ispp],
+                               as.numeric(srs_cv)[iispp],
                                "domainvalue"  = 1)
         names(error_df)[2] <- "CV1"
         
@@ -432,7 +422,7 @@ names(df)[((ncol(df)-length(tar_var))+1):ncol(df)]<-tar_var
         # } else {
           temp_stratif <- 
             solution$aggr_strata[, c("STRATO", "N", 
-                                     paste0("M", ispp), paste0("S", ispp), 
+                                     paste0("M", iispp), paste0("S", iispp), 
                                      "COST", "CENS", "DOM1", "X1" ,"SOLUZ")]
         # } 
         temp_stratif$N <- temp_stratif$N / n_years
@@ -473,8 +463,9 @@ names(df)[((ncol(df)-length(tar_var))+1):ncol(df)]<-tar_var
         }
         
         ## Save the CV and station allocations that corresponds to n_samples
-        temp_idx <- ss_sample_allocations$n == n_samples & 
-          ss_sample_allocations$species == spp[ispp]
+
+          temp_idx <- ss_sample_allocations$n == n_samples & 
+            ss_sample_allocations$species == spp[iispp]
         
         ss_sample_allocations[temp_idx, "CV"] <- 
           as.numeric(attributes(temp_bethel)$outcv[, "ACTUAL CV"])
@@ -485,11 +476,11 @@ names(df)[((ncol(df)-length(tar_var))+1):ncol(df)]<-tar_var
       
     }
     
-    ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    ######################
     ##   8) Adjust MS solution ----
     ##   Optimize allocation across a range of sample sizes, given the original
     ##   stratification.
-    ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~  
+    #####################
     ms_sample_allocations <- expand.grid(n = n_samples)
     #temp_n <- result_list$n
     
@@ -500,8 +491,11 @@ names(df)[((ncol(df)-length(tar_var))+1):ncol(df)]<-tar_var
     error_df <-  data.frame("DOM" = "DOM1",
                             srs_cv,
                             "domainvalue"  = 1)
-    names(error_df)[2:(1 + n_spp)] <- paste0("CV", 1:n_spp)
+    
       
+      names(error_df)[2:(1 + n_spp)] <- paste0("CV", 1:n_spp)
+      
+    
       ## Stratum statistics input to the Bethel algorithm
       temp_stratif <- solution$aggr_strata
       temp_stratif$N <- temp_stratif$N / n_years
@@ -521,9 +515,13 @@ names(df)[((ncol(df)-length(tar_var))+1):ncol(df)]<-tar_var
       ## Rerun Bethel algorithm, modifying the CVs relative to the distances
       ## between the SRS and SS CVs given n_samples stations. First we calculate 
       ## CVs calculated under SRS for each species with n_samples stations
-      temp_srs_var <- 
-        srs_stats[, paste0("S", 1:n_spp)]^2 * (1 - n_samples / n_cells) / n_samples
-      temp_srs_cv <- sqrt(temp_srs_var) / srs_stats[, paste0("M", 1:n_spp)]
+
+        temp_srs_var <- srs_stats[, paste0("S", 1:n_spp)]^2 * (1 - n_samples / n_cells) / n_samples
+        temp_srs_cv <- sqrt(temp_srs_var) / srs_stats[, paste0("M", 1:n_spp)]
+      
+
+      
+      
       
       while (temp_n != n_samples) {
         over_under <- temp_n > n_samples
@@ -549,8 +547,11 @@ names(df)[((ncol(df)-length(tar_var))+1):ncol(df)]<-tar_var
         }
         
         ## Update the CV dataframe input with the updated_cv_constraint
-        error_df[, paste0("CV", 1:n_spp)] <- updated_cv_constraint
+
+          error_df[, paste0("CV", 1:n_spp)] <- updated_cv_constraint
         
+        
+      
         ## Rerun Bethel algorithm
         temp_bethel <- SamplingStrata::bethel(stratif = temp_stratif,
                                               errors = error_df, 
@@ -567,10 +568,10 @@ names(df)[((ncol(df)-length(tar_var))+1):ncol(df)]<-tar_var
       
       ## Save optimized CV 
       temp_idx <- ms_sample_allocations$n == n_samples
+
+        ms_sample_allocations[temp_idx, paste0("CV", 1:n_spp)] <- 
+          as.numeric(attributes(temp_bethel)$outcv[, "ACTUAL CV"])
       
-      
-      ms_sample_allocations[temp_idx, paste0("CV", 1:n_spp)] <- 
-        as.numeric(attributes(temp_bethel)$outcv[, "ACTUAL CV"])
       
       ms_sample_allocations[temp_idx, paste0("Str_", 1:length(temp_bethel))] <- 
         as.integer(temp_bethel)
@@ -592,9 +593,254 @@ names(df)[((ncol(df)-length(tar_var))+1):ncol(df)]<-tar_var
               samples_strata=data.frame(strata=1:no_strata,n_samples=samples_strata),
               cv=cv_temp)
     
-    save(all,
-         file = paste0("./output/ms_optim_allocations_",samp_df[s,'samp_scn'],".RData"))
+      save(all,
+           file = paste0("./output/ms_optim_allocations_",samp_df[s,'samp_scn'],".RData"))
     
-}  
+    
+   }
 
+
+  ###################
+  # Plot comparison sampling effort x strata for each species under singlesp or multisp allocation of samples
+  ###################
+    
+  for (s in 1:nrow(samp_df)) {
+    
+    #s<-1
+    samp<-samp_df[s,'samp_scn']
+    
+    #load multispecies data
+    load(paste0('./output/multisp_optimization_static_data.RData')) #df
+    
+    #load optimized stratification
+    load(file = paste0("./output/ms_optim_allocations_",samp_df[s,'samp_scn'],".RData")) #all
+    
+    strata<-rbind(all$result_list$solution$indices,
+                  data.frame(ID=rem_cells,X1=NA))
+    colnames(strata)<-c('cell','Strata')
+    
+    #n cells by strata to calculate proportion of sampling effort as n samples/total cells
+    strata_sum<-aggregate(cell ~ Strata, data = strata, FUN = length)
+    names(strata_sum)[2]<-'total_cell'
+    
+    #merge with ss data
+    ss<-all$ss_sample_allocations
+    ss1<-data.frame(ss[,c(paste0('Str_',1:unique(samp_df$n_strata)))],row.names = ss$species)
+    colnames(ss1)<-1:unique(samp_df$n_strata)
+    ss2<-reshape2::melt(as.matrix(ss1))
+    names(ss2)<-c('species','Strata','ss_samples')
+    strata1<-merge(strata,ss2,by='Strata')
+    
+    #merge with ms data
+    ms<-all$ms_sample_allocations
+    ms_strata<-data.frame('Strata'=1:unique(samp_df$n_strata),
+                          'ms_samples'=as.numeric(ms[1,16:30]))
+    
+    
+    strata2<-merge(strata1,ms_strata,by='Strata')
+    strata2<-merge(strata2,strata_sum,by='Strata')
+    #strata2$prop<-strata2$n_samples/strata2$total_cell
+    strata2$diff<-strata2$ss_samples-strata2$ms_samples
+    dim(strata2)
+    
+    df1<-df[,c('Lat','Lon','cell')]
+    df1<-merge(df1,strata2,by='cell')
+    df1$Strata[is.na(df1$Strata)]<-999
+    
+    #to store plots
+    plot_list_n<-list()
+    plot_list_d<-list()
+    
+    for (isp in spp) {
+      
+    #isp<-spp[1]
+    
+    df2<-subset(df1,species==isp)
+    
+    ms_cv<-
+      round(ms[,paste0('CV',match(isp,spp))],digits = 3)
+    
+    ss_cv<-
+      round(ss$CV[match(isp,spp)],digits = 3)
+    
+    #df to spatialpoint df
+    coordinates(df2) <- ~ Lon + Lat
+    crs(df2)<-c(crs="+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
+    
+    #reproject coordinates for plotting purposes
+    df_1<-spTransform(df2,'+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs')
+    df_2<-data.frame(df_1)
+    
+    #x and y cells
+    xycells<-as.integer(sqrt(dim(df_1)[1]))
+    
+    # create a template raster
+    r1 <- raster(ext=extent(df_1),ncol=xycells, nrow=xycells) #c(15800,15800) 7000
+    
+    #create raster
+    r2<-rasterize(df_1, r1 ,field=c('Strata','ms_samples','ss_samples','diff'))
+    crs(r2) <- CRS('+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs')
+    r2[r2==999]<-NA
+    
+    #create polygon to get boundaries of each strata
+    r3<-as.data.frame(r2,xy=TRUE)
+    r4<-rasterToPolygons(r2$Strata,dissolve=TRUE,)
+    
+    #color palette
+    pal <- wes_palette("Zissou1", length(sort(unique(r3$ss_samples))), type = "continuous")
+    color_scale_ss <- setNames(as.character(pal), sort(unique(r3$ss_samples)))
+    r3<-r3[complete.cases(r3$Strata),] 
+    
+    #as factors
+    r3$ss_samples<-as.factor(r3$ss_samples)
+    #r3$diff<-as.factor(r3$diff)
   
+    #plot by number of samples
+    pn<-
+    ggplot()+
+      geom_raster(data=r3,aes(x=x,y=y,fill=ss_samples))+
+      geom_polygon(data=r4,aes(x=long,y=lat,group=group), colour="black", fill=NA)+
+      #geom_point(data=D8_2, aes(Lon, Lat, fill=Strata, group=NULL),size=2, stroke=0,shape=21)+
+      #scale_fill_gradientn(colours=c("#ea5545", "#f46a9b", "#ef9b20", "#edbf33", "#ede15b", "#bdcf32", "#87bc45", "#27aeef", "#b33dc6"))+
+      scale_fill_manual(values = color_scale_ss,name='sampling effort')+
+      #scale_fill_gradientn(colors=pal,values = sort(unique(r3$prop)))+
+      #scale_fill_gradientn(colours = pal,breaks=range(r3$n_samples),labels=c("Low","High"),name='sampling effort\n(n samples)')+
+      guides(fill=guide_colorbar(title.position = 'top', title.hjust = 0.5,ticks.colour = NA,frame.colour = 'black'))+
+      scale_x_continuous(expand = c(0,0),position = 'bottom',
+                         breaks = c(-175,-170,-165,-160,-155),sec.axis = dup_axis())+
+      coord_sf(crs = '+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs',
+               xlim = panel_extent$x-c(000000,100000),
+               ylim = panel_extent$y-c(0,300000),
+               label_axes = "-NE-")+
+      theme(aspect.ratio = 1,panel.grid.major = element_blank(),
+            panel.background = element_rect(fill = NA),panel.ontop = TRUE,
+            legend.background =  element_rect(fill = "transparent", colour = "transparent"),legend.key.height= unit(20, 'points'),
+            legend.key.width= unit(20, 'points'),axis.title = element_blank(),legend.position = 'none',
+            panel.border = element_rect(fill = NA, colour = NA),legend.key = element_rect(color="black"),
+            legend.spacing.y = unit(8, 'points'),
+            axis.text=element_blank(),axis.ticks = element_blank(),
+            plot.margin = margin(0.01,0.01,0.01,0.01), 
+            axis.ticks.length = unit(-5,"points"),plot.title = element_text(size=12,hjust = 0.5,vjust=-5, face="bold"))+
+      scale_y_continuous(expand = c(0,0),position = 'right',sec.axis = dup_axis())+
+      labs(title=paste0(isp,'\n(CV_ms=',ms_cv,'; CV_ss=',ss_cv,')'),fill='')
+    
+    #plot by number of samples
+    pd<-
+    ggplot()+
+      geom_raster(data=r3,aes(x=x,y=y,fill=diff))+
+      geom_polygon(data=r4,aes(x=long,y=lat,group=group), colour="black", fill=NA)+
+      #geom_point(data=D8_2, aes(Lon, Lat, fill=Strata, group=NULL),size=2, stroke=0,shape=21)+
+      #scale_fill_gradientn(colours=c("#ea5545", "#f46a9b", "#ef9b20", "#edbf33", "#ede15b", "#bdcf32", "#87bc45", "#27aeef", "#b33dc6"))+
+      scale_fill_gradient2(midpoint = 0, low = "red", mid = "white",
+                             high = "blue",name='ss samples - ms samples')+
+      #scale_fill_manual(values = color_scale_ms,name='sampling effort')+
+      #scale_fill_gradientn(colors=pal,values = sort(unique(r3$prop)))+
+      #scale_fill_gradientn(colours = pal,breaks=range(r3$n_samples),labels=c("Low","High"),name='sampling effort\n(n samples)')+
+      guides(fill=guide_colorbar(title.position = 'top', title.hjust = 0.5,ticks.colour = NA,frame.colour = 'black'))+
+      scale_x_continuous(expand = c(0,0),position = 'bottom',
+                         breaks = c(-175,-170,-165,-160,-155),sec.axis = dup_axis())+
+      coord_sf(crs = '+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs',
+               xlim = panel_extent$x-c(000000,100000),
+               ylim = panel_extent$y-c(0,300000),
+               label_axes = "-NE-")+
+      theme(aspect.ratio = 1,panel.grid.major = element_blank(),
+            panel.background = element_rect(fill = NA),panel.ontop = TRUE,
+            legend.background =  element_rect(fill = "transparent", colour = "transparent"),legend.key.height= unit(20, 'points'),
+            legend.key.width= unit(20, 'points'),axis.title = element_blank(),legend.position = 'none',
+            panel.border = element_rect(fill = NA, colour = NA),legend.key = element_rect(color="black"),
+            legend.spacing.y = unit(8, 'points'),
+            axis.text=element_blank(),axis.ticks = element_blank(),
+            plot.margin = margin(0.01,0.01,0.01,0.01), 
+            axis.ticks.length = unit(-5,"points"),plot.title = element_text(size=12,hjust = 0.5,vjust=-5, face="bold"))+
+      scale_y_continuous(expand = c(0,0),position = 'right',sec.axis = dup_axis())+
+      #labs(title=paste0(isp,'\n',gsub('_',' + ',samp_df[s,'strat_var'])),fill='')
+      labs(title=paste0(isp,'\n(CV_ms=',ms_cv,'; CV_ss=',ss_cv,')'),fill='')
+    
+    plot_list_n[[isp]]<-pn
+    plot_list_d[[isp]]<-pd
+    }
+  
+    
+    #color palette
+    pal <- wes_palette("Zissou1", length(sort(unique(r3$ms_samples))), type = "continuous")
+    color_scale_ms <- setNames(as.character(pal), sort(unique(r3$ms_samples)))
+    
+    #as factors
+    r3$ms_samples<-as.factor(r3$ms_samples)
+    #r3$diff<-as.factor(r3$diff)
+    
+    #plot by number of samples
+    pm<-
+      ggplot()+
+      geom_raster(data=r3,aes(x=x,y=y,fill=ms_samples))+
+      geom_polygon(data=r4,aes(x=long,y=lat,group=group), colour="black", fill=NA)+
+      #geom_point(data=D8_2, aes(Lon, Lat, fill=Strata, group=NULL),size=2, stroke=0,shape=21)+
+      #scale_fill_gradientn(colours=c("#ea5545", "#f46a9b", "#ef9b20", "#edbf33", "#ede15b", "#bdcf32", "#87bc45", "#27aeef", "#b33dc6"))+
+      scale_fill_manual(values = color_scale_ms,name='sampling effort')+
+      #scale_fill_gradientn(colors=pal,values = sort(unique(r3$prop)))+
+      #scale_fill_gradientn(colours = pal,breaks=range(r3$n_samples),labels=c("Low","High"),name='sampling effort\n(n samples)')+
+      guides(fill=guide_colorbar(title.position = 'top', title.hjust = 0.5,ticks.colour = NA,frame.colour = 'black'))+
+      scale_x_continuous(expand = c(0,0),position = 'bottom',
+                         breaks = c(-175,-170,-165,-160,-155),sec.axis = dup_axis())+
+      coord_sf(crs = '+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs',
+               xlim = panel_extent$x-c(000000,100000),
+               ylim = panel_extent$y-c(0,300000),
+               label_axes = "-NE-")+
+      theme(aspect.ratio = 1,panel.grid.major = element_blank(),
+            panel.background = element_rect(fill = NA),panel.ontop = TRUE,
+            legend.background =  element_rect(fill = "transparent", colour = "transparent"),legend.key.height= unit(20, 'points'),
+            legend.key.width= unit(20, 'points'),axis.title = element_blank(),legend.position = 'none',
+            panel.border = element_rect(fill = NA, colour = NA),legend.key = element_rect(color="black"),
+            legend.spacing.y = unit(8, 'points'),
+            axis.text=element_blank(),axis.ticks = element_blank(),
+            plot.margin = margin(0.01,0.01,0.01,0.01), 
+            axis.ticks.length = unit(-5,"points"),plot.title = element_text(size=14,hjust = 0.5,vjust=-5, face="bold"))+
+      scale_y_continuous(expand = c(0,0),position = 'right',sec.axis = dup_axis())+
+      labs(title=paste0('multispecies\n',gsub('_',' + ',samp_df[s,'strat_var'])),fill='')  
+      
+  #create legends
+  legend_d<-
+    ggplot()+
+    geom_raster(data=r3,aes(x=x,y=y,fill=as.numeric(diff)))+
+    scale_fill_gradient2(midpoint = 0, low = "red", mid = "white",
+                         high = "blue",breaks=range(as.numeric(r3$diff)),labels=c("Lower","Higher"),name='ss - ms samples')+
+    guides(fill=guide_colorbar(title.position = 'top', title.hjust = 0.5,ticks.colour = NA,frame.colour = 'black'))+
+    theme(legend.position = 'bottom')+
+    labs(fill='')
+  
+  legend_n<-
+    ggplot()+
+    geom_raster(data=r3,aes(x=x,y=y,fill=as.numeric(ss_samples)))+
+    scale_fill_gradientn(colours = pal,breaks=range(as.numeric(r3$ss_samples)),labels=c("Low","High"),name='sampling effort (n samples)')+
+    guides(fill=guide_colorbar(title.position = 'top', title.hjust = 0.5,ticks.colour = NA,frame.colour = 'black'))+
+    theme(legend.position = 'bottom')+
+    labs(fill='')
+  
+  legend1 <- cowplot::get_legend( 
+    legend_d + 
+      theme(legend.position = "bottom") 
+  ) 
+  
+  legend2 <- cowplot::get_legend( 
+    legend_n + 
+      theme(legend.position = "bottom") 
+  ) 
+  
+  pgrid1<-cowplot::plot_grid(plotlist = plot_list_d, nrow = 2)
+  pgrid2<-cowplot::plot_grid(plotlist = plot_list_n, nrow = 2)
+  
+  #save plots
+  ragg::agg_png(paste0('./figures/sampling designs ss diff_',samp_df[s,'strat_var'],'.png'), width = 20, height = 7, units = "in", res = 300)
+  print(cowplot::plot_grid(pgrid1, legend1, nrow = 2, rel_heights = c(1, .1)))
+  dev.off()
+  
+  ragg::agg_png(paste0('./figures/sampling designs ss n_',samp_df[s,'strat_var'],'.png'), width = 20, height = 7, units = "in", res = 300)
+  print(cowplot::plot_grid(pgrid2, legend2, nrow = 2, rel_heights = c(1, .1)))
+  dev.off()
+  
+  ragg::agg_png(paste0('./figures/sampling designs ms_',samp_df[s,'strat_var'],'.png'), width = 5, height = 5, units = "in", res = 300)
+  print(pm)
+  dev.off()
+  
+}  
+    
