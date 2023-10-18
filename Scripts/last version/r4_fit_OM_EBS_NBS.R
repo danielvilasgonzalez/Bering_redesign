@@ -40,7 +40,8 @@ version<-"VAST_v14_0_1" #if using "VAST_v13_1_0" follow covariate values
 knots<-'500' #1000 
 
 #years
-yrs<-1982:2022
+#yrs<-1982:2022
+yrs<-setdiff(1982:2022,2020) #remove 2020 because there were no survey in this year due to COVID
 
 #list of sp
 spp<-list.dirs('./data processed/species/',full.names = FALSE,recursive = FALSE)
@@ -69,8 +70,6 @@ fol_region<-c('shelf EBS NBS VAST')
 #load grid
 load('./extrapolation grids/lastversion_grid_EBS.RData')
 load('./data processed/grid_EBS_NBS.RData')
-grid_ebs<-grid.ebs_year[which(grid.ebs_year$region != 'EBSslope' & grid.ebs_year$Year %in% yrs),]
-dim(grid_ebs)
 
 #dir create for slope region results
 dir.create(paste(out_dir,fol_region,sep='/'))
@@ -83,15 +82,14 @@ for (sp in spp) {
 #loop over species to fit models
 for (sp in spp) {
 
-#Pcod example
-#sp<-'Gadus macrocephalus'
-sp<-spp[16]
+  #sp<-spp[16]
 
 #print year to check progress
 cat(paste("\n","    ----- ", sp, " -----\n"))  
 
 #read data_geostat_temp file
 df1<-readRDS(paste0('./data processed/species/',sp,'/data_geostat_temp.rds'))
+
 #df1[which(df1$year==2020),'bottom_temp_c']<-NA
 df2<-subset(df1,year %in% yrs)
 
@@ -108,6 +106,9 @@ data_geostat<-df4[complete.cases(df4[,c('CPUE_kg')]),]
 #covariate data - filter by year and complete cases for env variables
 #covariate_data<-subset(df2,Year>=yrs_region[1] & Year<=yrs_region[2])
 covariate_data<-df3[complete.cases(df3[,c('BotTemp')]),] #,'ScaleLogDepth'
+
+#get grid_ebs_nbs
+grid_ebs<-grid.ebs_year[which(grid.ebs_year$region != 'EBSslope' & grid.ebs_year$Year %in% unique(data_geostat$Year)),]
 
 #add grid to get prediction for simulate data on each cell of the grid (sim$b_i)
 grid_df<-data.frame(Lat=grid_ebs$Lat,
