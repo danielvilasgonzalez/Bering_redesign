@@ -50,7 +50,8 @@ spp<-c('Limanda aspera',
        'Anoplopoma fimbria',
        'Chionoecetes opilio',
        'Paralithodes platypus',
-       'Paralithodes camtschaticus')
+       'Paralithodes camtschaticus',
+       'Chionoecetes bairdi')
 
 #remove Anoploma and Reinhardtius because habitat preference reasons
 spp<-setdiff(spp, c('Anoplopoma fimbria','Reinhardtius hippoglossoides'))
@@ -69,7 +70,8 @@ spp1<-c('Yellowfin sole',
        #'Sablefish',
        'Snow crab',
        'Blue king crab',
-       'Red king crab')
+       'Red king crab',
+       'Tanner crab')
  
 df_spp<-data.frame('spp'=spp,
                    'common'=spp1) 
