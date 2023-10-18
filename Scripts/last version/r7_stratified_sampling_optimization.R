@@ -75,6 +75,27 @@ spp<-c('Limanda aspera',
 #remove Anoploma and Reinhardtius because habitat preference reasons
 spp<-setdiff(spp, c('Anoplopoma fimbria','Reinhardtius hippoglossoides'))
 
+spp1<-c('Yellowfin sole',
+        'Alaska pollock',
+        'Pacific cod',
+        'Arrowtooth flounder',
+        #'Greenland turbot',
+        'Northern rock sole',
+        'Flathead sole',
+        'Alaska plaice',
+        'Bering flounder',
+        'Arctic cod',
+        'Saffon cod',
+        #'Sablefish',
+        'Snow crab',
+        'Blue king crab',
+        'Red king crab',
+        'Tanner crab')
+
+spp_name<-data.frame('spp'=spp,
+                     'common'=spp1) 
+
+
 #df spp, number and target variables
 df_spp<-data.frame('spp'=spp,
                    'n'=c(1:length(spp)),
@@ -598,11 +619,19 @@ samp_df$samp_scn<-paste0(paste0('scn',1:nrow(samp_df)))
     
     df2<-subset(df1,species==isp)
     
+    #ms CV
     ms_cv<-
       ms[,paste0('CV',match(isp,spp))]
     
+    #ms SCV
+    ms_scv<-(ms_cv*100)^2
+    
+    #ss CV
     ss_cv<-
       ss$CV[match(isp,spp)]
+    
+    #ss SCV
+    ss_scv<-(ss_cv*100)^2
     
     #df to spatialpoint df
     coordinates(df2) <- ~ Lon + Lat
@@ -636,16 +665,15 @@ samp_df$samp_scn<-paste0(paste0('scn',1:nrow(samp_df)))
     r3$ss_samples<-as.factor(r3$ss_samples)
     #r3$ratio<-as.factor(r3$ratio)
   
+    #common name
+    com<-spp_name[which(spp_name$spp==isp),'common']
+    
     #plot by number of samples
     pn<-
     ggplot()+
       geom_raster(data=r3,aes(x=x,y=y,fill=ss_samples))+
       geom_polygon(data=r4,aes(x=long,y=lat,group=group), colour="black", fill=NA)+
-      #geom_point(data=D8_2, aes(Lon, Lat, fill=Strata, group=NULL),size=2, stroke=0,shape=21)+
-      #scale_fill_gradientn(colours=c("#ea5545", "#f46a9b", "#ef9b20", "#edbf33", "#ede15b", "#bdcf32", "#87bc45", "#27aeef", "#b33dc6"))+
       scale_fill_manual(values = color_scale_ss,name='sampling effort')+
-      #scale_fill_gradientn(colors=pal,values = sort(unique(r3$prop)))+
-      #scale_fill_gradientn(colours = pal,breaks=range(r3$n_samples),labels=c("Low","High"),name='sampling effort\n(n samples)')+
       guides(fill=guide_colorbar(title.position = 'top', title.hjust = 0.5,ticks.colour = NA,frame.colour = 'black'))+
       scale_x_continuous(expand = c(0,0),position = 'bottom',
                          breaks = c(-175,-170,-165,-160,-155),sec.axis = dup_axis())+
@@ -663,20 +691,16 @@ samp_df$samp_scn<-paste0(paste0('scn',1:nrow(samp_df)))
             plot.margin = margin(0.01,0.01,0.01,0.01), 
             axis.ticks.length = unit(-5,"points"),plot.title = element_text(size=12,hjust = 0.5,vjust=-5, face="bold"))+
       scale_y_continuous(expand = c(0,0),position = 'right',sec.axis = dup_axis())+
-      labs(title=paste0(isp,'\n[log(msCV/ssCV)=',round(log(ms_cv/ss_cv),digits = 2),']'),fill='')
+      #labs(title=paste0(com,'\n(msSCV=',round(ms_scv,digits = 3),'; ssSCV=',round(ss_scv,digits = 3),')'),fill='')
+      labs(title=paste0(com,'\n(msCV=',round(ms_cv,digits = 3),'; ssCV=',round(ss_cv,digits = 3),')'),fill='')
     
     #plot by number of samples
     pd<-
     ggplot()+
       geom_raster(data=r3,aes(x=x,y=y,fill=ratio))+
       geom_polygon(data=r4,aes(x=long,y=lat,group=group), colour="black", fill=NA)+
-      #geom_point(data=D8_2, aes(Lon, Lat, fill=Strata, group=NULL),size=2, stroke=0,shape=21)+
-      #scale_fill_gradientn(colours=c("#ea5545", "#f46a9b", "#ef9b20", "#edbf33", "#ede15b", "#bdcf32", "#87bc45", "#27aeef", "#b33dc6"))+
       scale_fill_gradient2(midpoint = 0, low = "red", mid = "white",
                              high = "blue",name='ss samples - ms samples')+
-      #scale_fill_manual(values = color_scale_ms,name='sampling effort')+
-      #scale_fill_gradientn(colors=pal,values = sort(unique(r3$prop)))+
-      #scale_fill_gradientn(colours = pal,breaks=range(r3$n_samples),labels=c("Low","High"),name='sampling effort\n(n samples)')+
       guides(fill=guide_colorbar(title.position = 'top', title.hjust = 0.5,ticks.colour = NA,frame.colour = 'black'))+
       scale_x_continuous(expand = c(0,0),position = 'bottom',
                          breaks = c(-175,-170,-165,-160,-155),sec.axis = dup_axis())+
@@ -694,8 +718,8 @@ samp_df$samp_scn<-paste0(paste0('scn',1:nrow(samp_df)))
             plot.margin = margin(0.01,0.01,0.01,0.01), 
             axis.ticks.length = unit(-5,"points"),plot.title = element_text(size=12,hjust = 0.5,vjust=-5, face="bold"))+
       scale_y_continuous(expand = c(0,0),position = 'right',sec.axis = dup_axis())+
-      #labs(title=paste0(isp,'\n',gsub('_',' + ',samp_df[s,'strat_var'])),fill='')
-      labs(title=paste0(isp,'\n[log(msCV/ssCV)=',round(log(ms_cv/ss_cv),digits = 2),']'),fill='')
+      #labs(title=paste0(com,'\n(msSCV=',round(ms_scv,digits = 3),'; ssSCV=',round(ss_scv,digits = 3),')'),fill='')
+      labs(title=paste0(com,'\n(msCV=',round(ms_cv,digits = 3),'; ssCV=',round(ss_cv,digits = 3),')'),fill='')
     
     plot_list_n[[isp]]<-pn
     plot_list_d[[isp]]<-pd
@@ -715,11 +739,7 @@ samp_df$samp_scn<-paste0(paste0('scn',1:nrow(samp_df)))
       ggplot()+
       geom_raster(data=r3,aes(x=x,y=y,fill=ms_samples))+
       geom_polygon(data=r4,aes(x=long,y=lat,group=group), colour="black", fill=NA)+
-      #geom_point(data=D8_2, aes(Lon, Lat, fill=Strata, group=NULL),size=2, stroke=0,shape=21)+
-      #scale_fill_gradientn(colours=c("#ea5545", "#f46a9b", "#ef9b20", "#edbf33", "#ede15b", "#bdcf32", "#87bc45", "#27aeef", "#b33dc6"))+
       scale_fill_manual(values = color_scale_ms,name='sampling effort')+
-      #scale_fill_gradientn(colors=pal,values = sort(unique(r3$prop)))+
-      #scale_fill_gradientn(colours = pal,breaks=range(r3$n_samples),labels=c("Low","High"),name='sampling effort\n(n samples)')+
       guides(fill=guide_colorbar(title.position = 'top', title.hjust = 0.5,ticks.colour = NA,frame.colour = 'black'))+
       scale_x_continuous(expand = c(0,0),position = 'bottom',
                          breaks = c(-175,-170,-165,-160,-155),sec.axis = dup_axis())+
