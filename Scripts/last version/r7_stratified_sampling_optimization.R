@@ -1,8 +1,8 @@
 ####################################################################
 ####################################################################
 ##
-##    Run sampling optimization based on predicted densities from VAST model
-##    and get samples from each strata for each sampling design
+##    Run sampling optimization based on predicted densities from VAST OM EBS+NBS
+##    and calculate stratification boundaries and sample allocations for each sampling design
 ##
 ##    by best stratification, we mean the stratification that ensures the minimum sample cost, 
 ##    sufficient to satisfy precision constraints set on the accuracy of the estimates of the survey target variables Y’s
@@ -11,6 +11,8 @@
 ##    https://cran.r-project.org/web/packages/SamplingStrata/vignettes/SamplingStrata.html
 ##    (using devtools::install_github(repo = "zoyafuso-NOAA/SamplingStrata"))
 ##    Daniel Vilas (daniel.vilas@noaa.gov/dvilasg@uw.edu)
+##    Lewis Barnett
+##    Zack Oyafuso (some code borrowed from his previous analysis in the GOA)
 ##
 ####################################################################
 ####################################################################
@@ -22,8 +24,8 @@ gc()
 
 #libraries from cran to call or install/load
 pack_cran<-c("splines",'SamplingStrata','wesanderson','dplyr','sp',
-             'sf','maptools','parallel','rasterVis','rgeos','scales',
-             'rnaturalearth','grid','ggplot2','spatstat','parallel','doParallel')
+             'sf','maptools','rgeos','scales',
+             'rnaturalearth','grid','ggplot2','spatstat','ragg')
 
 #install pacman to use p_load function - call library and if not installed, then install
 if (!('pacman' %in% installed.packages())) {
@@ -108,6 +110,10 @@ x5<-merge(x4,lats,by='y',all.x=TRUE)
 colnames(x5)<-c('Lat','Lon','cell','optional','col','row')
 grid<-x5[,c('Lat','Lon','cell','col','row')]
 
+# Define plot extent (through trial end error) units km (for plotting purposes)
+panel_extent <- data.frame(x = c(-1716559.21, -77636.05), #x = c(-1326559.21, -87636.05),
+                           y = c(483099.5, 2194909.7)) #y = c(533099.5, 1894909.7))
+
 ###################################
 # FXNs - extracted from ZO code
 ###################################
@@ -153,7 +159,6 @@ samp_df$samp_scn<-paste0(paste0('scn',1:nrow(samp_df)))
 ###############
 # load ms data and settings
 ###############
-#isp<-'Gadus macrocephalus'
 
   #load multispecies data
   load(paste0('./output/multisp_optimization_static_data.RData')) #df
@@ -181,34 +186,8 @@ samp_df$samp_scn<-paste0(paste0('scn',1:nrow(samp_df)))
   #domain_input
   domain_input<-rep(1, n_cells)
   
-  # #df summary
-  # sp_sum_stats<-data.frame(matrix(nrow = 0,ncol=18))
-  # names(sp_sum_stats)<- c("Domain","Stratum","Population","Allocation","SamplingRate","Lower_X1","Upper_X1","Lower_X2","Upper_X2",
-  #                         "stratum_id","wh","Wh","M1","S1","SOLUZ","samp_scn","sp")
-  
-  
   #subset cells with appropiate depth
   static_df1<-subset(df,cell %in% ok_cells)
-  
-  # #frame_df
-  # frame_df <- data.frame(domainvalue = domain_input, #domain
-  #                     id = static_df1$cell, #id as cells
-  #                     stratum_var_input, #Stratification variables
-  #                     WEIGHT=n_years, #weight for spp depending on the presence of years
-  #                     target_var_input) #target variables 
-  # 
-  # srs_stats <- SamplingStrata::buildStrataDF(
-  #   dataset = cbind( frame_df[, -grep(x = names(frame_df), pattern = "X")],
-  #                    X1 = 1))
-  # 
-  # 
-  # srs_stats <- SamplingStrata::buildStrataDF(
-  #   dataset = cbind( frame_df[, -grep(x = names(frame_df), pattern = "X")],
-  #                    X1 = 1))
-  # ## SRS statistics
-  # srs_var <- srs_stats[, paste0("S", 1:n_spp)]^2 * (1 - srs_n / n_cells) / srs_n
-  # srs_cv <- sqrt(srs_var) / srs_stats[, paste0("M", 1:n_spp)]
-  
   
   #########################
   # loop over optimized sampling designs
@@ -231,16 +210,7 @@ samp_df$samp_scn<-paste0(paste0('scn',1:nrow(samp_df)))
     } else {
       stratum_var_input<-data.frame(X1 = static_df1[,paste0(sub("\\_.*", "", samp_df[s,'strat_var']))])
     }
-    
-    # srs_stats <- SamplingStrata::buildStrataDF(
-    #   dataset = cbind( static_df1[, -grep(x = names(static_df1), pattern = "X")],
-    #                    X1 = 1))
-    
-    ## SRS statistics
-    #srs_var <- srs_stats[, paste0("S", 1:n_spp)]^2 * (1 - srs_n / n_cells) / srs_n
-    #srs_cv <- sqrt(srs_var) / srs_stats[, paste0("M", 1:n_spp)]
-    
-    
+
     #target variables
     target_var_input<-static_df1[,tar_var]
     n_samples<-srs_n<-samp_df[s,'n_samples']
@@ -366,19 +336,14 @@ samp_df$samp_scn<-paste0(paste0('scn',1:nrow(samp_df)))
       sum_stats<-data.frame(sum_stats[,c("Domain","Stratum","Population","Allocation","SamplingRate","Lower_X1","Upper_X1")],
                             "Lower_X2"=NA,"Upper_X2"=NA,
                             sum_stats[,c("stratum_id","wh","Wh","M1",'S1',"SOLUZ","samp_scn")])
-      
     }
-    
-    # #append stat results  
-    # sp_sum_stats<-rbind(sp_sum_stats,sum_stats)
-    
+
     #store results
     result_list <- list(solution = solution,
                         sum_stats = sum_stats,
                         cvs = as.numeric(calc_expected_CV(sum_stats)),
                         n = sum(sum_stats$Allocation),
                         sol_by_cell = plot_solution)
-    #save(list = "result_list", file = paste0("./output/ms_optim_strata_result_list_",samp_df[s,'samp_scn'],".RData"))
     
     #######################
     ##   7) Single-Species Optimization ----
@@ -392,17 +357,10 @@ samp_df$samp_scn<-paste0(paste0('scn',1:nrow(samp_df)))
       
       temp_n <- result_list$n
       
-      #if one stratifying factor add columns  
-      # if (!grepl('_',samp_df[s,'strat_var'])) {
       ## Subset density data for species ispp
       ss_df <- subset(x = frame, 
                       select = c("domainvalue", "id", "WEIGHT", "X1", #"X2", 
                                  paste0("Y", iispp), paste0("Y", iispp, "_SQ_SUM")))
-      # } else {
-      #   ss_df <- subset(x = frame, 
-      #                   select = c("domainvalue", "id", "WEIGHT", "X1", "X2", 
-      #                              paste0("Y", ispp), paste0("Y", ispp, "_SQ_SUM"))) 
-      # }
       names(ss_df)[grep(x = names(ss_df), pattern = "Y")] <- c("Y1", "Y1_SQ_SUM")
       
       ## Create CV inputs to the Bethel algorithm; initialize at SRS CV
@@ -413,18 +371,10 @@ samp_df$samp_scn<-paste0(paste0('scn',1:nrow(samp_df)))
         
         ## subset stratum stats for the species of interest as inputs to the 
         ## Bethel algorithm
-        #if one stratifying factor add columns  
-        # if (grepl('_',samp_df[s,'strat_var'])) {
-        # temp_stratif <- 
-        #   solution$aggr_strata[, c("STRATO", "N", 
-        #                            paste0("M", ispp), paste0("S", ispp), 
-        #                            "COST", "CENS", "DOM1", "X1",'X2' , "SOLUZ")]
-        # } else {
-          temp_stratif <- 
+        temp_stratif <- 
             solution$aggr_strata[, c("STRATO", "N", 
                                      paste0("M", iispp), paste0("S", iispp), 
                                      "COST", "CENS", "DOM1", "X1" ,"SOLUZ")]
-        # } 
         temp_stratif$N <- temp_stratif$N / n_years
         temp_stratif$DOM1 <- 1
         names(temp_stratif)[3:4] <- paste0(c("M", "S"), 1)
@@ -481,8 +431,8 @@ samp_df$samp_scn<-paste0(paste0('scn',1:nrow(samp_df)))
     ##   Optimize allocation across a range of sample sizes, given the original
     ##   stratification.
     #####################
+    
     ms_sample_allocations <- expand.grid(n = n_samples)
-    #temp_n <- result_list$n
     
     ## Subset lower limits of CVs from the ss cvs
     ss_cvs <- subset(ss_sample_allocations, n == n_samples)$CV
@@ -529,20 +479,12 @@ samp_df$samp_scn<-paste0(paste0('scn',1:nrow(samp_df)))
         ## If the current n is < n_samples, decrease the CV by a small amount
         ## relative to the distance between the current CV and the SS CV
         if (over_under == FALSE) {
-          # CV_adj <- 0.95
-          # updated_cv_constraint <- 
-          #   updated_cv_constraint * (CV_adj) + ss_cvs * (1  - CV_adj)
-          
           updated_cv_constraint <- updated_cv_constraint  - updated_cv_constraint * 0.001
         }
         
         ## If the current n is > n_samples, increase the CV by a small amount
         ## relative to the distance between the current CV and the SRS CV
         if(over_under == TRUE) {
-          # CV_adj = .05
-          # updated_cv_constraint <- 
-          #   temp_srs_cv * (CV_adj) + updated_cv_constraint * (1  - CV_adj)
-          
           updated_cv_constraint <- updated_cv_constraint  + updated_cv_constraint * 0.01
         }
         
@@ -587,18 +529,17 @@ samp_df$samp_scn<-paste0(paste0('scn',1:nrow(samp_df)))
                           CV_strata=cv_strata_final, #min to achieve strata
                           CV_bethel=cv_bethel_final) #min to achieve naximum sample
     
+    #results list to save
     all<-list(result_list=result_list,
               ss_sample_allocations=ss_sample_allocations,
               ms_sample_allocations=ms_sample_allocations,
               samples_strata=data.frame(strata=1:no_strata,n_samples=samples_strata),
               cv=cv_temp)
     
+    #save list
       save(all,
            file = paste0("./output/ms_optim_allocations_",samp_df[s,'samp_scn'],".RData"))
-    
-    
    }
-
 
   ###################
   # Plot comparison sampling effort x strata for each species under singlesp or multisp allocation of samples
@@ -640,7 +581,7 @@ samp_df$samp_scn<-paste0(paste0('scn',1:nrow(samp_df)))
     strata2<-merge(strata1,ms_strata,by='Strata')
     strata2<-merge(strata2,strata_sum,by='Strata')
     #strata2$prop<-strata2$n_samples/strata2$total_cell
-    strata2$diff<-strata2$ss_samples-strata2$ms_samples
+    strata2$ratio<-log(strata2$ss_samples/strata2$ms_samples)
     dim(strata2)
     
     df1<-df[,c('Lat','Lon','cell')]
@@ -658,10 +599,10 @@ samp_df$samp_scn<-paste0(paste0('scn',1:nrow(samp_df)))
     df2<-subset(df1,species==isp)
     
     ms_cv<-
-      round(ms[,paste0('CV',match(isp,spp))],digits = 3)
+      ms[,paste0('CV',match(isp,spp))]
     
     ss_cv<-
-      round(ss$CV[match(isp,spp)],digits = 3)
+      ss$CV[match(isp,spp)]
     
     #df to spatialpoint df
     coordinates(df2) <- ~ Lon + Lat
@@ -678,7 +619,7 @@ samp_df$samp_scn<-paste0(paste0('scn',1:nrow(samp_df)))
     r1 <- raster(ext=extent(df_1),ncol=xycells, nrow=xycells) #c(15800,15800) 7000
     
     #create raster
-    r2<-rasterize(df_1, r1 ,field=c('Strata','ms_samples','ss_samples','diff'))
+    r2<-rasterize(df_1, r1 ,field=c('Strata','ms_samples','ss_samples','ratio'))
     crs(r2) <- CRS('+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs')
     r2[r2==999]<-NA
     
@@ -693,7 +634,7 @@ samp_df$samp_scn<-paste0(paste0('scn',1:nrow(samp_df)))
     
     #as factors
     r3$ss_samples<-as.factor(r3$ss_samples)
-    #r3$diff<-as.factor(r3$diff)
+    #r3$ratio<-as.factor(r3$ratio)
   
     #plot by number of samples
     pn<-
@@ -722,12 +663,12 @@ samp_df$samp_scn<-paste0(paste0('scn',1:nrow(samp_df)))
             plot.margin = margin(0.01,0.01,0.01,0.01), 
             axis.ticks.length = unit(-5,"points"),plot.title = element_text(size=12,hjust = 0.5,vjust=-5, face="bold"))+
       scale_y_continuous(expand = c(0,0),position = 'right',sec.axis = dup_axis())+
-      labs(title=paste0(isp,'\n(CV_ms=',ms_cv,'; CV_ss=',ss_cv,')'),fill='')
+      labs(title=paste0(isp,'\n[log(msCV/ssCV)=',round(log(ms_cv/ss_cv),digits = 2),']'),fill='')
     
     #plot by number of samples
     pd<-
     ggplot()+
-      geom_raster(data=r3,aes(x=x,y=y,fill=diff))+
+      geom_raster(data=r3,aes(x=x,y=y,fill=ratio))+
       geom_polygon(data=r4,aes(x=long,y=lat,group=group), colour="black", fill=NA)+
       #geom_point(data=D8_2, aes(Lon, Lat, fill=Strata, group=NULL),size=2, stroke=0,shape=21)+
       #scale_fill_gradientn(colours=c("#ea5545", "#f46a9b", "#ef9b20", "#edbf33", "#ede15b", "#bdcf32", "#87bc45", "#27aeef", "#b33dc6"))+
@@ -754,7 +695,7 @@ samp_df$samp_scn<-paste0(paste0('scn',1:nrow(samp_df)))
             axis.ticks.length = unit(-5,"points"),plot.title = element_text(size=12,hjust = 0.5,vjust=-5, face="bold"))+
       scale_y_continuous(expand = c(0,0),position = 'right',sec.axis = dup_axis())+
       #labs(title=paste0(isp,'\n',gsub('_',' + ',samp_df[s,'strat_var'])),fill='')
-      labs(title=paste0(isp,'\n(CV_ms=',ms_cv,'; CV_ss=',ss_cv,')'),fill='')
+      labs(title=paste0(isp,'\n[log(msCV/ssCV)=',round(log(ms_cv/ss_cv),digits = 2),']'),fill='')
     
     plot_list_n[[isp]]<-pn
     plot_list_d[[isp]]<-pd
@@ -767,7 +708,7 @@ samp_df$samp_scn<-paste0(paste0('scn',1:nrow(samp_df)))
     
     #as factors
     r3$ms_samples<-as.factor(r3$ms_samples)
-    #r3$diff<-as.factor(r3$diff)
+    #r3$ratio<-as.factor(r3$ratio)
     
     #plot by number of samples
     pm<-
@@ -801,9 +742,9 @@ samp_df$samp_scn<-paste0(paste0('scn',1:nrow(samp_df)))
   #create legends
   legend_d<-
     ggplot()+
-    geom_raster(data=r3,aes(x=x,y=y,fill=as.numeric(diff)))+
-    scale_fill_gradient2(midpoint = 0, low = "red", mid = "white",
-                         high = "blue",breaks=range(as.numeric(r3$diff)),labels=c("Lower","Higher"),name='ss - ms samples')+
+    geom_raster(data=r3,aes(x=x,y=y,fill=as.numeric(ratio)))+
+    scale_fill_gradient2(midpoint = mean(range(r3$ratio)), low = "red", mid = "white",
+                         high = "blue",breaks=range(as.numeric(r3$ratio)),labels=c("Lower","Higher"),name='log(ss/ms samples)')+
     guides(fill=guide_colorbar(title.position = 'top', title.hjust = 0.5,ticks.colour = NA,frame.colour = 'black'))+
     theme(legend.position = 'bottom')+
     labs(fill='')
@@ -830,7 +771,7 @@ samp_df$samp_scn<-paste0(paste0('scn',1:nrow(samp_df)))
   pgrid2<-cowplot::plot_grid(plotlist = plot_list_n, nrow = 2)
   
   #save plots
-  ragg::agg_png(paste0('./figures/sampling designs ss diff_',samp_df[s,'strat_var'],'.png'), width = 20, height = 7, units = "in", res = 300)
+  ragg::agg_png(paste0('./figures/sampling designs ss ratio_',samp_df[s,'strat_var'],'.png'), width = 20, height = 7, units = "in", res = 300)
   print(cowplot::plot_grid(pgrid1, legend1, nrow = 2, rel_heights = c(1, .1)))
   dev.off()
   
