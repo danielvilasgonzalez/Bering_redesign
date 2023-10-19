@@ -805,3 +805,114 @@ samp_df$samp_scn<-paste0(paste0('scn',1:nrow(samp_df)))
   
 }  
     
+  ###################
+  # Plot spatial random fields
+  ###################
+  plot_list_rf<-list()
+  
+  for (isp in spp) {
+    
+    #isp<-'Gadus macrocephalus'
+    cat(paste(" #############  ",isp ," #############\n"))
+    
+    #common name
+    com<-spp_name[which(spp_name$spp==isp),'common']
+    
+    #fit file
+    ff<-list.files(paste0('./shelf EBS NBS VAST/',isp,'/'),'fit',recursive=TRUE)
+    
+    #load fit file
+    load(paste0('./shelf EBS NBS VAST/',isp,'/',ff)) #fit
+    
+    #get spatial random fields
+    spf<-fit$Report$Omega1_gc
+    
+    #get dataframe
+    D_gt <- spf
+    D_gt<-data.frame('cell'=c(1:fit$spatial_list$n_g),D_gt,check.names = FALSE)
+    
+    #merge with grid
+    D_gt1<-merge(D_gt,grid,by='cell')
+    
+    #df to spatialpoint df
+    coordinates(D_gt1) <- ~ Lon + Lat
+    crs(D_gt1)<-c(crs='+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs')
+    
+    #reproject coordinates for plotting purposes
+    #df_1<-spTransform(D_gt1,'+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs')
+    df_2<-data.frame(D_gt1)
+    
+    #x and y cells
+    xycells<-as.integer(sqrt(dim(D_gt1)[1]))
+    
+    # create a template raster
+    r1 <- raster(ext=extent(df_1),ncol=xycells, nrow=xycells) #c(15800,15800) 7000
+    
+    #create raster
+    r2<-rasterize(D_gt1, r1 ,field=c('1'))
+    crs(r2) <- CRS('+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs')
+    r2[r2==999]<-NA
+    
+    #create polygon to get boundaries of each strata
+    r3<-as.data.frame(r2,xy=TRUE)
+    
+    #Alaska layer
+    ebs_layers <- akgfmaps::get_base_layers(select.region = "ebs", set.crs = "EPSG:3338")
+    ak_sppoly<-as(ebs_layers$akland, 'Spatial')
+    
+    #plot
+    prf<-
+    ggplot() +
+      geom_raster(data=r3,aes(x=x,y=y,fill=layer))+
+      #geom_polygon(data=r4,aes(x=long,y=lat,group=group), colour="black", fill=NA)+
+      guides(fill=guide_colorbar(title.position = 'top', title.hjust = 0.5,ticks.colour = NA,frame.colour = 'black'))+
+      scale_x_continuous(expand = c(0,0),position = 'bottom',
+                         breaks = c(-175,-170,-165,-160,-155),sec.axis = dup_axis())+
+      coord_sf(crs = '+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs',
+               xlim = panel_extent$x-c(000000,100000),
+               ylim = panel_extent$y-c(0,300000),
+               label_axes = "-NE-")+
+      scale_fill_viridis_c(option = 'A',name=('Spatial Random\nField deviations'),
+                           guide = guide_colorbar(  frame.colour = "black",ticks.colour = 'black'),na.value=rgb(1, 0, 0, 0))+
+      #scale_fill_gradientn(colours = wesanderson::wes_palette("Zissou1", 21, type = "continuous"),name=('Spatial Random\nField deviations'),
+      #                      guide = guide_colorbar(  frame.colour = "black",ticks.colour = 'black'),na.value=rgb(1, 0, 0, 0))+
+      theme(aspect.ratio = 1,panel.grid.major = element_blank(),
+            panel.background = element_rect(fill = NA),panel.ontop = TRUE,
+            legend.background =  element_rect(fill = "transparent", colour = "transparent"),legend.key.height= unit(20, 'points'),
+            legend.key.width= unit(20, 'points'),axis.title = element_blank(),legend.position = 'none',
+            panel.border = element_rect(fill = NA, colour = NA),legend.key = element_rect(color="black"),
+            legend.spacing.y = unit(8, 'points'),
+            axis.text=element_blank(),axis.ticks = element_blank(),
+            plot.margin = margin(0.01,0.01,0.01,0.01), 
+            axis.ticks.length = unit(-5,"points"),plot.title = element_text(size=12,hjust = 0.5,vjust=-5, face="bold"))+
+      scale_y_continuous(expand = c(0,0),position = 'right',sec.axis = dup_axis())+
+      labs(title=paste0(com),fill='')
+  
+    #store plot
+    plot_list_rf[[isp]]<-prf
+  } 
+  
+  #grid of plots
+  pgrid1<-cowplot::plot_grid(plotlist = plot_list_rf, nrow = 2)
+  
+  #plot for common legend
+  legend_rf<-
+    ggplot()+
+    geom_raster(data=r3,aes(x=x,y=y,fill=as.numeric(layer)))+
+    scale_fill_viridis_c(breaks=range(as.numeric(r3$layer),na.rm = TRUE),labels=c("Low","High"),option = 'A',name=('Spatial Random\nField deviations'),
+                         guide = guide_colorbar(  frame.colour = "black",ticks.colour = 'black'),na.value=rgb(1, 0, 0, 0))+
+    guides(fill=guide_colorbar(title.position = 'top', title.hjust = 0.5,ticks.colour = NA,frame.colour = 'black'))+
+    theme(legend.position = 'bottom')+
+    labs(fill='')
+  
+  #legend
+  legend1 <- cowplot::get_legend( 
+    legend_rf + 
+      theme(legend.position = "bottom") 
+  ) 
+  
+  #save plot
+  ragg::agg_png(paste0('./figures/SpatialRandomFields.png'),  width = 20, height = 7, units = "in", res = 300)
+  print(cowplot::plot_grid(pgrid1, legend1, nrow = 2, rel_heights = c(1, .15)))
+  dev.off()
+  
