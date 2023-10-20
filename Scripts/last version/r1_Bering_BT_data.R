@@ -52,7 +52,9 @@ spp<-c('Limanda aspera',
            'Paralithodes platypus',
            'Paralithodes camtschaticus',
            'Lepidopsetta sp.',
-           'Chionoecetes bairdi')
+           'Chionoecetes bairdi',
+           'Sebastes alutus',
+           'Sebastes melanostictus')
 
 #get files from google drive and set up
 files<-googledrive::drive_find()
@@ -101,20 +103,46 @@ googledrive::drive_download(file=file$id,
 
 #read csv file
 catch<-readRDS(paste0('./data raw/',file$name))
-unique(catch$common_name)[grepl('rock sole',unique(catch$common_name))]
+
+#check for names - based on important spp for the slope (all that we have + Blackspotted/rougheye and POP)
+unique(catch$common_name)[grep('perch',unique(catch$common_name))] #Pacific ocean perch
+unique(catch$common_name)[grep('blackspotted',unique(catch$common_name))] #"rougheye and blackspotted rockfish unid." "blackspotted rockfish"
+unique(catch[which(catch$common_name=='Pacific ocean perch'),'scientific_name']) #Sebastes alutus
+unique(catch[which(catch$common_name=='rougheye and blackspotted rockfish unid.'),'scientific_name']) #NA - to arrange
+unique(catch[which(catch$common_name=='blackspotted rockfish'),'scientific_name']) #Sebastes melanostictus
+
+#add scientific_name to 'rougheye and blackspotted rockfish unid.'
+catch$scientific_name[catch$common_name == 'rougheye and blackspotted rockfish unid.'] <- 'Sebastes melanostictus'
 
 #most northern rock sole was missidentified before 1996
+unique(catch$common_name)[grepl('rock sole',unique(catch$common_name))]
 subset(catch, common_name=='rock sole unid.')
 
 #filter by species
 catch1<-subset(catch,scientific_name %in% spp)
+
+#sum blackspotted rockfish and blackspotted rockfish unid
+catch2<-catch1[which(catch1$scientific_name=='Sebastes melanostictus'),]
+catch21<-aggregate(catch2[, c('cpue_kgha','cpue_kgkm2','cpue_noha','cpue_nokm2','count','weight_kg')], 
+                   by = list('hauljoin'=catch2$hauljoin), FUN = sum)
+catch3<-cbind('hauljoin'=catch21$hauljoin,
+              'species_code'=unique(catch[which(catch$common_name=='blackspotted rockfish'),'species_code']),
+              catch21[,-1],
+              'taxon_confidence'='Unassessed',
+              'scientific_name'='Sebastes melanostictus',
+              'common_name'='rougheye and blackspotted rockfish',
+              'worms'=unique(catch[which(catch$common_name=='blackspotted rockfish'),'worms']),
+              'itis'=NA)
+catch1<-subset(catch1,scientific_name != "Sebastes melanostictus")
+catch1<-rbind(catch1,catch3)
+
 length(unique(catch1$scientific_name))==length(spp)
 
 #####################################
 # MERGE CATCH and HAUL DATA 
 #####################################
-#if there are 15 selected spp and 16693 hauls in slope EBS, shelf EBS and NBS
-#then 15*16693=250395 rows for the dataframe
+#if there are 19 selected spp and 16693 hauls in slope EBS, shelf EBS and NBS
+#then 19*16693=317167 rows for the dataframe
 
 #create the empty df 
 haul1<-do.call("rbind", replicate(length(spp), haul, simplify = FALSE))
@@ -171,7 +199,7 @@ saveRDS(all1, paste0('./data processed/species/slope_shelf_EBS_NBS_data_geostat.
 #loop over species to create data_geostat df
 for (sp in spp) {
   
-  sp<-spp[16]
+  #sp<-spp[1]
   
   #print species to check progress
   cat(paste("    -----", sp, "-----\n"))
@@ -263,10 +291,12 @@ spp<-c('Limanda aspera',
        'Chionoecetes opilio',
        'Paralithodes platypus',
        'Paralithodes camtschaticus',
-       'Chionoecetes bairdi')
+       'Chionoecetes bairdi',
+       'Sebastes alutus',
+       'Sebastes melanostictus')
 
 #remove Anoploma and Reinhardtius because habitat preference reasons
-spp<-setdiff(spp, c('Anoplopoma fimbria','Reinhardtius hippoglossoides'))
+#spp<-setdiff(spp, c('Anoplopoma fimbria','Reinhardtius hippoglossoides'))
 
 #remove two species because of habitat preferece reasons
 all1<-all1[all1$scientific_name %in% spp,]
@@ -276,18 +306,20 @@ spp1<-c('Yellowfin sole',
         'Alaska pollock',
         'Pacific cod',
         'Arrowtooth flounder',
-        #'Greenland turbot',
+        'Greenland turbot',
         'Northern rock sole',
         'Flathead sole',
         'Alaska plaice',
         'Bering flounder',
         'Arctic cod',
         'Saffon cod',
-        #'Sablefish',
+        'Sablefish',
         'Snow crab',
         'Blue king crab',
         'Red king crab',
-        'Tanner crab')
+        'Tanner crab',
+        'Pacific ocean perch',
+        'Rougheye and blackspotted rockfish')
 
 #df sp scientific and common
 df_spp<-data.frame('spp'=spp,
