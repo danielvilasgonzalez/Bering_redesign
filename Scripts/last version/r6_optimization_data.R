@@ -39,6 +39,7 @@ setwd(out_dir)
 #version VAST (cpp)
 version<-'VAST_v14_0_1'
 
+#add common name
 #selected species
 spp<-c('Limanda aspera',
        'Gadus chalcogrammus',
@@ -54,10 +55,33 @@ spp<-c('Limanda aspera',
        'Anoplopoma fimbria',
        'Chionoecetes opilio',
        'Paralithodes platypus',
-       'Paralithodes camtschaticus')
+       'Paralithodes camtschaticus',
+       'Chionoecetes bairdi')
 
 #remove Anoploma and Reinhardtius because habitat preference reasons
 spp<-setdiff(spp, c('Anoplopoma fimbria','Reinhardtius hippoglossoides'))
+
+#common names
+spp1<-c('Yellowfin sole',
+        'Alaska pollock',
+        'Pacific cod',
+        'Arrowtooth flounder',
+        #'Greenland turbot',
+        'Northern rock sole',
+        'Flathead sole',
+        'Alaska plaice',
+        'Bering flounder',
+        'Arctic cod',
+        'Saffon cod',
+        #'Sablefish',
+        'Snow crab',
+        'Blue king crab',
+        'Red king crab',
+        'Tanner crab')
+
+#df sp scientific and common
+df_spp<-data.frame('spp'=spp,
+                   'common'=spp1)
 
 ###################################
 # LOAD GRID EBS (remember to keep the same order as in fit_model if multiple grids)
@@ -107,7 +131,7 @@ true_index<-array(NA,
 #loop over species
 for (sp in spp) {
   
-  #sp<-'Gadus macrocephalus'
+  #sp<-spp[14]
   
   #print scenario to check progress
   cat(paste(" #############   Species", sp, match(sp,spp), 'out of',length(spp),  "  #############\n"))
@@ -240,7 +264,7 @@ for (sp in spp) {
   df<-cbind(df,dens)
 }
 
-save(df,file=paste0('./output/species/multisp_optimization_static_data.RData'))
+save(df,file=paste0('./output/multisp_optimization_static_data.RData'))
 
 #################################################
 # CREATE DATA SAMPLING SCENARIO BASELINE

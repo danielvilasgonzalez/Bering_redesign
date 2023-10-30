@@ -35,6 +35,7 @@ setwd(out_dir)
 #list of sp
 spp<-list.dirs('./data processed/species/',full.names = FALSE,recursive = FALSE)
 
+#add common name
 #selected species
 spp<-c('Limanda aspera',
        'Gadus chalcogrammus',
@@ -50,10 +51,36 @@ spp<-c('Limanda aspera',
        'Anoplopoma fimbria',
        'Chionoecetes opilio',
        'Paralithodes platypus',
-       'Paralithodes camtschaticus')
+       'Paralithodes camtschaticus',
+       'Chionoecetes bairdi')
 
 #remove Anoploma and Reinhardtius because habitat preference reasons
 spp<-setdiff(spp, c('Anoplopoma fimbria','Reinhardtius hippoglossoides'))
+
+#remove two species because of habitat preferece reasons
+all1<-all1[all1$scientific_name %in% spp,]
+
+#common names
+spp1<-c('Yellowfin sole',
+        'Alaska pollock',
+        'Pacific cod',
+        'Arrowtooth flounder',
+        #'Greenland turbot',
+        'Northern rock sole',
+        'Flathead sole',
+        'Alaska plaice',
+        'Bering flounder',
+        'Arctic cod',
+        'Saffon cod',
+        #'Sablefish',
+        'Snow crab',
+        'Blue king crab',
+        'Red king crab',
+        'Tanner crab')
+
+#df sp scientific and common
+df_spp<-data.frame('spp'=spp,
+                   'common'=spp1)
 
 #yrs
 yrs<-1982:2022
