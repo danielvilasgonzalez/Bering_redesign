@@ -223,8 +223,8 @@ coordinates(x1)=~x + y
 crs(x1)<-c(crs="+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
 x2<-spTransform(x1,'+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs')
 x3<-data.frame(x2)
-x3$x<-as.integer(x3$x)
-x3$y<-as.integer(x3$y)
+x3$x<-as.integer(x3$coords.x1)
+x3$y<-as.integer(x3$coords.x2)
 lon<-sort(unique(x3$x),decreasing = FALSE) #1556
 lat<-sort(unique(x3$y),decreasing = TRUE) #1507
 lons<-data.frame(x=lon,col=1:length(lon))
@@ -273,7 +273,7 @@ samp_df<-rbind(samp_df,c('baseline','current',520,15,'scnbase'),
 # SIMULATE SAMPLING SURVEY AND GET SAMPLES AND ALLOCATIONS FOR EACH SIMULATION (30), YEAR (5), SBT (5)
 ######################
 
-# 30 simulated data and for each: 100 survey simulations, 5 year,and 10 sampling designs (2*5)
+# 30 simulated data and for each: 100 survey simulations, 5 year,and 10 sampling designs (2approach*5design)
 # This is the full combination, but when evaluating, evaluate A, B and C
 ######################################
 
@@ -751,6 +751,25 @@ ggplot()+
                      name='sampling design')+
   facet_wrap(~sbt,nrow=1)
 
+ind1<-subset(ind,sbt=='SBT1')
+
+ind1$samp<-factor(ind1$samp,levels = c('scnbase','scnbase_bis','scn3','scn2', 'scn1'))
+
+
+ggplot()+
+  #geom_line(data=ind1,aes(x=year,y=value,color=samp,linetype=apr,group=interaction(samp,apr,sbt,sim,sur)),alpha=0.7)+
+  #geom_line(data=mean,aes(x=year,y=value,group=interaction(samp,apr,sbt,sim)),color='black',alpha=0.8)+
+  geom_boxplot(data=ind1,aes(x=samp,y=value,color=samp,linetype=apr,group=interaction(samp,apr,sbt)),alpha=0.7)+
+  labs(x='',y='CV sim')+
+  scale_linetype(name='samples allocation')+
+  #scale_y_continuous(limits = c(0,1.5),expand = c(0,0))+
+  theme_bw()+
+  theme(aspect.ratio = 1,axis.text.x = element_blank())+#element_text(angle = 90, vjust = 0.5, hjust=1))+
+  scale_color_manual(values=c('scn1'='#4e79a7','scn2'='#59a14f','scn3'='#edc948','scnbase'='#79706E','scnbase_bis'='#e15759'),labels = c('baseline','baseline w/o corner','depth','var temp','depth + var temp'),
+                     name='sampling design')+
+  facet_wrap(~sim,nrow=3)
+
+
 
 
 index_proj1<-index_proj[,'STRS_mean',,,,,,]
@@ -775,7 +794,14 @@ true_cv<-sd_est_ind<-var_proj
 # Calculate Variance: For each time point, calculate the squared difference between each projection's value and the mean value calculated in step 3. Sum up these squared differences for all projections and divide by the number of projections minus 1 (to get an unbiased estimate) to calculate the variance at that time point.
 # Variance = Σ(projection_value - mean_value)^2 / (number_of_projections - 1)
 
+#store projected index
+#save(ind_proj,file=paste0("/Users/daniel/Work/Adapting Monitoring to a Changing Seascape/output/species/",sp,'/simulated projected data/test_fit_projection_index.RData'))
+load(file=paste0("/Users/daniel/Work/Adapting Monitoring to a Changing Seascape/output/species/",sp,'/simulated projected data/test_fit_projection_index.RData'))
+proj_true<-ind_proj
 
+#strs var
+strs_var<-index_proj[,'STRS_var',,,,,,]
+dimnames(strs_var)
 
 #loop to get the variance for each year and 
 for (samp in samp_df$samp_scn) {
@@ -800,14 +826,17 @@ for (samp in samp_df$samp_scn) {
       
       #sd_est_ind[y,apr,isim,sbt,samp]<-sd(ind_sim)
       
-          
       
         for (isur in 1:n_sur) {
           
           index_proj2[y,apr,isim,isur,sbt,samp]<-(index_proj1[y,apr,isim,isur,sbt,samp]-imean)^2
           
         }
+      
+      #among indeces
       var_proj[y,apr,isim,sbt,samp]<-sum(index_proj2[y,apr,isim,,sbt,samp])/(n_sur-1)
+      #within sample
+      #sd_est_ind1<-strs_var
       
       #SD for true CV
       sd_est_ind[y,apr,isim,sbt,samp]<-sqrt(var_proj[y,apr,isim,sbt,samp])
@@ -837,18 +866,19 @@ true_cv1$year<-as.integer(true_cv1$year)
 #cv1$sbt<-as.character(cv1$sbt)
 
 true_cv2<-subset(true_cv1,sbt=='SBT1')
+true_cv2$samp<-factor(true_cv2$samp,levels = c('scnbase','scnbase_bis','scn3','scn2', 'scn1'))
 
 #CV timeseries
 ggplot()+
-  geom_line(data=true_cv1,aes(x=year,y=value,color=samp,linetype=apr,group=interaction(apr,samp,sbt,sim)))+
+  geom_boxplot(data=true_cv2,aes(x=samp,y=value,color=samp,linetype=apr,group=interaction(samp,apr,sbt,sim)),alpha=0.7)+
+  #geom_line(data=true_cv1,aes(x=year,y=value,color=samp,linetype=apr,group=interaction(apr,samp,sbt,sim)))+
   labs(x='',y='true CV')+
   #scale_y_continuous(limits = c(0,1.5),expand = c(0,0))+
   theme_bw()+
+  theme(aspect.ratio = 1,axis.text.x = element_blank())+#element_text(angle = 90, vjust = 0.5, hjust=1))+
   scale_color_manual(values=c('scn1'='#4e79a7','scn2'='#59a14f','scn3'='#edc948','scnbase'='#79706E','scnbase_bis'='#e15759'),labels = c('baseline','baseline w/o corner','depth','var temp','depth + var temp'),
                      name='sampling design')+
-  facet_wrap(~sbt,nrow=1)
-
-
+  facet_wrap(~sim,nrow=3)
 
 ########################
 ########################
@@ -907,23 +937,24 @@ cv1$samp<-factor(cv1$samp,levels = c('scnbase','scnbase_bis','scn3','scn2', 'scn
 
 #distribution of annual CVs
 ggplot()+
-  geom_boxplot(data=cv1,aes(x=samp,y=value,fill=samp,linetype=apr))+
+  geom_boxplot(data=cv2,aes(x=samp,y=value,color=samp,linetype=apr))+
   labs(x='',y='CV estimated index among replicates')+
   #scale_y_continuous(limits = c(0,1.5),expand = c(0,0))+
   theme_bw()+
-  scale_fill_manual(values=c('scn1'='#4e79a7','scn2'='#59a14f','scn3'='#edc948','scnbase'='#79706E','scnbase_bis'='#e15759'),labels = c('baseline','baseline w/o corner','depth','var temp','depth + var temp'),
+  scale_color_manual(values=c('scn1'='#4e79a7','scn2'='#59a14f','scn3'='#edc948','scnbase'='#79706E','scnbase_bis'='#e15759'),labels = c('baseline','baseline w/o corner','depth','var temp','depth + var temp'),
                     name='sampling design')+
   # scale_color_manual(values=c('scn1'='#4e79a7','scn2'='#59a14f','scn3'='#edc948','scnbase'='#79706E','scnbase_bis'='#e15759'),
   #                    labels = c('baseline','baseline w/o corner','depth','var temp','depth + var temp'),name='sampling design')+
   # scale_alpha_manual(values = c('scn1'=1,'scn2'=1,'scn3'=1,'scnbase'=0.8,'scnbase_bis'=1),
   #                    labels = c('baseline','baseline w/o corner','depth','var temp','depth + var temp'),name='sampling design')+
    theme_bw()+
+  theme(aspect.ratio = 1,axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
   scale_linetype_manual(values = c('systematic'='solid',
                                    'random'='dashed'),
                         label=c('systematic','random'),
                         name='sample allocation')+
-  theme(axis.text.x = element_blank())+
-  facet_wrap(~sbt+sim)
+  theme(axis.text.x = element_blank(),legend.position = 'none')+
+  facet_wrap(~sim,nrow=3)
 
 
 cv2<-
@@ -942,6 +973,7 @@ ggplot()+
   # scale_alpha_manual(values = c('scn1'=1,'scn2'=1,'scn3'=1,'scnbase'=0.8,'scnbase_bis'=1),
   #                    labels = c('baseline','baseline w/o corner','depth','var temp','depth + var temp'),name='sampling design')+
   theme_bw()+
+  theme(aspect.ratio = 1,axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
   scale_linetype_manual(values = c('systematic'='solid',
                                    'random'='dashed'),
                         label=c('systematic','random'),
@@ -955,6 +987,7 @@ ggplot()+
   labs(x='',y='mean CV estimated index among replicates')+
   #scale_y_continuous(limits = c(0,1.5),expand = c(0,0))+
   theme_bw()+
+  theme(aspect.ratio = 1,axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
   scale_fill_manual(values=c('scn1'='#4e79a7','scn2'='#59a14f','scn3'='#edc948','scnbase'='#79706E','scnbase_bis'='#e15759'),labels = c('baseline','baseline w/o corner','depth','var temp','depth + var temp'),
                     name='sampling design')+
   # scale_color_manual(values=c('scn1'='#4e79a7','scn2'='#59a14f','scn3'='#edc948','scnbase'='#79706E','scnbase_bis'='#e15759'),
