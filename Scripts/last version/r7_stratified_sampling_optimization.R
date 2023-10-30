@@ -294,8 +294,8 @@ samp_df$samp_scn<-paste0(paste0('scn',1:nrow(samp_df)))
       solution <- optimStrata(method = "continuous", #continous variables
                               errors = cv_df,  #precision level - maximum allowable coefficient of variation set by the simple random sampling 
                               framesamp = frame, #df of input variables
-                              iter = 30, #300 #maximum number of iterations
-                              pops = 10, #100  #dimension of each generations
+                              iter = 300, #300 #maximum number of iterations
+                              pops = 100, #100  #dimension of each generations
                               elitism_rate = 0.1, #0.1
                               mut_chance = 1 / (no_strata[1] + 1), #mutation chance
                               nStrata = no_strata, #maximum strata
