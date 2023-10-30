@@ -171,7 +171,7 @@ saveRDS(all1, paste0('./data processed/species/slope_shelf_EBS_NBS_data_geostat.
 #loop over species to create data_geostat df
 for (sp in spp) {
   
-  sp<-spp[16]
+  #sp<-spp[16]
   
   #print species to check progress
   cat(paste("    -----", sp, "-----\n"))
