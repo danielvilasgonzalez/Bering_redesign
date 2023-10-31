@@ -14,7 +14,7 @@ rm(list = ls(all.names = TRUE))
 gc() 
 
 #libraries from cran to call or install/load
-pack_cran<-c("splines")
+pack_cran<-c("splines",'ggplot2')
 
 #install pacman to use p_load function - call library and if not installed, then install
  if (!('pacman' %in% installed.packages())) {
@@ -48,6 +48,18 @@ fol_region<-'slope EBS VAST'
 load('./extrapolation grids/lastversion_grid_EBS.RData')
 load('./data processed/grid_EBS_NBS.RData')
 
+#add grid to get prediction for simulate data on each cell of the grid (sim$b_i)
+load('./extrapolation grids/eastern_bering_sea_grid.rda')
+head(eastern_bering_sea_grid)
+dim(eastern_bering_sea_grid)
+eastern_bering_sea_grid<-subset(as.data.frame(eastern_bering_sea_grid),Stratum %in% c(50,61))
+load('./extrapolation grids/bering_sea_slope_grid.rda')
+names(bering_sea_slope_grid)[4]<-'Stratum'
+bering_sea_slope_grid$Stratum<-99
+grids<-rbind(eastern_bering_sea_grid,bering_sea_slope_grid)  
+names(grids)[3]<-'Area_km2'
+grids
+
 #dir create for slope region results
 dir.create(paste(out_dir,fol_region,sep='/'))
 
@@ -60,7 +72,7 @@ for (sp in splist) {
 #for (sp in sp.list) {
 
 #Pcod example
-sp<-'Reinhardtius hippoglossoides'#'Gadus macrocephalus'
+sp<-'Atheresthes stomias'#'Reinhardtius hippoglossoides'#'Gadus macrocephalus'
 # spp<-c('Limanda aspera',
 #        'Gadus chalcogrammus',
 #        'Gadus macrocephalus',
@@ -81,10 +93,10 @@ sp<-'Reinhardtius hippoglossoides'#'Gadus macrocephalus'
 df1<-readRDS(paste0('./data processed/species/',sp,'/data_geostat_temp.rds'))
 
 #for slope data
-df11<-subset(df1,survey_name== "Eastern Bering Sea Slope Bottom Trawl Survey")
+df11<-subset(df1,survey_name== "Eastern Bering Sea Slope Bottom Trawl Survey" | survey_name== "Eastern Bering Sea Crab/Groundfish Bottom Trawl Survey" & depth_m>=100)
 
 #yrs
-yrs<-unique(df11$year)
+yrs<-c(2002,2004,2008,2010,2012,2016)
 
 #df1<-readRDS(paste0('./data processed/',sp,'/data_geostat_temp.rds'))
 #select rows and rename
@@ -92,7 +104,7 @@ df2<-df1[,c("lat_start","lon_start","year",'scientific_name','weight_kg','effort
 colnames(df2)<-c('Lat','Lon','Year','Species','CPUE_kg','Effort','Depth','LogDepth','ScaleLogDepth','ScaleBotTemp','BotTemp','Region')
 
 #data geostat
-df3<-subset(df2,Region== "Eastern Bering Sea Slope Bottom Trawl Survey")
+df3<-subset(df2,Region %in% c("Eastern Bering Sea Slope Bottom Trawl Survey",'Eastern Bering Sea Crab/Groundfish Bottom Trawl Survey') & Year %in% yrs & Depth>=100)
 yrs_region<-range(df3$Year)
 data_geostat<-df3[complete.cases(df3$CPUE_kg),]
 summary(data_geostat)
@@ -145,8 +157,8 @@ ggplot()+
 ###################
 
 #regions (predefined in VAST)
-region<-c("bering_sea_slope")
-
+#region<-c("bering_sea_slope")
+region<-'user'
   #loop over models
   #for (m in models) {
 
@@ -248,7 +260,7 @@ region<-c("bering_sea_slope")
                                b_i=data_geostat1$CPUE_kg,
                                c_iz = as.numeric(factor(data_geostat1$Species))-1,
                                a_i=data_geostat1$Effort,
-                               #input_grid=grid.ebs,
+                               input_grid=grids,
                                getJointPrecision = TRUE,
                                test_fit=FALSE,
                                create_strata_per_region = TRUE,  
