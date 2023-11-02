@@ -146,7 +146,7 @@ n_sim_proj<- 100
 
 #store index and dens
 dens_index_hist_OM<-list()
-dens_index_proj_OM<-list()
+
 
 #array to store simulated densities/CPUE
 sim_hist_dens_spp<-array(NA,
@@ -306,7 +306,7 @@ save(dens_index_hist_OM, file = paste0("./output/species/dens_index_hist_OM.RDat
 #loop over spp
 for (sp in spp) {
   
-  #sp<-spp[1]
+  sp<-spp[1]
   
   #create folder simulation data
   dir.create(paste0('./output/species/',sp,'/'))
@@ -322,7 +322,7 @@ for (sp in spp) {
   #loop over scenarios
   for (sbt in unique(df_sbt$sbt_n)) {
     
-    #sbt<-unique(df_sbt$sbt_n)[1]
+    sbt<-unique(df_sbt$sbt_n)[1]
     
     #print scenario to check progress
     cat(paste(" #############     PROJECTING    #############\n",
@@ -365,19 +365,22 @@ for (sp in spp) {
     #add covariate data
     new_data<-rbind(fit$covariate_data,points3)
     
+    #to avoid crashes projections are done in two groups of 50 instead of 1 of 100
+    
+    
+    #to store simulated data
+    dens_index_proj_OM<-list()
+    
     #project model example
      pm<-VAST::project_model(x = fit,
                              working_dir = paste0('./shelf EBS NBS VAST/',sp,'/'),
                              n_proj = n_proj,
-                             n_samples = n_sim_proj, #n_sim_proj?
+                             n_samples = n_sim_proj/2, #n_sim_proj?
                              new_covariate_data = new_data,
                             historical_uncertainty = 'none')
     
-    #remove fit
-    #rm(fit)
-    #dyn.unload('C:/Program Files/R/R-4.2.2/library/VAST/executables/VAST_v13_1_0_TMBad.dll')
-    
-     for (iproj in 1:n_sim_proj) {
+     #get simulated projected densities and index
+     for (iproj in 1:(n_sim_proj/2)) {
        
        #iproj<-1
        
@@ -386,55 +389,38 @@ for (sp in spp) {
        dens_index_proj_OM[[paste0('sim',iproj)]]<-list('index'=index,'dens'=dens)
      }
      
-    ##store
-    # sim_proj_dens_spp[,,1,sbt,sp]<-pm$D_gct[,1,42:46]
-    # 
-    # #store index and dens
-    # index<-pm$Index_ctl
-    # dens<-pm$D_gct[,1,]
-    # dens_index_proj_OM[[paste0(sp,'_SBT',sbt)]]<-list('index'=index,'dens'=dens)
-    
+     #remove projections
+     rm(pm)
+     
      #save true densities and index under 8 SBT scenarios for all species
-     save(dens_index_proj_OM, file = paste0("./output/species/",sp,"/simulated projected data/SBT",sbt," dens_index_proj_OM.RData")) 
-    
-    #save list projections
-    #save(pm, file = paste0("./output/species/",sp,'/simulated projected data/fit_projection_SBT',sbt,'.RData'))
-    
+     save(dens_index_proj_OM, file = paste0("./output/species/",sp,"/simulated projected data/SBT",sbt," dens_index_proj_OM_50.RData")) 
+     
+     
+     #to store simulated data
+     dens_index_proj_OM<-list()
+     
+     #project model example
+     pm<-VAST::project_model(x = fit,
+                             working_dir = paste0('./shelf EBS NBS VAST/',sp,'/'),
+                             n_proj = n_proj,
+                             n_samples = n_sim_proj/2, #n_sim_proj?
+                             new_covariate_data = new_data,
+                             historical_uncertainty = 'none')
+     
+     #get simulated projected densities and index
+     for (iproj in 1:(n_sim_proj/2)) {
+       
+       #iproj<-1
+       
+       index<-pm[[iproj]]$Index_ctl
+       dens<-pm[[iproj]]$D_gct[,1,]
+       dens_index_proj_OM[[paste0('sim',iproj+50)]]<-list('index'=index,'dens'=dens)
+     }
+     
+     #save true densities and index under 8 SBT scenarios for all species
+     save(dens_index_proj_OM, file = paste0("./output/species/",sp,"/simulated projected data/SBT",sbt," dens_index_proj_OM_100.RData")) 
+     
     rm(pm)
     gc()
   }
 }
-
-
-##save 1 simulated projected densities under 8 SBT scenarios for all species
-#save(sim_proj_dens_spp, file = paste0("./output/species/sim_proj_dens_spp.RData")) 
-
-
-
-
-
-
-
-# load( file = paste0("./output/species/sim_hist_dens_spp.RData")) #sim_hist_dens_spp
-# sim_hist_dens_spp[,,,sp]<-sim_dens
-# save(sim_hist_dens_spp, file = paste0("./output/species/sim_hist_dens_spp.RData"))
-# 
-# x<-dens_index_hist_OM[[sp]]
-# load( file = paste0("./output/species/dens_index_hist_OM.RData")) #dens_index_hist_OM
-# dens_index_hist_OM[[sp]]<-x
-# save(dens_index_hist_OM, file = paste0("./output/species/dens_index_hist_OM.RData")) 
-# rm(dens_index_hist_OM)
-# 
-# x<-sim_proj_dens_spp[,,1,,sp]
-# load( file = paste0("./output/species/sim_proj_dens_spp.RData"))  #sim_proj_dens_spp
-# sim_proj_dens_spp[,,1,,sp]<-x
-# save(sim_proj_dens_spp, file = paste0("./output/species/sim_proj_dens_spp.RData")) 
-# 
-# x<-dens_index_proj_OM[[sp]]
-# load(file = paste0("./output/species/dens_index_proj_OM.RData"))  #dens_index_proj_OM, 
-# dens_index_proj_OM[[sp]]<-x
-
-
-
-
-
