@@ -135,21 +135,21 @@ samp_df<-rbind(samp_df,c('baseline','current',520,15,'scnbase'),
 # sim_proj_dens<-sim_proj_dens_spp
 # rm(sim_proj_dens_spp)
 # 
-# ###################################
-# # SBT scenarios
-# ###################################
-# 
-# #load SBT scenarios table
-# load('./tables/SBT_projection.RData')#df_sbt
-# 
-# #name SBT scenarios
-# df_sbt$sbt<-paste0('SBT',df_sbt$sbt_n)
-# df_sbt$sbt2<-paste0(df_sbt$sbt,'_',df_sbt$Scenario)
-# 
-# #number of historical simulations and projected simulations
-# n_sim_hist<- 100
-# n_sim_proj<- 1
-# 
+###################################
+# SBT scenarios
+###################################
+
+#load SBT scenarios table
+load('./tables/SBT_projection.RData')#df_sbt
+
+#name SBT scenarios
+df_sbt$sbt<-paste0('SBT',df_sbt$sbt_n)
+df_sbt$sbt2<-paste0(df_sbt$sbt,'_',df_sbt$Scenario)
+
+#number of historical simulations and projected simulations
+n_sim_hist<- 100
+n_sim_proj<- 100
+ 
 
 
 #number of surveys
@@ -158,29 +158,30 @@ samp_df<-rbind(samp_df,c('baseline','current',520,15,'scnbase'),
     #loop over sampling designs
     for (samp in unique(samp_df$samp_scn)) { #sampling designs
       
-      samp<-unique(samp_df$samp_scn)[1]
+      #samp<-unique(samp_df$samp_scn)[5]
       
       s<-match(samp,samp_df$samp_scn)
       
       n_strata<-samp_df$n_strata[s]
       n_samples<-samp_df$n_samples[s]
       
-      # if (grepl('base',samp)) { #if it contains base is baseline scenario
-      #   
-      #   strata<-as.data.frame(baseline_strata$cell_strata)[,c('cell','Lat','Lon','Stratum')]
-      #   names(strata)[4]<-c('strata')
-      #   D8<-strata
-      #   
-      #   #allocations<-
-      #   if(samp_df[s,'samp_scn']=='scnbase'){
-      #     allocations<-data.frame('strata'=baseline_strata$n_samples$stratum,
-      #                             'n_samples'=baseline_strata$n_samples$scnbase)
-      #   }else{
-      #     allocations<-data.frame('strata'=baseline_strata$n_samples$stratum,
-      #                             'n_samples'=baseline_strata$n_samples$scnbase_bis)
-      #   }
-      #   
-      # } else {
+      if (grepl('base',samp)) { #if it contains base is baseline scenario
+
+        strata<-as.data.frame(baseline_strata$cell_strata)[,c('cell','Lat','Lon','Stratum')]
+        names(strata)[4]<-c('strata')
+        aggregate(strata$cell,by=list(strata$strata),FUN=length)
+        D8<-strata
+
+        #allocations<-
+        if(samp_df[s,'samp_scn']=='scnbase'){
+          allocations<-data.frame('strata'=baseline_strata$n_samples$stratum,
+                                  'n_samples'=baseline_strata$n_samples$scnbase)
+        }else{
+          allocations<-data.frame('strata'=baseline_strata$n_samples$stratum,
+                                  'n_samples'=baseline_strata$n_samples$scnbase_bis)
+        }
+
+      } else {
         
 
         #load results_optimization
@@ -204,7 +205,8 @@ samp_df<-rbind(samp_df,c('baseline','current',520,15,'scnbase'),
         #strata - n_samples
         allocations<-data.frame('strata'=all$samples_strata$strata,
                                 'n_samples'=all$samples_strata$n_samples)
-        
+      }
+      
         #load baseline strata and specify corner stations
         load('./output/baseline_strata.RData')
         baseline_strata$locations[grep('GF|HG|JI|IH|ON|QP|PO',baseline_strata$locations$stationid),]
@@ -250,14 +252,14 @@ samp_df<-rbind(samp_df,c('baseline','current',520,15,'scnbase'),
         
         #create array to store results
         #to store survey samples
-        scn_allocations <- array(data = NA, dim = c(n_samples*rep_sur,
-                                                    length(c('Lat','Lon','strata','cell')),
+        scn_allocations <- array(data = NA, dim = c(as.numeric(n_samples)*rep_sur,
+                                                    length(c('Lat','Lon','cell','strata','sur')),
                                                     #length(yrs), 
                                                     length(c('systematic','random','sb'))),
-                                 dimnames = list(1:sum(allocations$n_samples),
-                                                 c('Lat','Lon','strata','cell'),
+                                 dimnames = list(1:(as.numeric(n_samples)*rep_sur),
+                                                 c('Lat','Lon','cell','strata','sur'),
                                                  #c(yrs),
-                                                 c('systematic','random','sb')))
+                                                 c('sys','rand','sb')))
       
         
 
@@ -312,6 +314,7 @@ samp_df<-rbind(samp_df,c('baseline','current',520,15,'scnbase'),
                    size = n_i,
                    replace = FALSE),]
           
+          D10<-D10[,c('Lon','Lat','cell','strata')]
           D10$sur<-sur
           
           dfrandom<-rbind(dfrandom,D10)
@@ -345,7 +348,7 @@ samp_df<-rbind(samp_df,c('baseline','current',520,15,'scnbase'),
           
           D10$sur<-sur
           #spatially-balancing strata samples
-          spbsamp<-D10
+          spbsamp<-D10[,c('Lon','Lat','cell','strata','sur')]
           dfspb<-rbind(dfspb,spbsamp)
           }
           
@@ -404,7 +407,7 @@ samp_df<-rbind(samp_df,c('baseline','current',520,15,'scnbase'),
               pointsc<-sys[ss,c('Lon','Lat','cell','strata')]}}
           
           #systematic strata samples
-          syssamp<-pointsc
+          syssamp<-pointsc[,c('Lon','Lat','cell','strata')]
           syssamp$sur<-sur
           dfcurrent<-rbind(dfcurrent,syssamp)
           
@@ -434,429 +437,220 @@ samp_df<-rbind(samp_df,c('baseline','current',520,15,'scnbase'),
         
         }
 
-              scn_allocations[,,'systematic'] <- dfcurrent
-              scn_allocations[,,'random'] <- dfrandom
-              scn_allocations[,,'sb'] <- dfspb
+          scn_allocations[,,'sys'] <- unlist(dfcurrent)
+          scn_allocations[,,'rand'] <- unlist(dfrandom)
+          scn_allocations[,,'sb'] <- unlist(dfspb)
         
-        
-      #}
-      
-      #to store all points
-      # all_points<-array(NA,
-      #                   dim = list(sum(allocations$n_samples),4,length(yrs),2,n_sim_hist,n_sur),
-      #                   dimnames = list(c(1:sum(allocations$n_samples)),c('Lon','Lat','cell','strata'),1:length(yrs),c('systematic','random'),1:n_sim_hist,1:n_sur))
+          #data.frame(table(dfcurrent[,c("strata",'sur')]))
+          #data.frame(table(dfcurrent[,c('sur')]))    
+              
+          #dfcurrent<-dfcurrent[order(dfcurrent$sur),]  #520 100        
+          #nrow(dfcurrent)==as.numeric(n_samples)*n_sur*length(yrs)    
+          #dfcurrent$year<-rep(yrs,each=as.numeric(n_samples)*n_sur)
 
-      
-      
-      # #loop over simulations
-      for (isim in 1:n_sim_hist) { #simulations
-        #   
-        isim<-1
+          save(scn_allocations, file = paste0('./output/species/ms_sim_survey/survey_allocations_',samp,'.RData')) 
           
-        
-        #to store survey samples
-        sim_survey <- array(data = NA, dim = c(sum(allocations$n_samples),
-                                               length(spp)+2,
-                                               length(yrs), #add strata number
-                                               #length(dimnames(all_points)[[3]]),
-                                               length(c('systematic','random','sb')),
-                                               n_sur),
-                            dimnames = list(1:sum(allocations$n_samples),
-                                            c(spp,'strata','cell'),
-                                            c(yrs),
-                                            #dimnames(all_points)[[3]],
-                                            c('systematic','random','sb'),
-                                            1:n_sur))
-        
-        #print simulation to check progress
-        cat(paste(" #############  historical - sampling design",samp ,'- simulation ', isim, "of",n_sim_hist, " #############\n"))
-           
-        #simulation folder
-        sim_fold<-formatC(isim, width = 4, format = "d", flag = "0")
-        
-        dir.create(paste0('./output/species/ms_sim_survey/',sim_fold,'/'))
-        
-        
-        #sim_hist_dens1<-
-           
-        dim(sim_hist_dens)
-        sim_hist_dens1<-sim_hist_dens[,,isim,spp]
+    }
+      
+      
+################
+# get simulated densities from simulated survey HISTORICAL
+################
+ 
+#samp<-samp_df$samp_scn[1];ap<-'sb';isim<-1;isur<-1;y<-'1986'
 
-        for (isur in 1:n_sur) {
+sur_df<-
+data.frame(num=1:(length(yrs)*n_sur),
+           year=rep(yrs,times=n_sur),
+           sur=rep(1:n_sur,each=length(yrs)))
+
+#load simulated densities by spp
+load(paste0('./output/species/sim_hist_dens_spp.RData')) #sim_hist_dens_spp
+
+#for each sampling design
+for (samp in samp_df$samp_scn) {
+  
+  #load survey allocations by sampling design
+  load(file = paste0('./output/species/ms_sim_survey/survey_allocations_',samp,'.RData')) #scn_allocations
+  
+  #to store survey samples
+  sim_survey <- array(data = NA, dim = c(dim(scn_allocations)[1]/n_sur/length(yrs),
+                                         length(c("Lon","Lat","cell","strata","sur"))+length(spp),
+                                         n_sur,
+                                         length(yrs), #add strata number
+                                         n_sim_hist,
+                                         length(c('sys','rand','sb'))),
+                      dimnames = list(1:(dim(scn_allocations)[1]/n_sur/length(yrs)),
+                                      c("Lon","Lat","cell","strata","sur",spp),
+                                      1:n_sur,
+                                      c(yrs),
+                                      1:n_sim_hist,
+                                      c('sys','rand','sb')))
+  
+  #for each allocation sampling approach
+  for (ap in c('sys','rand','sb')) {
+    
+    #get allocations by sampling allocation approach
+    scn_allocations1<-data.frame(scn_allocations[,,ap])
+
+    #for simulated data (100 sim hist.) run 100 survey * 40 years
+    for (isim in isim) {
+
+      #get simulation from simulated densities
+      sim_hist_dens1<-sim_hist_dens_spp[,,isim,]
+      
+      #for 100 simulated surveys in each year
+      for (y in yrs) {
         
-          #isur<-1
-            
-          for (y in 1:length(yrs)) { #years
-            
-            #y<-1
-            
-            #year
-            yy<-yrs[y]
-            
-            #to store points
-            dfcurrent<-data.frame(matrix(NA,nrow=0,ncol=4))
-            colnames(dfcurrent)<-c('Lon','Lat','cell','strata')
-            dfrandom<-dfcurrent
-            
-            #for while purposes
-            flag<-TRUE
-            
-            #random sample for each strata wit distance constrains
-            for(n_istrata in 1:nrow(allocations)) {
-              
-              #n_istrata<-1
-              
-              istrata<-allocations[n_istrata,'strata']
-              
-              #subset cells for strata
-              df<-subset(as.data.frame(D8),strata==istrata)
-              df1<-subset(as.data.frame(D8),strata==istrata & cell %in% baseline_strata$locations$cell)
-              n_i<-allocations[n_istrata,'n_samples']
-              
-              #while error, keep running
-              while(flag){
-                
-                #keep running if error
-                tryCatch({
-                  
-                  #print loop state
-                  #cat(paste(" -- strata", n_istrata, 'of',nrow(allocations),  " -- CURRENT  --\n"))
-                  
-                  ##############################
-                  # CURRENT STRATIFIED APPROACH - SYSTEMATIC
-                  ##############################
-                  
-                  if(samp_df[s,'samp_scn']=='scnbase'){
-                    pointsc<-baseline_strata$locations[which(baseline_strata$locations$stratum==istrata),c('longitude','latitude','cell','stratum')]
-                    names(pointsc)<-c('Lon' ,'Lat', 'cell','strata')
-                  }else if (samp_df[s,'samp_scn']=='scnbase_bis'){
-                    pointsc<-baseline_strata$locations[which(baseline_strata$locations$corner==FALSE & baseline_strata$locations$stratum==istrata),c('longitude','latitude','cell','stratum')]
-                    names(pointsc)<-c('Lon' ,'Lat',  'cell','strata')
-                  } else {
-                    
-                    #if more required samples than available
-                    if (nrow(df1)<n_i) {
-                      
-                      #vectors to store results
-                      #dropcell<-c()
-                      #selcell<-c()
-                      
-                      #duplicate df strata
-                      dff<-df
-                      
-                      #df removing available samples from current design
-                      dff<-subset(dff, !(cell %in% df1$cell))
-                      
-                      #cells to complete the required cells
-                      ii<-n_i-nrow(df1)
-                      
-                      #loop over the required samples using random
-                      selcell<-sample(dff$cell,ii)
-                      
-                      if (nrow(subset(df,cell %in% c(selcell,df1$cell))) == 0) {
-                        
-                        ss<-sample(1:nrow(df),size = n_i,replace = FALSE)
-                        pointsc<-df[ss,c('Lon','Lat','cell','strata')] 
-                        
-                        #subset points if equal to required number of samples, if not ERROR and rerun iteration
-                      } else if (nrow(subset(df,cell %in% c(selcell,df1$cell))) != n_i) {flag<-TRUE; stop("-- different number of points on current approach",call. = FALSE)}else{
-                        pointsc<-subset(df,cell %in% c(selcell,df1$cell))[,c('Lon','Lat','cell','strata')]
-                        names(pointsc)<-c('Lon','Lat','cell','strata')}
-                      
-                      #else there are enough samples to get from the current sampling design    
-                    } else {
-                      ss<-sample(1:nrow(df1),size = n_i,replace = FALSE)
-                      pointsc<-df1[ss,c('Lon','Lat','cell','strata')]}}
-    
-                  ##############################
-                  # STRATIFIED RANDOM APPROACH
-                  ##############################
-                  
-                  #cat(paste(" -- strata", n_istrata, 'of',nrow(allocations),  " -- RANDOM  --\n"))
-                  
-                  #duplicate df strata
-                  dff<-df
-                  
-                  #random selection of samples
-                  selcell<-sample(dff$cell,n_i)
-                  pointsr<-subset(df,cell %in% selcell)[,c('Lon','Lat','cell','strata')]
-                  names(pointsr)<-c('Lon','Lat','cell','strata')
-                  
-                  #append data if buffer and current df have equal to required number of samples
-                  if (nrow(pointsc) == n_i & nrow(pointsr) == n_i) {
-                    dfcurrent<-rbind(dfcurrent,pointsc)
-                    #dfbuffer<-rbind(dfbuffer,pointsb)
-                    dfrandom<-rbind(dfrandom,pointsr)
-                    flag<-FALSE}
-                },
-                
-                #error message
-                error=function(e) {
-                  message(paste0("ERROR RETRYING",':\n'),e)})
-                if (!flag) next
-              }
-              
-              #to start while again
-              flag<-TRUE
-            }
-            
-            #append points
-            #all_points[,,y,'systematic',isim,isur]<-unlist(dfcurrent)
-            #all_points[,,y,'buffer']<-unlist(dfbuffer)
-           # all_points[,,y,'random',isim,isur]<-unlist(dfrandom)
-            
-            #get points iterations
-            #pointsc<-data.frame(unlist(dfcurrent))
-            #pointsb<-data.frame(unlist(all_points[,,y,'buffer']))                          
-            #pointsr<-dfrandom   
-    
-            #append survey densities for each iteration and simulated data
-            sim_survey[,,as.character(yy),'systematic',as.character(isur)]<-cbind(sim_hist_dens1[dfcurrent$cell,y,],'strata'=dfcurrent$strata,'cell'=dfcurrent$cell)
-            #sim_survey[,,'buffer']<-cbind(sim_dens[pointsb$cell,],pointsb$strata)
-            sim_survey[,,as.character(yy),'random',as.character(isur)]<-cbind(sim_hist_dens1[dfrandom$cell,y,],'strata'=dfrandom$strata,'cell'=dfrandom$cell)
+          #anual simulated densities
+          sim_hist_dens2<-sim_hist_dens1[,y,]
+        
+          #loop over 100 surveys
+          for (isur in 1:n_sur) {
+
+              #get survey number 1:4000 (40y * 100sur)
+              sur_num<-sur_df[which(sur_df$year==y & sur_df$sur==isur),'num']
           
-            gc()
+              #get allocation at survey
+              scn_allocations2<-scn_allocations1[which(scn_allocations1$sur==sur_num),]
+          
+              #store densities for each survey
+              sim_survey[,,isur,y,isim,ap]<-cbind(scn_allocations2,sim_hist_dens1[scn_allocations2$cell,y,])
+         
         }
-          }  
-        
-        #store results
-        save(sim_survey, file = paste0('./output/species/ms_sim_survey/',sim_fold,'/sim_hist_survey_',samp,'.RData'))  
-        #save(all_points, file = paste0('./output/species/allocations_hist_survey_',samp,'.RData'))     
-      
-        rm(sim_survey)
+      }
     }
   }
+  
+  #store results
+  save(sim_survey, file = paste0('./output/species/ms_sim_survey/sim_hist_survey_',samp,'.RData'))  
+  #save(all_points, file = paste0('./output/species/allocations_hist_survey_',samp,'.RData'))     
+  
+  rm(sim_survey)
+  
+}
 
-######################
-# PROJECTED DATA
-######################
 
-n_sim_proj<-1 #need to run that for 100 projection but it may take too much time (I will use only one for the moment) 
+################
+# get simulated densities from simulated survey PROJECTED
+################
 
-    #loop over sampling designs
-    for (samp in unique(samp_df$samp_scn)[3:5]) { #sampling designs
-      
-      #samp<-unique(samp_df$samp_scn)[3]
-      
-      s<-match(samp,samp_df$samp_scn)
-      
-      if (grepl('base',samp)) { #if it contains base is baseline scenario
+#all 4000 surveys (year5, sur100, sbt8)
+sur_df<-cbind(num=1:nrow(expand.grid(project_yrs,df_sbt$sbt,1:n_sur)),expand.grid(year=project_yrs,sbt=df_sbt$sbt_n,sur=1:n_sur))
+
+#load sbt scenarios
+load('./tables/SBT_projection.RData') #df_sbt
+
+#loop over species
+for (sp in spp) {
+  
+  sp<-spp[1]
+  
+  #loop over 8 temperature scenarios
+  for (sbt in unique(df_sbt$sbt_n)) {
+    
+    sbt<-df_sbt$sbt_n[1]
+    
+    cat(paste(" #############  spp",sp,'- sbt',sbt ," #############\n"))
+    
+    
+    load(file = paste0("./output/species/",sp,"/simulated projected data/SBT",sbt," dens_index_proj_OM_50.RData")) #dens_index_proj_OM
+    dens_index_proj_OM_50<-dens_index_proj_OM
+    load(file = paste0("./output/species/",sp,"/simulated projected data/SBT",sbt," dens_index_proj_OM_100.RData")) #dens_index_proj_OM
+    dens_index_proj_OM_100<-dens_index_proj_OM
+    rm(dens_index_proj_OM)
+    
+      #for each sampling design
+      for (samp in samp_df$samp_scn) {
         
-        strata<-as.data.frame(baseline_strata$cell_strata)[,c('cell','Lat','Lon','Stratum')]
-        names(strata)[4]<-c('strata')
-        D8<-strata
+        samp<-samp_df$samp_scn[1]
         
-        #allocations<-
-        if(samp_df[s,'samp_scn']=='scnbase'){
-          allocations<-data.frame('strata'=baseline_strata$n_samples$stratum,
-                                  'n_samples'=baseline_strata$n_samples$scnbase)
-        }else{
-          allocations<-data.frame('strata'=baseline_strata$n_samples$stratum,
-                                  'n_samples'=baseline_strata$n_samples$scnbase_bis)
+        #load survey allocations by sampling design
+        load(file = paste0('./output/species/ms_sim_survey/survey_allocations_',samp,'.RData')) #scn_allocations
+        
+        #to store survey samples
+        sim_survey <- array(data = NA, dim = c(dim(scn_allocations)[1]/n_sur/length(yrs),
+                                               length(c("Lon","Lat","cell","strata","sur"))+1,
+                                               n_sim_proj,
+                                               length(c('sys','rand','sb')),
+                                               n_sur,
+                                               length(project_yrs)),
+                            dimnames = list(c(1:(dim(scn_allocations)[1]/n_sur/length(yrs))),
+                                            c("Lon","Lat","cell","strata","sur",'CPUE_kgkm'),
+                                            1:n_sim_proj,
+                                            c('sys','rand','sb'),
+                                            1:n_sur,
+                                            as.character(project_yrs)))
+  # sim_survey[,
+  #            ,
+  #            sp,
+  #            sbt,
+  #            isim,
+  #            ap,
+  #            isur]
+      
+      #loop over each of 100 simulated projections
+      for (isim in 1:n_sim_proj) {
+      
+        cat(paste(" #############  simulated data", isim," #############\n"))
+        
+        isim<-1
+        
+        if (isim %in% 1:50) {
+          dens_index_proj_OM1<-data.frame(drop_units(dens_index_proj_OM_50[[paste0('sim',isim)]]$dens),check.names = FALSE)
+        } else if (isim %in% 51:100) {
+          dens_index_proj_OM1<-data.frame(drop_units(dens_index_proj_OM_100[[paste0('sim',isim-50)]]$dens),check.names = FALSE)
         }
         
-      } else {
-        
-        #load results_optimization
-        load(file=paste0('./output/ms_optim_allocations_',samp,'.RData')) #list = c('result_list','ss_sample_allocations','ms_sample_allocations','samples_strata','cv_temp')
-        load(file=paste0('./output/species/multisp_optimization_static_data.RData')) #df
-        df<-df[,c("Lat",'Lon','cell')]
-        
-        #cell - strata
-        strata<-all$result_list$solution$indices #all$result_list$sol_by_cell
-        colnames(strata)<-c('cell','strata')
-        strata<-strata[order(strata$cell),]
-        
-        #add a strata value to each cell
-        D8<-merge(df,strata,by='cell',all.x=TRUE)
-        D8<-D8[,c("cell","Lat","Lon","strata")]
-        names(D8)[4]<-'strata'
-        D8$strata<-as.numeric(D8$strata)
-        D8$strata<-ifelse(is.na(D8$strata),999,D8$strata)
-        
-        #strata - n_samples
-        allocations<-data.frame('strata'=all$samples_strata$strata,
-                                'n_samples'=all$samples_strata$n_samples)
-        
-      }
-      
-      #to store all points
-      # all_points<-array(NA,
-      #                   dim = list(sum(allocations$n_samples),4,length(project_yrs),2,n_sim),
-      #                   dimnames = list(c(1:sum(allocations$n_samples)),c('Lon','Lat','cell','strata'),1:length(project_yrs),c('systematic','random'),1:n_sim))
-      # 
-      #to store survey samples
-            # #loop over simulations
-      for (isim in 1:n_sim_proj) { #simulations
+        # #for 100 simulated surveys in each year
+        # for (y in project_yrs) {
         #   
-        #isim<-1
-        
-        sim_survey <- array(data = NA, dim = c(sum(allocations$n_samples),
-                                             length(spp)+2,
-                                             length(project_yrs), #add strata number
-                                             #length(dimnames(all_points)[[3]]),
-                                             2,
-                                             nrow(df_sbt),
-                                             n_sim_proj,
-                                             n_sur),
-                          dimnames = list(1:sum(allocations$n_samples),
-                                          c(spp,'strata','cell'),
-                                          c(project_yrs),
-                                          #dimnames(all_points)[[3]],
-                                          c('systematic','random'),
-                                          df_sbt$sbt,
-                                          1:n_sim_proj,
-                                          1:n_sur))
-
-  
-        for (isur in 1:n_sur) {
+        #   y<-2023
+        #   dd<-dens_index_proj_OM1[,as.character(y)]
           
-          #print simulation to check progress
-          cat(paste(" #############  projected - sampling design",samp ,'- simulation ', isim, "of",n_sim_proj,'- survey',isur, " #############\n"))
-          
-          for (y in 1:length(project_yrs)) { #years
+        dim(dens_index_proj_OM1)
+        dd<-dens_index_proj_OM1[,as.character(project_yrs)]
+    
+          #for each allocation sampling approach
+          for (ap in c('sys','rand','sb')) {
             
-            #y=1
-            #year
-            yy<-c(project_yrs)[y]
+            ap<-'systematic'
+              
+            #get allocations by sampling allocation approach
+            scn_allocations1<-data.frame(scn_allocations[,,ap])
             
-            #to store points
-            dfcurrent<-data.frame(matrix(NA,nrow=0,ncol=4))
-            colnames(dfcurrent)<-c('Lon','Lat','cell','strata')
-            dfrandom<-dfcurrent
-            
-            #for while purposes
-            flag<-TRUE
-            
-            #random sample for each strata wit distance constrains
-            for(n_istrata in 1:nrow(allocations)) {
-              
-              #n_istrata<-15
-              
-              istrata<-allocations[n_istrata,'strata']
-              
-              #subset cells for strata
-              df<-subset(as.data.frame(D8),strata==istrata)
-              df1<-subset(as.data.frame(D8),strata==istrata & cell %in% baseline_strata$locations$cell)
-              n_i<-allocations[n_istrata,'n_samples']
-              
-              #while error, keep running
-              while(flag){
-                
-                #keep running if error
-                tryCatch({
+                #loop over 100 surveys
+                for (isur in 1:n_sur) {
                   
-                  #print loop state
-                  #cat(paste(" -- strata", n_istrata, 'of',nrow(allocations),  " -- CURRENT  --\n"))
+                  #get survey number 1:4000 (5y * 8 sbt * 100sur)
+                  sur_num<-sur_df[which(sur_df$sbt==sbt & sur_df$sur==isur),] #'num'
                   
-                  ##############################
-                  # CURRENT STRATIFIED APPROACH
-                  ##############################
-                  
-                  if(samp_df[s,'samp_scn']=='scnbase'){
-                    pointsc<-baseline_strata$locations[which(baseline_strata$locations$stratum==istrata),c('longitude','latitude','cell','stratum')]
-                    names(pointsc)<-c('Lon' ,'Lat', 'cell','strata')
-                  }else if (samp_df[s,'samp_scn']=='scnbase_bis'){
-                    pointsc<-baseline_strata$locations[which(baseline_strata$locations$corner==FALSE & baseline_strata$locations$stratum==istrata),c('longitude','latitude','cell','stratum')]
-                    names(pointsc)<-c('Lon' ,'Lat',  'cell','strata')
-                  } else {
+                  for (y in project_yrs) {
                     
-                    #if more required samples than available
-                    if (nrow(df1)<n_i) {
-                      
-                      #vectors to store results
-                      #dropcell<-c()
-                      #selcell<-c()
-                      
-                      #duplicate df strata
-                      dff<-df
-                      
-                      #df removing available samples from current design
-                      dff<-subset(dff, !(cell %in% df1$cell))
-                      
-                      #cells to complete the required cells
-                      ii<-n_i-nrow(df1)
-                      
-                      #loop over the required samples using random
-                      selcell<-sample(dff$cell,ii)
-                      
-                    if (nrow(subset(df,cell %in% c(selcell,df1$cell))) == 0) {
-                      
-                      ss<-sample(1:nrow(df),size = n_i,replace = FALSE)
-                      pointsc<-df[ss,c('Lon','Lat','cell','strata')] 
-                      
-                      #subset points if equal to required number of samples, if not ERROR and rerun iteration
-                    } else if (nrow(subset(df,cell %in% c(selcell,df1$cell))) != n_i) {flag<-TRUE; stop("-- different number of points on current approach",call. = FALSE)}else{
-                        pointsc<-subset(df,cell %in% c(selcell,df1$cell))[,c('Lon','Lat','cell','strata')]
-                        names(pointsc)<-c('Lon','Lat','cell','strata')}
-                      
-                      #else there are enough samples to get from the current sampling design    
-                    } else {
-                      ss<-sample(1:nrow(df1),size = n_i,replace = FALSE)
-                      pointsc<-df1[ss,c('Lon','Lat','cell','strata')]}}
+                    #y<-project_yrs[1]
+                    
+                    scn_allocations2<-scn_allocations1[which(scn_allocations1$sur == sur_num[which(sur_num$year==y),'num']),]
+                    dd1<-dd[scn_allocations2$cell,as.character(y)]
+                    dd2<-cbind(scn_allocations2,CPUE_kgkm=dd1)
+                  }
+                  #get allocation at survey
+                 
+                  #store densities for each survey
+                  sim_survey[,,isur,y,isim,ap]<-cbind(scn_allocations2,sim_hist_dens1[scn_allocations2$cell,y,])
                   
-                  
-                  ##############################
-                  # STRATIFIED RANDOM APPROACH
-                  ##############################
-                  
-                  #cat(paste(" -- strata", n_istrata, 'of',nrow(allocations),  " -- RANDOM  --\n"))
-                  
-                  #duplicate df strata
-                  dff<-df
-                  
-                  #random selection of samples
-                  selcell<-sample(dff$cell,n_i)
-                  pointsr<-subset(df,cell %in% selcell)[,c('Lon','Lat','cell','strata')]
-                  names(pointsr)<-c('Lon','Lat','cell','strata')
-                  
-                  #append data if buffer and current df have equal to required number of samples
-                  if (nrow(pointsc) == n_i & nrow(pointsr) == n_i) {
-                    dfcurrent<-rbind(dfcurrent,pointsc)
-                    #dfbuffer<-rbind(dfbuffer,pointsb)
-                    dfrandom<-rbind(dfrandom,pointsr)
-                    flag<-FALSE}
-                },
-                
-                #error message
-                error=function(e) {
-                  message(paste0("ERROR RETRYING",':\n'),e)})
-                if (!flag) next
-              }
-              
-              #to start while again
-              flag<-TRUE
-            }
-            
-            #append points
-            # all_points[,,y,'systematic',isim]<-unlist(dfcurrent)
-            # #all_points[,,y,'buffer']<-unlist(dfbuffer)
-            # all_points[,,y,'random',isim]<-unlist(dfrandom)
-            
-            #get points iterations
-            #pointsc<-data.frame(unlist(all_points[,,y,'systematic',isim]))
-            #pointsb<-data.frame(unlist(all_points[,,y,'buffer']))                          
-            #pointsr<-data.frame(unlist(all_points[,,y,'random',isim]))   
-            
-            
-            #loop over SBT scenarios
-            for (sbt in paste0(df_sbt$sbt_n)) {
-  
-              #dimnames(sim_proj_dens)
-              sim_proj_dens1<-sim_proj_dens[,,1,sbt,spp]
-  
-              #append survey densities for each iteration and simulated data
-              sim_survey[,,as.character(yy),'systematic',paste0('SBT',sbt),isim,isur]<-cbind(sim_proj_dens1[dfcurrent$cell,y,],'strata'=dfcurrent$strata,'cell'=dfcurrent$cell)
-              #sim_survey[,,'buffer']<-cbind(sim_dens[pointsb$cell,],pointsb$strata)
-              sim_survey[,,as.character(yy),'random',paste0('SBT',sbt),isim,isur]<-cbind(sim_proj_dens1[dfrandom$cell,y,],'strata'=dfrandom$strata,'cell'=dfrandom$cell)
-            }
-          } 
-        }
+                }
+          }
+        
       }
-      #store results
-      save(sim_survey, file = paste0('./output/species/sim_proj_survey_',samp,'.RData'))  
-      # save(all_points, file = paste0('./output/species/allocations_proj_survey_',samp,'.RData'))  
-      
-    }
+        #store results
+        save(sim_survey, file = paste0('./output/species/ms_sim_survey/sim_hist_survey_',samp,'.RData'))  
+        #save(all_points, file = paste0('./output/species/allocations_hist_survey_',samp,'.RData'))     
+        
+        rm(sim_survey)
+      }
 
-
+  }
+  
+}              
+                  
+                  
