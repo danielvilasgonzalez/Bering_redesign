@@ -58,7 +58,7 @@ spp<-c('Limanda aspera',
 spp<-setdiff(spp, c('Anoplopoma fimbria','Reinhardtius hippoglossoides'))
 
 #remove two species because of habitat preferece reasons
-all1<-all1[all1$scientific_name %in% spp,]
+#all1<-all1[all1$scientific_name %in% spp,]
 
 #common names
 spp1<-c('Yellowfin sole',
@@ -159,10 +159,16 @@ sim_proj_dens_spp<-array(NA,
                          dim=c(nrow(grid),length(project_yrs),1,nrow(df_sbt),length(spp)),
                          dimnames=list(1:nrow(grid),project_yrs,1,1:nrow(df_sbt),spp))
 
+
+
+######################
+# HISTORICAL DATA
+######################
+
 #loop over spp
 for (sp in spp) {
   
-  sp<-spp[1]
+  #sp<-spp[14]
   
   #create folder simulation data
   dir.create(paste0('./output/species/',sp,'/'))
@@ -175,14 +181,14 @@ for (sp in spp) {
   #getLoadedDLLs() #if check loaded DLLs
   
   ##reload model
-  # fit<-
-  #   reload_model(x = fit)
-  # 
+  fit<-
+    reload_model(x = fit)
   
-  # #store index and dens
-  # index<-fit$Report$Index_ctl
-  # dens<-fit$Report$D_gct
-  # dens_index_hist_OM[[sp]]<-list('index'=index,'dens'=dens)
+
+  #store index and dens
+  index<-fit$Report$Index_ctl
+  dens<-fit$Report$D_gct
+  dens_index_hist_OM[[sp]]<-list('index'=index,'dens'=dens)
   
   #check observation and predicted densities at each obs
   #observations
@@ -236,54 +242,58 @@ for (sp in spp) {
   #to get predictions in locations but not influencing fit
   pred_TF <- rep(1, nrow(data_geostat1))
   pred_TF[1:nrow(data_geostat)] <- 0
-  
-  ######################
-  # HISTORICAL DATA
-  ######################
-  
-  # #array to store simulated densities/CPUE
-  #  sim_dens<-array(NA,
-  #                  dim=c(nrow(grid),length(unique(yrs)),n_sim),
-  #                  dimnames=list(1:nrow(grid),unique(yrs),1:n_sim))
-  #  
-  # #create folder simulation data
-  # dir.create(paste0('./output/species/',sp,'/simulated historical data/'))
-  # 
-  # #loop over simulations
-  # for (isim in 1:n_sim_hist) { #simulations
-  #  
-  #  #isim<-1
-  #  
-  #  #print simulation to check progress
-  #  cat(paste(" #############   Species", sp, match(sp,spp), 'out of',length(spp),  "  #############\n",
-  #            " #############  historical simulation", isim, "of",n_sim, " #############\n"))
-  # 
-  #  #simulate data from OM
-  #  Sim1 <- FishStatsUtils::simulate_data(fit = fit, #kg/km2
-  #                                        type = 1, 
-  #                                        random_seed = isim)
-  #  
-  #  #select simulated data that belong to grid points
-  #  sim_bio <-matrix(data = Sim1$b_i[pred_TF == 1], #kg
-  #                   nrow = nrow(grid), 
-  #                   ncol = length(unique(yrs)))
-  #  
-  #    
-  #  #biomass (kg) to CPUE (kg/km2)
-  #  sim_dens[,,isim]<-sim_bio/grid$Area_in_survey_km2 
-  #    
-  # }
-  #  
-  # #save data
-  # save(sim_dens, file = paste0("./output/species/",sp,'/simulated historical data/sim_dens.RData')) 
-  #  
-  # #store
-  # sim_hist_dens_spp[,,,sp]<-sim_dens
 
-  ######################
-  # PROJECTED DATA
-  ######################
   
+  #array to store simulated densities/CPUE
+   sim_dens<-array(NA,
+                   dim=c(nrow(grid),length(unique(yrs)),n_sim_hist),
+                   dimnames=list(1:nrow(grid),unique(yrs),1:n_sim_hist))
+
+  #create folder simulation data
+  dir.create(paste0('./output/species/',sp,'/simulated historical data/'))
+
+  #loop over simulations
+  for (isim in 1:n_sim_hist) { #simulations
+
+   #isim<-1
+
+   #print simulation to check progress
+   cat(paste(" #############   Species", sp, match(sp,spp), 'out of',length(spp),  "  #############\n",
+             " #############  historical simulation", isim, "of",n_sim_hist, " #############\n"))
+
+   #simulate data from OM
+   Sim1 <- FishStatsUtils::simulate_data(fit = fit, #kg/km2
+                                         type = 1,
+                                         random_seed = isim)
+
+   #select simulated data that belong to grid points
+   sim_bio <-matrix(data = Sim1$b_i[pred_TF == 1], #kg
+                    nrow = nrow(grid),
+                    ncol = length(unique(yrs)))
+
+
+   #biomass (kg) to CPUE (kg/km2)
+   sim_dens[,,isim]<-sim_bio/grid$Area_in_survey_km2
+
+  }
+
+  #save data
+  save(sim_dens, file = paste0("./output/species/",sp,'/simulated historical data/sim_dens.RData'))
+
+  #store
+  sim_hist_dens_spp[,,,sp]<-sim_dens
+}
+
+#save 100 simulated historical densities for all species
+save(sim_hist_dens_spp, file = paste0("./output/species/sim_hist_dens_spp.RData"))
+#save true densities and index for all species
+save(dens_index_hist_OM, file = paste0("./output/species/dens_index_hist_OM.RData")) 
+  
+
+######################
+# PROJECTED DATA
+######################
+
   #get raster stack
   stack_files<-list.files('./data processed/SBT projections/')
   
@@ -292,7 +302,20 @@ for (sp in spp) {
   
   #list projected data for each scenario
   #pr_list<-list()
+ 
+#loop over spp
+for (sp in spp) {
   
+  #sp<-spp[1]
+  
+  #create folder simulation data
+  dir.create(paste0('./output/species/',sp,'/'))
+  
+  #get list of fit data
+  ff<-list.files(paste0('./shelf EBS NBS VAST/',sp),'fit',recursive = TRUE)
+  
+  #load fit file
+  load(paste0('./shelf EBS NBS VAST/',sp,'/',ff)) #fit 
   #create folder simulation data
   dir.create(paste0('./output/species/',sp,'/simulated projected data/'))
   
@@ -325,7 +348,7 @@ for (sp in spp) {
       points1<-points[,c('x','y',paste0('y',y))]
       names(points1)<-c('Lon',"Lat",'BotTemp')
       
-      #reproject df
+      #reproject df#
       coordinates(points1)<- ~ Lon + Lat
       proj4string(points1) <- CRS('+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs') 
       points1<-data.frame(spTransform(points1,CRSobj = CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")))
@@ -360,7 +383,7 @@ for (sp in spp) {
        
        index<-pm[[iproj]]$Index_ctl
        dens<-pm[[iproj]]$D_gct[,1,]
-       dens_index_proj_OM[[paste0('SBT',sbt,'_sim',iproj)]]<-list('index'=index,'dens'=dens)
+       dens_index_proj_OM[[paste0('sim',iproj)]]<-list('index'=index,'dens'=dens)
      }
      
     ##store
@@ -382,10 +405,7 @@ for (sp in spp) {
   }
 }
 
-#save 100 simulated historical densities for all species
-save(sim_hist_dens_spp, file = paste0("./output/species/sim_hist_dens_spp.RData"))
-#save true densities and index for all species
-save(dens_index_hist_OM, file = paste0("./output/species/dens_index_hist_OM.RData")) 
+
 ##save 1 simulated projected densities under 8 SBT scenarios for all species
 #save(sim_proj_dens_spp, file = paste0("./output/species/sim_proj_dens_spp.RData")) 
 
