@@ -46,9 +46,10 @@ pacman::p_load(pack_cran,character.only = TRUE)
 #cl <- parallel::makeCluster(parallel::detectCores() - 2)
 #doParallel::registerDoParallel(cl)
 
-#setwd
-out_dir<-'C:/Users/Daniel.Vilas/Work/Adapting Monitoring to a Changing Seascape/'  
-out_dir<-'/Users/daniel/Work/Adapting Monitoring to a Changing Seascape/'
+#setwd - depends on computer using
+#out_dir<-'C:/Users/Daniel.Vilas/Work/Adapting Monitoring to a Changing Seascape/' #NOAA laptop  
+#out_dir<-'/Users/daniel/Work/Adapting Monitoring to a Changing Seascape/' #mac
+out_dir<-'/Users/daniel/Work/VM' #VM
 setwd(out_dir)
 
 #version VAST (cpp)
