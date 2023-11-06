@@ -27,9 +27,10 @@ if (!('VAST' %in% installed.packages())) {
 #load/install packages
 pacman::p_load(pack_cran,character.only = TRUE)
 
-#setwd
-out_dir<-'C:/Users/Daniel.Vilas/Work/Adapting Monitoring to a Changing Seascape/'  
-out_dir<-'/Users/daniel/Work/Adapting Monitoring to a Changing Seascape/'
+#setwd - depends on computer using
+#out_dir<-'C:/Users/Daniel.Vilas/Work/Adapting Monitoring to a Changing Seascape/' #NOAA laptop  
+#out_dir<-'/Users/daniel/Work/Adapting Monitoring to a Changing Seascape/' #mac
+out_dir<-'/Users/daniel/Work/VM' #VM
 setwd(out_dir)
 
 #list of sp
@@ -82,6 +83,9 @@ spp1<-c('Yellowfin sole',
 df_spp<-data.frame('spp'=spp,
                    'common'=spp1)
 
+#create folder simulation data
+dir.create(paste0('./output/species/'))
+
 #yrs
 yrs<-1982:2022
 
@@ -90,6 +94,28 @@ n_proj<-5
 
 #project_yrs
 project_yrs<-((yrs[length(yrs)])+1):(yrs[length(yrs)]+n_proj)
+
+###################################
+# download model from google drive
+###################################
+
+#get files from google drive and set up
+files<-googledrive::drive_find()
+1 #for dvilasg@uw.edu
+
+#get id shared folder from google drive
+id.bering.folder<-files[which(files$name=='Bering redesign RWP project'),'id']
+#list of files and folder
+files.1<-googledrive::drive_ls(id.bering.folder$id)
+id.data<-files.1[which(files.1$name=='manuscripts'),'id']
+files.2<-googledrive::drive_ls(id.data$id)
+id.data<-files.2[which(files.2$name=='static survey'),'id']
+files.3<-googledrive::drive_ls(id.data$id)
+id.data<-files.3[which(files.3$name=='OM EBS+NBS'),'id']
+files.4<-googledrive::drive_ls(id.data$id)
+
+#get list of fit data
+dir.create(paste0('./shelf EBS NBS VAST/'))
 
 ###################################
 # GRID NBS AND EBS
@@ -102,7 +128,7 @@ project_yrs<-((yrs[length(yrs)])+1):(yrs[length(yrs)]+n_proj)
  grid$cell<-1:nrow(grid)
  
  #load grid
- load('./extrapolation grids/lastversion_grid_EBS.RData')
+ load('./data processed/grid_EBS_NBS.RData')
  yrs<-1982:2022
  grid_ebs<-grid.ebs_year[which(grid.ebs_year$region != 'EBSslope' & grid.ebs_year$Year %in% yrs),]
  dim(grid_ebs)
@@ -168,10 +194,21 @@ sim_proj_dens_spp<-array(NA,
 #loop over spp
 for (sp in spp) {
   
-  #sp<-spp[14]
+  #sp<-spp[1]
   
   #create folder simulation data
   dir.create(paste0('./output/species/',sp,'/'))
+  
+  id.data<-files.4[which(files.4$name==sp),'id']
+  files.5<-googledrive::drive_ls(id.data$id)
+  
+  dir.create(paste0('./shelf EBS NBS VAST/',sp))
+  file<-files.5[grep('fit',files.5$name),]
+  
+  #download file
+  googledrive::drive_download(file=file$id,
+                              path = paste0('./shelf EBS NBS VAST/',sp,'/fit.RData'),
+                              overwrite = TRUE)
   
   #get list of fit data
   ff<-list.files(paste0('./shelf EBS NBS VAST/',sp),'fit',recursive = TRUE)
@@ -192,7 +229,14 @@ for (sp in spp) {
   
   #check observation and predicted densities at each obs
   #observations
-  data_geostat<-readRDS(paste0('./shelf EBS NBS VAST/',sp,'/data_geostat_temp.rds'))
+  # file<-files.5[grep('data_geostat',files.5$name),]
+  # 
+  # #download file
+  # googledrive::drive_download(file=file$id,
+  #                             path = paste0('./shelf EBS NBS VAST/',sp,'/data_geostat_temp.rds'),
+  #                             overwrite = TRUE)
+  # 
+  # data_geostat<-readRDS(paste0('./shelf EBS NBS VAST/',sp,'/data_geostat_temp.rds'))
   
   #predictions
   #d_i<-fit$Report$D_i #nrow(fit$data_frame)
@@ -243,7 +287,6 @@ for (sp in spp) {
   pred_TF <- rep(1, nrow(data_geostat1))
   pred_TF[1:nrow(data_geostat)] <- 0
 
-  
   #array to store simulated densities/CPUE
    sim_dens<-array(NA,
                    dim=c(nrow(grid),length(unique(yrs)),n_sim_hist),
@@ -306,7 +349,7 @@ save(dens_index_hist_OM, file = paste0("./output/species/dens_index_hist_OM.RDat
 #loop over spp
 for (sp in spp) {
   
-  sp<-spp[1]
+  #sp<-spp[1]
   
   #create folder simulation data
   dir.create(paste0('./output/species/',sp,'/'))
@@ -322,7 +365,7 @@ for (sp in spp) {
   #loop over scenarios
   for (sbt in unique(df_sbt$sbt_n)) {
     
-    sbt<-unique(df_sbt$sbt_n)[1]
+    #sbt<-unique(df_sbt$sbt_n)[1]
     
     #print scenario to check progress
     cat(paste(" #############     PROJECTING    #############\n",
