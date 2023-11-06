@@ -194,7 +194,7 @@ sim_proj_dens_spp<-array(NA,
 #loop over spp
 for (sp in spp) {
   
-  sp<-spp[1]
+  #sp<-spp[1]
   
   #create folder simulation data
   dir.create(paste0('./output/species/',sp,'/'))
@@ -229,7 +229,14 @@ for (sp in spp) {
   
   #check observation and predicted densities at each obs
   #observations
-  data_geostat<-readRDS(paste0('./shelf EBS NBS VAST/',sp,'/data_geostat_temp.rds'))
+  # file<-files.5[grep('data_geostat',files.5$name),]
+  # 
+  # #download file
+  # googledrive::drive_download(file=file$id,
+  #                             path = paste0('./shelf EBS NBS VAST/',sp,'/data_geostat_temp.rds'),
+  #                             overwrite = TRUE)
+  # 
+  # data_geostat<-readRDS(paste0('./shelf EBS NBS VAST/',sp,'/data_geostat_temp.rds'))
   
   #predictions
   #d_i<-fit$Report$D_i #nrow(fit$data_frame)
@@ -280,7 +287,6 @@ for (sp in spp) {
   pred_TF <- rep(1, nrow(data_geostat1))
   pred_TF[1:nrow(data_geostat)] <- 0
 
-  
   #array to store simulated densities/CPUE
    sim_dens<-array(NA,
                    dim=c(nrow(grid),length(unique(yrs)),n_sim_hist),
@@ -343,7 +349,7 @@ save(dens_index_hist_OM, file = paste0("./output/species/dens_index_hist_OM.RDat
 #loop over spp
 for (sp in spp) {
   
-  sp<-spp[1]
+  #sp<-spp[1]
   
   #create folder simulation data
   dir.create(paste0('./output/species/',sp,'/'))
@@ -359,7 +365,7 @@ for (sp in spp) {
   #loop over scenarios
   for (sbt in unique(df_sbt$sbt_n)) {
     
-    sbt<-unique(df_sbt$sbt_n)[1]
+    #sbt<-unique(df_sbt$sbt_n)[1]
     
     #print scenario to check progress
     cat(paste(" #############     PROJECTING    #############\n",
