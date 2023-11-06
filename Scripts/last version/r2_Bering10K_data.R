@@ -27,9 +27,10 @@ if (!('pacman' %in% installed.packages())) {
 #load/install packages
 pacman::p_load(pack_cran,character.only = TRUE)
 
-#setwd
-out_dir<-'C:/Users/Daniel.Vilas/Work/Adapting Monitoring to a Changing Seascape/'  #out_dir<-'/Users/daniel/Work/Adapting Monitoring to a Changing Seascape/'
-out_dir<-'/Users/daniel/Work/Adapting Monitoring to a Changing Seascape/'
+#setwd - depends on computer using
+#out_dir<-'C:/Users/Daniel.Vilas/Work/Adapting Monitoring to a Changing Seascape/' #NOAA laptop  
+#out_dir<-'/Users/daniel/Work/Adapting Monitoring to a Changing Seascape/' #mac
+out_dir<-'/Users/daniel/Work/VM' #VM
 setwd(out_dir)
 
 #range years of data
@@ -93,7 +94,9 @@ haul$year<-year(as.POSIXlt(haul$date, format="%d/%m/%Y"))
 #####################################
 # BERING SEA GRIDS 
 #####################################
+
 #https://github.com/James-Thorson-NOAA/FishStatsUtils/tree/main/data
+#load grids
 load('./extrapolation grids/eastern_bering_sea_grid.rda')
 dim(eastern_bering_sea_grid)
 load('./extrapolation grids/northern_bering_sea_grid.rda')
@@ -355,7 +358,7 @@ save(grid.ebs_year,file = './data processed/grid_EBS_NBS.RData')
 #loop over species to add SBT to data_geostat
 for (sp in spp) {
   
-  sp<-spp[16]
+  #sp<-spp[16]
   
   #print species to check progress
   cat(paste(" ############# ", sp, " #############\n"))

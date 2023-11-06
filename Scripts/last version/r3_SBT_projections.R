@@ -14,7 +14,7 @@ rm(list = ls(all.names = TRUE))
 gc() 
 
 #libraries from cran to call or install/load
-pack_cran<-c('ncdf4','raster','FNN','lubridate','rgeos','scales','rnaturalearth','grid','ggplot2','rasterVis','ggthemes')
+pack_cran<-c('ncdf4','raster','FNN','lubridate','rgeos','scales','rnaturalearth','grid','ggplot2','rasterVis','ggthemes','reshape2','ragg',"wesanderson")
 
 #install pacman to use p_load function - call library and if not installed, then install
 if (!('pacman' %in% installed.packages())) {
@@ -23,21 +23,22 @@ if (!('pacman' %in% installed.packages())) {
 #load/install packages
 pacman::p_load(pack_cran,character.only = TRUE)
 
-#setwd
-out_dir<-'C:/Users/Daniel.Vilas/Work/Adapting Monitoring to a Changing Seascape/'  #out_dir<-'/Users/daniel/Work/Adapting Monitoring to a Changing Seascape/'
-out_dir<-'/Users/daniel/Work/Adapting Monitoring to a Changing Seascape/'
+#setwd - depends on computer using
+#out_dir<-'C:/Users/Daniel.Vilas/Work/Adapting Monitoring to a Changing Seascape/' #NOAA laptop  
+#out_dir<-'/Users/daniel/Work/Adapting Monitoring to a Changing Seascape/' #mac
+out_dir<-'/Users/daniel/Work/VM' #VM
 setwd(out_dir)
 
 #range years of data
 sta_y<-1982
 end_y<-2022
 
-#get files from google drive and set up
-files<-googledrive::drive_find()
-32 #for dvilasg@uw.edu
-
-#get id shared folder from google drive
-id.bering.folder<-files[which(files$name=='Bering redesign RWP project'),'id']
+# #get files from google drive and set up
+# files<-googledrive::drive_find()
+# 32 #for dvilasg@uw.edu
+# 
+# #get id shared folder from google drive
+# id.bering.folder<-files[which(files$name=='Bering redesign RWP project'),'id']
 
 #selected species
 spp<-c('Limanda aspera',
@@ -56,10 +57,10 @@ spp<-c('Limanda aspera',
        'Paralithodes platypus',
        'Paralithodes camtschaticus')
 
-#list of files and folder
-files.1<-googledrive::drive_ls(id.bering.folder$id)
-id.data<-files.1[which(files.1$name=='data raw'),'id']
-files.2<-googledrive::drive_ls(id.data$id)
+# #list of files and folder
+# files.1<-googledrive::drive_ls(id.bering.folder$id)
+# id.data<-files.1[which(files.1$name=='data raw'),'id']
+# files.2<-googledrive::drive_ls(id.data$id)
 
 #check temperature example for Pcod
 #for (sp in spp) {
@@ -126,6 +127,9 @@ files.2<-googledrive::drive_ls(id.data$id)
 # SBT PROJECTIONS
 ######################################
 
+#create directory
+dir.create('./tables/',showWarnings = FALSE)
+  
 #create SBT projections
 df_sbt<-data.frame(y2022=c(0,0,0,0,0,0,0,0,0,0,0,0),
                    y2023=c(0,-0.5,0.5,1,1,-1,2,-2,3,-3,4,5),
@@ -234,7 +238,7 @@ df_sbt1<-reshape2::melt(df_sbt[,1:7],id='Scenario')
 df_sbt1$Scenario <- factor(df_sbt1$Scenario, levels = df_sbt$Scenario)
 
 #plot
-p<-
+#p<-
   ggplot()+
   geom_line(data=df_sbt1,aes(x=variable,y=value,group=Scenario,color=Scenario))+
   scale_color_tableau(palette = 'Tableau 10')+
@@ -244,8 +248,8 @@ p<-
   labs(color='SBT projections',x='Year',y='SBT change (°C)')
 
 
-#Table  
-colnames(df_sbt)<-c(2022:2027,'Scenario')
-df_sbt<-df_sbt[order(df_sbt$Scenario),]
-table<-ggpubr::ggtexttable(df_sbt, rows = NULL)
+# #Table  
+# colnames(df_sbt)<-c(2022:2027,'Scenario')
+# df_sbt<-df_sbt[order(df_sbt$Scenario),]
+# table<-ggpubr::ggtexttable(df_sbt, rows = NULL)
 
