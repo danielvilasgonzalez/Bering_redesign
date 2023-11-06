@@ -129,7 +129,8 @@ true_index<-array(NA,
 # ###################################
 
 #loop over species
-for (sp in spp) {
+for (sp in spp
+     ) {
   
   #sp<-spp[14]
   
@@ -382,3 +383,4 @@ baseline_strata<-list(strata_areas=strata_areas,locations=locations,n_samples=n_
 
 #save data
 save(baseline_strata,file='./output/baseline_strata.RData')
+

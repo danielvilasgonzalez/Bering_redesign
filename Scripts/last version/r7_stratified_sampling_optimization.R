@@ -294,8 +294,8 @@ samp_df$samp_scn<-paste0(paste0('scn',1:nrow(samp_df)))
       solution <- optimStrata(method = "continuous", #continous variables
                               errors = cv_df,  #precision level - maximum allowable coefficient of variation set by the simple random sampling 
                               framesamp = frame, #df of input variables
-                              iter = 300, #300 #maximum number of iterations
-                              pops = 100, #100  #dimension of each generations
+                              iter = 30, #300 #maximum number of iterations
+                              pops = 10, #100  #dimension of each generations
                               elitism_rate = 0.1, #0.1
                               mut_chance = 1 / (no_strata[1] + 1), #mutation chance
                               nStrata = no_strata, #maximum strata
@@ -305,7 +305,7 @@ samp_df$samp_scn<-paste0(paste0('scn',1:nrow(samp_df)))
       #flag to keep the loop
       flag<-ifelse(nrow(solution$aggr_strata)!=unique(samp_df$n_strata),TRUE,FALSE)
       
-      #if condition reduce or increase CV to achieve the objective
+       #if condition reduce or increase CV to achieve the objective
       if (nrow(solution$aggr_strata)<unique(samp_df$n_strata)) {
         cv_df[,c(2:(ispp+1))]<-cv_df[,c(2:(ispp+1))]-(cv_df[,c(2:(ispp+1))]*0.001) #reduce 0.1% CV
       } else if (nrow(solution$aggr_strata)>unique(samp_df$n_strata)){
