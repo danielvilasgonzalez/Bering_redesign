@@ -17,7 +17,7 @@ rm(list = ls(all.names = TRUE))
 gc() 
 
 #libraries from cran to call or install/load
-pack_cran<-c('ggplot2','units','splines','raster','sp','Spbsampling','sf')
+pack_cran<-c('ggplot2','units','splines','raster','sp','Spbsampling','sf','doParallel','foreach')
 
 #install pacman to use p_load function - call library and if not installed, then install
 if (!('pacman' %in% installed.packages())) {
@@ -100,7 +100,7 @@ grid<-x5[,c('Lat','Lon','cell','col','row')]
 ###################################
 
 #load grid
-load('./extrapolation grids/lastversion_grid_EBS.RData')
+load('./data processed/grid_EBS_NBS.RData')
 #yrs<-setdiff(1982:2022,2020)
 grid_ebs<-grid.ebs_year[which(grid.ebs_year$region != 'EBSslope' & grid.ebs_year$Year %in% yrs),]
 dim(grid_ebs)
@@ -120,6 +120,12 @@ samp_df<-expand.grid(strat_var=c('Depth_varTemp','varTemp','Depth'),
 samp_df$samp_scn<-paste0(paste0('scn',1:nrow(samp_df)))
 samp_df<-rbind(samp_df,c('baseline','current',520,15,'scnbase'),
                c('baseline w/o corner','current',494,15,'scnbase_bis'))
+
+###################################
+# BASELINE STRATA
+###################################
+
+load('./output/baseline_strata.RData')
 
 # ###################################
 # # SIMULATED DENSITIES
@@ -158,7 +164,7 @@ n_sim_proj<- 100
     #loop over sampling designs
     for (samp in unique(samp_df$samp_scn)) { #sampling designs
       
-      #samp<-unique(samp_df$samp_scn)[5]
+      samp<-unique(samp_df$samp_scn)[1]
       
       s<-match(samp,samp_df$samp_scn)
       
@@ -240,13 +246,13 @@ n_sim_proj<- 100
         r3<-as.data.frame(r2,xy=TRUE)
         r4<-rasterToPolygons(r2$layer,dissolve=TRUE)
         r5<-spTransform(r4,"+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
-        plot(r4)
-        plot(r5)
-        r6<-spTransform(r5,'+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs')
-        
-        plot(r2)
-        plot(r6,add=TRUE)
-        
+        # plot(r4)
+        # plot(r5)
+        # r6<-spTransform(r5,'+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs')
+        # 
+        # plot(r2)
+        # plot(r6,add=TRUE)
+        # 
         #replicates n_surveys x n_years
         rep_sur<-n_sur*length(yrs)
         
@@ -284,159 +290,175 @@ n_sim_proj<- 100
         #    flag<-TRUE
             
           
-        #loop over strata
-          for (str in allocations$strata) {
-          
-          #str<-allocations$strata[1]
-          
-          #print simulation to check progress
-          cat(paste(" #############  sampling design",samp ,'- strata',str ," #############\n"))
-            
-          #number of samples required by str
-          n_i<-allocations[which(allocations$strata==str),'n_samples']
-          
-          #subset cells grid by strata
-          D9<-subset(D8,strata==str)
-          
-          ########################
-          ### RANDOM SAMPLING
-          ########################
-        
-          for (sur in 1:rep_sur) {
-          
-            cat(paste(" #############  random sampling",'- survey',sur ," #############\n"))
-            
-          #sur<-1
+            for (str in allocations$strata) {
               
-          #random sampling
-          D10<-
-            D9[sample(nrow(D9),
-                   size = n_i,
-                   replace = FALSE),]
-          
-          D10<-D10[,c('Lon','Lat','cell','strata')]
-          D10$sur<-sur
-          
-          dfrandom<-rbind(dfrandom,D10)
-          
-          }
-          
-          #random sampling strata samples
-          #rsamp<-D10
-          #dfrandom<-rbind(dfrandom,rsamp)
-          
-          
-          ########################
-          ### SPATIALLY BALANCE SAMPLING
-          ########################
-          
-          #get distance among points
-          dis_la <- as.matrix(dist(cbind(D9$Lon, D9$Lat)))
-          D9_st_sf <- st_as_sf(D9, coords = c("Lon", "Lat"))
-          dis_la_sf <- st_distance(D9_st_sf)
-          
-          #PWD
-          con <- rep(0, nrow(dis_la))
-          stand_dist_la_pwd <- Spbsampling::stprod(mat = dis_la, con = con)$mat
-          
-          for (sur in 1:rep_sur) {
-            
-            cat(paste(" #############  spatially-balanced sampling",'- survey',sur ," #############\n"))
-            
-          s_pwd_la <- Spbsampling::pwd(dis = stand_dist_la_pwd, n = n_i)$s
-          D10<-D9[s_pwd_la[1, ], ]
-          
-          D10$sur<-sur
-          #spatially-balancing strata samples
-          spbsamp<-D10[,c('Lon','Lat','cell','strata','sur')]
-          dfspb<-rbind(dfspb,spbsamp)
-          }
-          
-          #######################
-          ### SYSTEMATIC SAMPLING
-          #######################
+              #str<-allocations$strata[1]
+              
+              #print simulation to check progress
+              cat(paste(" #############  sampling design",samp ,'- strata',str ," #############\n"))
+              
+              #number of samples required by str
+              n_i<-allocations[which(allocations$strata==str),'n_samples']
+              
+              #subset cells grid by strata
+              D9<-subset(D8,strata==str)
+              
+              ########################
+              ### RANDOM SAMPLING
+              ########################
+              
+              # Initializing parallel backend
+              cl <- makeCluster(detectCores()-1)
+              registerDoParallel(cl)
+              
 
-          for (sur in 1:rep_sur) {
-          
-            cat(paste(" #############  systematic sampling",'- survey',sur ," #############\n"))
-            
-          #if current sampling design
-          if(samp_df[s,'samp_scn']=='scnbase'){
-            pointsc<-current[which(current$stratum==str),c('longitude','latitude','cell','stratum')]
-            names(pointsc)<-c('Lon' ,'Lat', 'cell','strata') 
-            
-          #if current sampling design w/o corner
-          } else if (samp_df[s,'samp_scn']=='scnbase_bis'){
-            pointsc<-current[which(current$corner==FALSE & current$stratum==str),c('longitude','latitude','cell','stratum')]
-            names(pointsc)<-c('Lon' ,'Lat',  'cell','strata')
-          
-          #if optimized sampling design
-          } else {
-          
-            sys<-current[which(current$strata==str),c('longitude','latitude','cell','strata')]
-            names(sys)<-c('Lon' ,'Lat',  'cell','strata')
-            
-            #if more required samples than available
-            if (nrow(sys)<n_i) {
-              
-              #duplicate df strata
-              dff<-D9
-              
-              #df removing available samples from current design
-              dff<-subset(dff, !(cell %in% sys$cell))
-              
-              #cells to complete the required cells
-              ii<-n_i-nrow(sys)
-              
-              #loop over the required samples using random
-              selcell<-sample(dff$cell,ii)
-              
-              if (nrow(subset(D9,cell %in% c(selcell,sys$cell))) == 0) {
+              # Parallelizing the loop
+              dfrandom <- foreach(sur = 1:rep_sur, .combine=rbind) %dopar% {
+                #cat(paste(" #############  random sampling", '- survey', sur, " #############\n"))
                 
-                ss<-sample(1:nrow(D9),size = n_i,replace = FALSE)
-                pointsc<-D9[ss,c('Lon','Lat','cell','strata')] 
+                D10 <- D9[sample(nrow(D9), size = n_i, replace = FALSE), ]
+                D10 <- D10[, c('Lon', 'Lat', 'cell', 'strata')]
+                D10$sur <- sur
                 
-                #subset points if equal to required number of samples, if not ERROR and rerun iteration
-              } else if (nrow(subset(D9,cell %in% c(selcell,sys$cell))) != n_i) {flag<-TRUE; stop("-- different number of points on current approach",call. = FALSE)}else{
-                pointsc<-subset(D9,cell %in% c(selcell,sys$cell))[,c('Lon','Lat','cell','strata')]
-                names(pointsc)<-c('Lon','Lat','cell','strata')}
+                return(D10)
+              }
               
-              #else there are enough samples to get from the current sampling design    
-            } else {
-              ss<-sample(1:nrow(sys),size = n_i,replace = FALSE)
-              pointsc<-sys[ss,c('Lon','Lat','cell','strata')]}}
-          
-          #systematic strata samples
-          syssamp<-pointsc[,c('Lon','Lat','cell','strata')]
-          syssamp$sur<-sur
-          dfcurrent<-rbind(dfcurrent,syssamp)
-          
-          }
-          
-          #######################
-          ### PLOT
-          #######################
-          
-          #coordinates(rsamp)=~Lon + Lat
-          #crs(rsamp)<-c(crs="+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
-          #rsamp<-spTransform(rsamp,'+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs')
-          #
-          #coordinates(spbsamp)=~Lon + Lat
-          #crs(spbsamp)<-c(crs="+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
-          #spbsamp<-spTransform(spbsamp,'+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs')
-          #
-          #coordinates(syssamp)=~Lon + Lat
-          #crs(syssamp)<-c(crs="+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
-          #syssamp<-spTransform(syssamp,'+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs')
-          #
-          #pol<-r4[r4$layer==str,]
-          #plot(pol)
-          #points(rsamp,col='green',pch=19)
-          #points(spbsamp,col='blue',pch=19)
-          #points(syssamp,col='red',pch=19)
-        
-        }
+              # Stopping the parallel backend
+              stopCluster(cl)
+              
+              ########################
+              ### SPATIALLY BALANCE SAMPLING
+              ########################
+              
+              #get distance among points
+              dis_la <- as.matrix(dist(cbind(D9$Lon, D9$Lat)))
+              D9_st_sf <- st_as_sf(D9, coords = c("Lon", "Lat"))
+              dis_la_sf <- st_distance(D9_st_sf)
+              
+              #PWD
+              con <- rep(0, nrow(dis_la))
+              stand_dist_la_pwd <- Spbsampling::stprod(mat = dis_la, con = con)$mat
 
+              # Initializing parallel backend
+              cl <- makeCluster(detectCores()-1)
+              registerDoParallel(cl)
+              
+              # Create an empty list to store the results
+              dfspb <- foreach(sur = 1:rep_sur, .combine = rbind) %dopar% {
+                
+                #cat(paste(" #############  spatially-balanced sampling", '- survey', sur, " #############\n"))
+                
+                s_pwd_la <- Spbsampling::pwd(dis = stand_dist_la_pwd, n = n_i)$s
+                D10 <- D9[s_pwd_la[1, ], ]
+                
+                D10$sur <- sur
+                # spatially-balancing strata samples
+                spbsamp <- D10[, c('Lon', 'Lat', 'cell', 'strata', 'sur')]
+                
+                return(spbsamp)
+              }
+
+              # Stopping the parallel backend
+              stopCluster(cl)
+              
+              #######################
+              ### SYSTEMATIC SAMPLING
+              #######################
+              
+              # Initializing parallel backend
+              cl <- makeCluster(detectCores()-1)
+              registerDoParallel(cl)
+              
+              # Create an empty list to store the results
+              dfcurrent <- foreach(sur = 1:rep_sur, .combine = rbind) %dopar% {
+                
+                #cat(paste(" #############  systematic sampling", '- survey', sur, " #############\n"))
+                
+                #if current sampling design
+                if (samp_df[s, 'samp_scn'] == 'scnbase') {
+                  pointsc <- current[which(current$stratum == str), c('longitude', 'latitude', 'cell', 'stratum')]
+                  names(pointsc) <- c('Lon', 'Lat', 'cell', 'strata')
+                  
+                  #if current sampling design w/o corner
+                } else if (samp_df[s, 'samp_scn'] == 'scnbase_bis') {
+                  pointsc <- current[which(current$corner == FALSE & current$stratum == str), c('longitude', 'latitude', 'cell', 'stratum')]
+                  names(pointsc) <- c('Lon', 'Lat', 'cell', 'strata')
+                  
+                  #if optimized sampling design
+                } else {
+                  
+                  sys <- current[which(current$strata == str), c('longitude', 'latitude', 'cell', 'strata')]
+                  names(sys) <- c('Lon', 'Lat', 'cell', 'strata')
+                  
+                  #if more required samples than available
+                  if (nrow(sys) < n_i) {
+                    
+                    #duplicate df strata
+                    dff <- D9
+                    
+                    #df removing available samples from current design
+                    dff <- subset(dff, !(cell %in% sys$cell))
+                    
+                    #cells to complete the required cells
+                    ii <- n_i - nrow(sys)
+                    
+                    #loop over the required samples using random
+                    selcell <- sample(dff$cell, ii)
+                    
+                    if (nrow(subset(D9, cell %in% c(selcell, sys$cell))) == 0) {
+                      
+                      ss <- sample(1:nrow(D9), size = n_i, replace = FALSE)
+                      pointsc <- D9[ss, c('Lon', 'Lat', 'cell', 'strata')]
+                      
+                      #subset points if equal to required number of samples, if not ERROR and rerun iteration
+                    } else if (nrow(subset(D9, cell %in% c(selcell, sys$cell))) != n_i) {
+                      flag <- TRUE
+                      stop("-- different number of points on the current approach", call. = FALSE)
+                    } else {
+                      pointsc <- subset(D9, cell %in% c(selcell, sys$cell))[, c('Lon', 'Lat', 'cell', 'strata')]
+                      names(pointsc) <- c('Lon', 'Lat', 'cell', 'strata')
+                    }
+                    
+                    #else there are enough samples to get from the current sampling design    
+                  } else {
+                    ss <- sample(1:nrow(sys), size = n_i, replace = FALSE)
+                    pointsc <- sys[ss, c('Lon', 'Lat', 'cell', 'strata')]
+                  }
+                }
+                
+                #systematic strata samples
+                syssamp <- pointsc[, c('Lon', 'Lat', 'cell', 'strata')]
+                syssamp$sur <- sur
+                
+                return(syssamp)
+              }
+              
+              stopCluster(cl)
+              
+              #######################
+              ### PLOT
+              #######################
+              
+              #coordinates(rsamp)=~Lon + Lat
+              #crs(rsamp)<-c(crs="+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
+              #rsamp<-spTransform(rsamp,'+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs')
+              #
+              #coordinates(spbsamp)=~Lon + Lat
+              #crs(spbsamp)<-c(crs="+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
+              #spbsamp<-spTransform(spbsamp,'+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs')
+              #
+              #coordinates(syssamp)=~Lon + Lat
+              #crs(syssamp)<-c(crs="+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
+              #syssamp<-spTransform(syssamp,'+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs')
+              #
+              #pol<-r4[r4$layer==str,]
+              #plot(pol)
+              #points(rsamp,col='green',pch=19)
+              #points(spbsamp,col='blue',pch=19)
+              #points(syssamp,col='red',pch=19)
+              
+            }
+            
           scn_allocations[,,'sys'] <- unlist(dfcurrent)
           scn_allocations[,,'rand'] <- unlist(dfrandom)
           scn_allocations[,,'sb'] <- unlist(dfspb)
@@ -465,70 +487,67 @@ data.frame(num=1:(length(yrs)*n_sur),
            sur=rep(1:n_sur,each=length(yrs)))
 
 #load simulated densities by spp
-load(paste0('./output/species/sim_hist_dens_spp.RData')) #sim_hist_dens_spp
+#load(paste0('./output/species/sim_hist_dens_spp.RData')) #sim_hist_dens_spp
 
-#for each sampling design
-for (samp in samp_df$samp_scn) {
+library(foreach)
+library(doParallel)
+
+# Initializing parallel backend
+cl <- makeCluster(detectCores()-1)  # Using all available cores
+registerDoParallel(cl)
+
+load(file = paste0('./output/species/ms_sim_dens.RData'))  #sim_dens1, 
+
+# Parallelizing the loop
+foreach(samp = samp_df$samp_scn) %dopar% {
+  
+  #samp<-'scn1'
+  #start_time_parallel <- Sys.time()
+  
+  #array to store simulated densities/CPUE
+  alloc<-ifelse(samp=='scnbase_bis',494,520)
+  sim_survey <- array(NA,
+                      dim = c(alloc, length(spp)+2, length(unique(yrs)), n_sim,length(c('sys','rand','sb'))),
+                      dimnames = list(1:alloc, c('cell','strata',spp), unique(yrs), 1:n_sim,c('sys','rand','sb')))
   
   #load survey allocations by sampling design
   load(file = paste0('./output/species/ms_sim_survey/survey_allocations_',samp,'.RData')) #scn_allocations
+  dimnames(scn_allocations)[[3]]<-c('sys','rand','sb')
   
-  #to store survey samples
-  sim_survey <- array(data = NA, dim = c(dim(scn_allocations)[1]/n_sur/length(yrs),
-                                         length(c("Lon","Lat","cell","strata","sur"))+length(spp),
-                                         n_sur,
-                                         length(yrs), #add strata number
-                                         n_sim_hist,
-                                         length(c('sys','rand','sb'))),
-                      dimnames = list(1:(dim(scn_allocations)[1]/n_sur/length(yrs)),
-                                      c("Lon","Lat","cell","strata","sur",spp),
-                                      1:n_sur,
-                                      c(yrs),
-                                      1:n_sim_hist,
-                                      c('sys','rand','sb')))
-  
-  #for each allocation sampling approach
-  for (ap in c('sys','rand','sb')) {
+  foreach(sur = as.character(unique(sur_df$num)), .combine='c') %dopar% {
     
-    #get allocations by sampling allocation approach
-    scn_allocations1<-data.frame(scn_allocations[,,ap])
-
-    #for simulated data (100 sim hist.) run 100 survey * 40 years
-    for (isim in isim) {
-
-      #get simulation from simulated densities
-      sim_hist_dens1<-sim_hist_dens_spp[,,isim,]
-      
-      #for 100 simulated surveys in each year
-      for (y in yrs) {
-        
-          #anual simulated densities
-          sim_hist_dens2<-sim_hist_dens1[,y,]
-        
-          #loop over 100 surveys
-          for (isur in 1:n_sur) {
-
-              #get survey number 1:4000 (40y * 100sur)
-              sur_num<-sur_df[which(sur_df$year==y & sur_df$sur==isur),'num']
-          
-              #get allocation at survey
-              scn_allocations2<-scn_allocations1[which(scn_allocations1$sur==sur_num),]
-          
-              #store densities for each survey
-              sim_survey[,,isur,y,isim,ap]<-cbind(scn_allocations2,sim_hist_dens1[scn_allocations2$cell,y,])
-         
-        }
-      }
-    }
+    #sur<-as.character(unique(sur_df$num)[1])
+    
+    #systematic
+    sim_survey[,,as.character(sur_df[which(sur_df$num==sur),'year']),as.character(sur_df[which(sur_df$num==sur),'sur']),'sys'] <- 
+      cbind(scn_allocations[scn_allocations[,'sur','sys']==sur,c('cell','strata'),'sys'],
+            dens=sim_dens1[scn_allocations[scn_allocations[,'sur','sys']==sur,c('strata'),'sys'],,
+                           as.character(sur_df[which(sur_df$num==sur),'year']),
+                           as.character(sur_df[which(sur_df$num==sur),'sur'])])
+    
+    #random
+    sim_survey[,,as.character(sur_df[which(sur_df$num==sur),'year']),as.character(sur_df[which(sur_df$num==sur),'sur']),'rand'] <- 
+      cbind(scn_allocations[scn_allocations[,'sur','rand']==sur,c('cell','strata'),'rand'],
+            dens=sim_dens1[scn_allocations[scn_allocations[,'sur','rand']==sur,c('strata'),'rand'],,
+                           as.character(sur_df[which(sur_df$num==sur),'year']),
+                           as.character(sur_df[which(sur_df$num==sur),'sur'])])
+    
+    #sb
+    sim_survey[,,as.character(sur_df[which(sur_df$num==sur),'year']),as.character(sur_df[which(sur_df$num==sur),'sur']),'sb'] <- 
+      cbind(scn_allocations[scn_allocations[,'sur','sb']==sur,c('cell','strata'),'sb'],
+            dens=sim_dens1[scn_allocations[scn_allocations[,'sur','sb']==sur,c('strata'),'sb'],,
+                           as.character(sur_df[which(sur_df$num==sur),'year']),
+                           as.character(sur_df[which(sur_df$num==sur),'sur'])])
+    
   }
-  
-  #store results
-  save(sim_survey, file = paste0('./output/species/ms_sim_survey/sim_hist_survey_',samp,'.RData'))  
-  #save(all_points, file = paste0('./output/species/allocations_hist_survey_',samp,'.RData'))     
-  
-  rm(sim_survey)
+  save(sim_survey, file = paste0('./output/species/ms_sim_survey/hist_survey_',samp,'.RData'))  
   
 }
+
+# Stopping the parallel backend
+stopCluster(cl)
+
+
 
 
 ################
@@ -632,7 +651,7 @@ for (sp in spp) {
               }
             }
         #store results
-        save(sim_survey, file = paste0('./output/species/Gadus chalcogrammus/simulated survey project/sim_proj_survey_sbt',sbt,'_',samp,'.RData'))  
+        save(sim_survey, file = paste0('./output/species/',sp,'/simulated survey project/sim_proj_survey_sbt',sbt,'_',samp,'.RData'))  
         #save(all_points, file = paste0('./output/species/allocations_hist_survey_',samp,'.RData'))     
         
         rm(sim_survey)
