@@ -14,7 +14,7 @@ rm(list = ls(all.names = TRUE))
 gc() 
 
 #libraries from cran to call or install/load
-pack_cran<-c('ggplot2','units','splines','raster','sp')
+pack_cran<-c('ggplot2','units','splines','raster','sp','foreach','doParallel')
 
 #install pacman to use p_load function - call library and if not installed, then install
 if (!('pacman' %in% installed.packages())) {
@@ -188,13 +188,13 @@ sim_proj_dens_spp<-array(NA,
 
 
 ######################
-# HISTORICAL DATA
+# SIMULATE HISTORICAL DATA
 ######################
 
 #loop over spp
 for (sp in spp) {
   
-  #sp<-spp[1]
+  #sp<-spp[14]
   
   #create folder simulation data
   dir.create(paste0('./output/species/',sp,'/'))
@@ -205,11 +205,11 @@ for (sp in spp) {
   dir.create(paste0('./shelf EBS NBS VAST/',sp))
   file<-files.5[grep('fit',files.5$name),]
   
-  #download file
-  googledrive::drive_download(file=file$id,
-                              path = paste0('./shelf EBS NBS VAST/',sp,'/fit.RData'),
-                              overwrite = TRUE)
-  
+  # #download file
+  # googledrive::drive_download(file=file$id,
+  #                             path = paste0('./shelf EBS NBS VAST/',sp,'/fit.RData'),
+  #                             overwrite = TRUE)
+  # 
   #get list of fit data
   ff<-list.files(paste0('./shelf EBS NBS VAST/',sp),'fit',recursive = TRUE)
   
@@ -295,29 +295,28 @@ for (sp in spp) {
   #create folder simulation data
   dir.create(paste0('./output/species/',sp,'/simulated historical data/'))
 
-  #loop over simulations
   for (isim in 1:n_sim_hist) { #simulations
-
-   #isim<-1
-
-   #print simulation to check progress
-   cat(paste(" #############   Species", sp, match(sp,spp), 'out of',length(spp),  "  #############\n",
-             " #############  historical simulation", isim, "of",n_sim_hist, " #############\n"))
-
-   #simulate data from OM
-   Sim1 <- FishStatsUtils::simulate_data(fit = fit, #kg/km2
-                                         type = 1,
-                                         random_seed = isim)
-
-   #select simulated data that belong to grid points
-   sim_bio <-matrix(data = Sim1$b_i[pred_TF == 1], #kg
-                    nrow = nrow(grid),
-                    ncol = length(unique(yrs)))
-
-
-   #biomass (kg) to CPUE (kg/km2)
-   sim_dens[,,isim]<-sim_bio/grid$Area_in_survey_km2
-
+    
+    #isim<-1
+    
+    #print simulation to check progress
+    cat(paste(" #############   Species", sp, match(sp,spp), 'out of',length(spp),  "  #############\n",
+              " #############  historical simulation", isim, "of",n_sim_hist, " #############\n"))
+    
+    #simulate data from OM
+    Sim1 <- FishStatsUtils::simulate_data(fit = fit, #kg/km2
+                                          type = 1,
+                                          random_seed = isim)
+    
+    #select simulated data that belong to grid points
+    sim_bio <-matrix(data = Sim1$b_i[pred_TF == 1], #kg
+                     nrow = nrow(grid),
+                     ncol = length(unique(yrs)))
+    
+    
+    #biomass (kg) to CPUE (kg/km2)
+    sim_dens[,,isim]<-sim_bio/grid$Area_in_survey_km2
+    
   }
 
   #save data
@@ -328,13 +327,60 @@ for (sp in spp) {
 }
 
 #save 100 simulated historical densities for all species
-save(sim_hist_dens_spp, file = paste0("./output/species/sim_hist_dens_spp.RData"))
+#save(sim_hist_dens_spp, file = paste0("./output/species/sim_hist_dens_spp.RData"))
 #save true densities and index for all species
-save(dens_index_hist_OM, file = paste0("./output/species/dens_index_hist_OM.RData")) 
-  
+#save(dens_index_hist_OM, file = paste0("./output/species/dens_index_hist_OM.RData")) 
 
 ######################
-# PROJECTED DATA
+# RESHAPE SIMULATED HISTORICAL DATA
+######################
+
+library(foreach)
+library(doParallel)
+
+# Initializing parallel backend
+cl <- makeCluster(detectCores()-1)  # Using all available cores
+registerDoParallel(cl)
+
+# Parallelizing the loop
+#foreach(samp = samp_df$samp_scn) %dopar% {
+
+#samp<-'scn1'
+#start_time_parallel <- Sys.time()
+
+#array to store simulated densities/CPUE
+sim_dens1 <- array(NA,
+                   dim = c(nrow(grid), length(spp), length(unique(yrs)), n_sim),
+                   dimnames = list(1:nrow(grid), spp, unique(yrs), 1:n_sim))
+
+
+foreach(sp = spp) %do% {
+  
+  #sp<-spp[1]
+  
+  load(paste0('./output/species/', sp, '/simulated historical data/sim_dens.RData'))
+  
+  #sim_dens[,as.character(yrs),]
+  
+  foreach(y = yrs) %:%
+    foreach(sim = 1:n_sim) %do% {
+      #y<-'1982';sim<-'1'
+      
+      sim_dens1[, sp, as.character(y), as.character(sim)] <- sim_dens[, as.character(y), as.character(sim)]
+    }
+}
+#end_time_parallel <- Sys.time()
+#store results
+#}
+# Stopping the parallel backend
+stopCluster(cl)
+
+
+save(sim_dens1, file = paste0('./output/species/ms_sim_dens.RData'))  
+
+
+######################
+# SIMULATE PROJECTED DATA 
 ######################
 
   #get raster stack
