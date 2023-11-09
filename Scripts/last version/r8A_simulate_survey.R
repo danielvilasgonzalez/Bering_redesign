@@ -289,6 +289,8 @@ n_sim_proj<- 100
         #    #for while purposes
         #    flag<-TRUE
             
+            str_alloc<-list()
+            
           
             for (str in allocations$strata) {
               
@@ -376,18 +378,18 @@ n_sim_proj<- 100
                 
                 #if current sampling design
                 if (samp_df[s, 'samp_scn'] == 'scnbase') {
-                  pointsc <- current[which(current$stratum == str), c('longitude', 'latitude', 'cell', 'stratum')]
+                  pointsc <- current[which(current$stratum == str), c('Lon', 'Lat', 'cell', 'Stratum')]
                   names(pointsc) <- c('Lon', 'Lat', 'cell', 'strata')
                   
                   #if current sampling design w/o corner
                 } else if (samp_df[s, 'samp_scn'] == 'scnbase_bis') {
-                  pointsc <- current[which(current$corner == FALSE & current$stratum == str), c('longitude', 'latitude', 'cell', 'stratum')]
+                  pointsc <- current[which(current$corner == FALSE & current$stratum == str), c('Lon', 'Lat', 'cell', 'Stratum')]
                   names(pointsc) <- c('Lon', 'Lat', 'cell', 'strata')
                   
                   #if optimized sampling design
                 } else {
                   
-                  sys <- current[which(current$strata == str), c('longitude', 'latitude', 'cell', 'strata')]
+                  sys <- current[which(current$strata == str), c('Lon', 'Lat', 'cell', 'strata')]
                   names(sys) <- c('Lon', 'Lat', 'cell', 'strata')
                   
                   #if more required samples than available
@@ -457,12 +459,25 @@ n_sim_proj<- 100
               #points(spbsamp,col='blue',pch=19)
               #points(syssamp,col='red',pch=19)
               
+              #store into a list
+              str_alloc[[str]]<-list(dfrandom = dfrandom, dfspb = dfspb, dfcurrent = dfcurrent)
+              
             }
             
-          scn_allocations[,,'sys'] <- unlist(dfcurrent)
-          scn_allocations[,,'rand'] <- unlist(dfrandom)
-          scn_allocations[,,'sb'] <- unlist(dfspb)
+            #reshape
+            cur<-dplyr::bind_rows(lapply(str_alloc, function(x) x[['dfcurrent']]))
+            rand<-dplyr::bind_rows(lapply(str_alloc, function(x) x[['dfrandom']]))
+            spb<-dplyr::bind_rows(lapply(str_alloc, function(x) x[['dfspb']]))
+
+          #append results 
+          scn_allocations[,,'sys'] <- unlist(cur)
+          scn_allocations[,,'rand'] <- unlist(rand)
+          scn_allocations[,,'sb'] <- unlist(spb)
         
+          
+          #remove
+          rm(dfcurrent,dfrandom,dfspb,str_alloc,cur,rand,spb)
+          
           #data.frame(table(dfcurrent[,c("strata",'sur')]))
           #data.frame(table(dfcurrent[,c('sur')]))    
               
