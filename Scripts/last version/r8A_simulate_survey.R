@@ -510,11 +510,10 @@ library(doParallel)
 # Initializing parallel backend
 cl <- makeCluster(detectCores()-1)  # Using all available cores
 registerDoParallel(cl)
-
-load(file = paste0('./output/species/ms_sim_dens.RData'))  #sim_dens1, 
+load(file = paste0('./output/species/ms_sim_dens.RData'))  #sim_dens1
 
 # Parallelizing the loop
-foreach(samp = samp_df$samp_scn) %dopar% {
+for (samp in samp_df$samp_scn)  {
   
   samp<-'scn1'
   #start_time_parallel <- Sys.time()
@@ -522,39 +521,46 @@ foreach(samp = samp_df$samp_scn) %dopar% {
   #array to store simulated densities/CPUE
   alloc<-ifelse(samp=='scnbase_bis',494,520)
   sim_survey <- array(NA,
-                      dim = c(alloc, length(spp)+2, length(unique(yrs)), n_sim,length(c('sys','rand','sb'))),
-                      dimnames = list(1:alloc, c('cell','strata',spp), unique(yrs), 1:n_sim,c('sys','rand','sb')))
+                      dim = c(alloc, length(spp)+2, length(unique(yrs)), n_sim_hist,n_sur,length(c('sys','rand','sb'))),
+                      dimnames = list(1:alloc, c('cell','strata',spp), unique(yrs), 1:n_sim_hist,1:n_sur,c('sys','rand','sb')))
   
   #load survey allocations by sampling design
   load(file = paste0('./output/survey_allocations_',samp,'.RData')) #scn_allocations
   dimnames(scn_allocations)[[3]]<-c('sys','rand','sb')
   
-  foreach(sur = as.character(unique(sur_df$num)), .combine='c') %dopar% {
+  for (isim in 1:n_sim) {
     
-    #sur<-as.character(unique(sur_df$num)[1])
-    
-    #systematic
-    sim_survey[,,as.character(sur_df[which(sur_df$num==sur),'year']),as.character(sur_df[which(sur_df$num==sur),'sur']),'sys'] <- 
-      cbind(scn_allocations[scn_allocations[,'sur','sys']==sur,c('cell','strata'),'sys'],
-            dens=sim_dens1[scn_allocations[scn_allocations[,'sur','sys']==sur,c('strata'),'sys'],,
-                           as.character(sur_df[which(sur_df$num==sur),'year']),
-                           as.character(sur_df[which(sur_df$num==sur),'sur'])])
-    
-    #random
-    sim_survey[,,as.character(sur_df[which(sur_df$num==sur),'year']),as.character(sur_df[which(sur_df$num==sur),'sur']),'rand'] <- 
-      cbind(scn_allocations[scn_allocations[,'sur','rand']==sur,c('cell','strata'),'rand'],
-            dens=sim_dens1[scn_allocations[scn_allocations[,'sur','rand']==sur,c('strata'),'rand'],,
-                           as.character(sur_df[which(sur_df$num==sur),'year']),
-                           as.character(sur_df[which(sur_df$num==sur),'sur'])])
-    
-    #sb
-    sim_survey[,,as.character(sur_df[which(sur_df$num==sur),'year']),as.character(sur_df[which(sur_df$num==sur),'sur']),'sb'] <- 
-      cbind(scn_allocations[scn_allocations[,'sur','sb']==sur,c('cell','strata'),'sb'],
-            dens=sim_dens1[scn_allocations[scn_allocations[,'sur','sb']==sur,c('strata'),'sb'],,
-                           as.character(sur_df[which(sur_df$num==sur),'year']),
-                           as.character(sur_df[which(sur_df$num==sur),'sur'])])
-    
+    for (y in as.character(yrs)) {
+      
+      #isim<-1;y<-as.character(yrs[1])
+      
+      sim_dens2<-sim_dens1[,,y,isim]
+      
+      surs<-sample(1:max(sur_df$num),size = n_sur)  
+      
+      for (sur in surs) {
+        
+        #sur<-as.character(unique(sur_df$num)[1])
+        
+        #systematic
+        sim_survey[,,y,isim,as.character(sur),'sys'] <- 
+          cbind(scn_allocations[scn_allocations[,'sur','sys']==sur,c('cell','strata'),'sys'],
+                dens=sim_dens2[scn_allocations[scn_allocations[,'sur','sys']==sur,c('cell'),'sys'],])
+        
+        #random
+        sim_survey[,,as.character(sur_df[which(sur_df$num==sur),'year']),as.character(sur_df[which(sur_df$num==sur),'sur']),'rand'] <- 
+          cbind(scn_allocations[scn_allocations[,'sur','rand']==sur,c('cell','strata'),'rand'],
+                dens=sim_dens2[scn_allocations[scn_allocations[,'sur','rand']==sur,c('cell'),'rand'],])
+        
+        #sb
+        sim_survey[,,as.character(sur_df[which(sur_df$num==sur),'year']),as.character(sur_df[which(sur_df$num==sur),'sur']),'sb'] <- 
+          cbind(scn_allocations[scn_allocations[,'sur','sb']==sur,c('cell','strata'),'sb'],
+                dens=sim_dens2[scn_allocations[scn_allocations[,'sur','sb']==sur,c('cell'),'sb'],])
+        
+      }
+    }
   }
+  
   save(sim_survey, file = paste0('./output/species/ms_sim_survey/hist_survey_',samp,'.RData'))  
   
 }
