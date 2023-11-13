@@ -549,9 +549,9 @@ for (samp in samp_df$samp_scn)  {
   load(file = paste0('./output/survey_allocations_',samp,'.RData')) #scn_allocations
   dimnames(scn_allocations)[[3]]<-c('sys','rand','sb')
   
-  for (isim in 1:n_sim) {
+  for (isim in 1:n_sim_hist) {
 
-    #fol<- list_of_folders[isim]
+    fol<- list_of_folders[isim]
     
     sim_survey <- array(NA,
                         dim = c(alloc, length(spp)+2, length(unique(yrs)), n_sur,length(c('sys','rand','sb'))),
@@ -566,29 +566,31 @@ for (samp in samp_df$samp_scn)  {
       
       surs<-sample(1:max(sur_df$num),size = n_sur)  
       
-      for (sur in surs) {
+      for (sur in as.character(surs)) {
         
-        #sur<-as.character(unique(sur_df$num)[1])
+        #sur<-as.character(surs)[1]
 
+        cat(paste(" #############  ",samp,'- simdata',isim, '- year',y,'- simsur',sur ," #############\n"))
+      
         #systematic
-        sim_survey[,,y,as.character(sur),'sys'] <- 
+        sim_survey[,,y, match(sur,surs),'sys'] <- 
           cbind(scn_allocations[scn_allocations[,'sur','sys']==sur,c('cell','strata'),'sys'],
                 dens=sim_dens2[scn_allocations[scn_allocations[,'sur','sys']==sur,c('cell'),'sys'],])
         
         #random
-        sim_survey[,,y,as.character(sur),'rand'] <- 
+        sim_survey[,,y, match(sur,surs),'rand'] <- 
           cbind(scn_allocations[scn_allocations[,'sur','rand']==sur,c('cell','strata'),'rand'],
                 dens=sim_dens2[scn_allocations[scn_allocations[,'sur','rand']==sur,c('cell'),'rand'],])
         
         #sb
-        sim_survey[,,y,as.character(sur),'sb']  <- 
+        sim_survey[,,y, match(sur,surs),'sb']  <- 
           cbind(scn_allocations[scn_allocations[,'sur','sb']==sur,c('cell','strata'),'sb'],
                 dens=sim_dens2[scn_allocations[scn_allocations[,'sur','sb']==sur,c('cell'),'sb'],])
         
       }
     }
     
-    save(sim_survey, file = paste0('./output/ms_sim_survey/',fol,'/','sim_survey.RData'))  
+    save(sim_survey, file = paste0('./output/ms_sim_survey/',fol,'/sim_survey_',samp,'.RData'))  
     
   }
 
