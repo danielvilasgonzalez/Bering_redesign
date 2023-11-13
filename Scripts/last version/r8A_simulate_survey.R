@@ -161,12 +161,17 @@ n_sim_proj<- 100
 #number of surveys
 n_sur<-100
 
+<<<<<<< HEAD
 ###############
 # get simulated allocations - survey simulation
 ################
  
 #loop over sampling designs
 for (samp in unique(samp_df$samp_scn)) { #sampling designs
+=======
+    #loop over sampling designs
+    for (samp in unique(samp_df$samp_scn)[2:5]) { #sampling designs
+>>>>>>> d5cac16b2b00ae481ea48712f33f4722311dfe4e
       
       #samp<-unique(samp_df$samp_scn)[1]
       
@@ -382,18 +387,18 @@ for (samp in unique(samp_df$samp_scn)) { #sampling designs
                 
                 #if current sampling design
                 if (samp_df[s, 'samp_scn'] == 'scnbase') {
-                  pointsc <- current[which(current$stratum == str), c('Lon', 'Lat', 'cell', 'Stratum')]
+                  pointsc <- current[which(current$stratum == str), c('longitude', 'latitude', 'cell', 'stratum')]
                   names(pointsc) <- c('Lon', 'Lat', 'cell', 'strata')
                   
                   #if current sampling design w/o corner
                 } else if (samp_df[s, 'samp_scn'] == 'scnbase_bis') {
-                  pointsc <- current[which(current$corner == FALSE & current$stratum == str), c('Lon', 'Lat', 'cell', 'Stratum')]
+                  pointsc <- current[which(current$corner == FALSE & current$stratum == str), c('longitude', 'latitude', 'cell', 'stratum')]
                   names(pointsc) <- c('Lon', 'Lat', 'cell', 'strata')
                   
                   #if optimized sampling design
                 } else {
                   
-                  sys <- current[which(current$strata == str), c('Lon', 'Lat', 'cell', 'strata')]
+                  sys <- current[which(current$strata == str), c('longitude', 'latitude', 'cell', 'strata')]
                   names(sys) <- c('Lon', 'Lat', 'cell', 'strata')
                   
                   #if more required samples than available
@@ -489,7 +494,7 @@ for (samp in unique(samp_df$samp_scn)) { #sampling designs
           #nrow(dfcurrent)==as.numeric(n_samples)*n_sur*length(yrs)    
           #dfcurrent$year<-rep(yrs,each=as.numeric(n_samples)*n_sur)
 
-          save(scn_allocations, file = paste0('./output/species/ms_sim_survey/survey_allocations_',samp,'.RData')) 
+          save(scn_allocations, file = paste0('./output/survey_allocations_',samp,'.RData')) 
           
     }
       
@@ -499,7 +504,7 @@ for (samp in unique(samp_df$samp_scn)) { #sampling designs
 ################
  
 #samp<-samp_df$samp_scn[1];ap<-'sb';isim<-1;isur<-1;y<-'1986'
-
+n_sur=100
 sur_df<-
 data.frame(num=1:(length(yrs)*n_sur),
            year=rep(yrs,times=n_sur),
