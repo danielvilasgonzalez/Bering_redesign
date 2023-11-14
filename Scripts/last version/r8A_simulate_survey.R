@@ -603,6 +603,117 @@ stopCluster(cl)
 
 
 
+# ################
+# # get simulated densities from simulated survey PROJECTED
+# ################
+# 
+# #all 4000 surveys (year5, sur100, sbt8)
+# sur_df<-cbind(num=1:nrow(expand.grid(project_yrs,df_sbt$sbt,1:n_sur)),expand.grid(year=project_yrs,sbt=df_sbt$sbt_n,sur=1:n_sur))
+# 
+# #load sbt scenarios
+# load('./tables/SBT_projection.RData') #df_sbt
+# 
+# #loop over species
+# for (sp in spp) {
+#   
+#   #sp<-spp[1]
+#   
+#   #loop over 8 temperature scenarios
+#   for (sbt in unique(df_sbt$sbt_n)) {
+#     
+#     #sbt<-df_sbt$sbt_n[1]
+#     
+#     cat(paste(" #############  spp",sp,'- sbt',sbt ," #############\n"))
+#     
+#     
+#     load(file = paste0("./output/species/",sp,"/simulated projected data/SBT",sbt," dens_index_proj_OM_50.RData")) #dens_index_proj_OM
+#     dens_index_proj_OM_50<-dens_index_proj_OM
+#     load(file = paste0("./output/species/",sp,"/simulated projected data/SBT",sbt," dens_index_proj_OM_100.RData")) #dens_index_proj_OM
+#     dens_index_proj_OM_100<-dens_index_proj_OM
+#     rm(dens_index_proj_OM)
+#     
+#       #for each sampling design
+#       for (samp in samp_df$samp_scn) {
+#         
+#         #samp<-samp_df$samp_scn[1]
+#         
+#         #load survey allocations by sampling design
+#         load(file = paste0('./output/species/ms_sim_survey/survey_allocations_',samp,'.RData')) #scn_allocations
+#         
+#         #to store survey samples
+#         sim_survey <- array(data = NA, dim = c(dim(scn_allocations)[1]/n_sur/length(yrs),
+#                                                length(c("Lon","Lat","cell","strata","sur"))+1,
+#                                                n_sim_proj,
+#                                                length(c('sys','rand','sb')),
+#                                                n_sur,
+#                                                length(project_yrs)),
+#                             dimnames = list(c(1:(dim(scn_allocations)[1]/n_sur/length(yrs))),
+#                                             c("Lon","Lat","cell","strata","sur",'CPUE_kgkm'),
+#                                             1:n_sim_proj,
+#                                             c('sys','rand','sb'),
+#                                             1:n_sur,
+#                                             as.character(project_yrs)))
+#       
+#       #loop over each of 100 simulated projections
+#       for (isim in 1:n_sim_proj) {
+#       
+#         cat(paste(" #############  simulated data", isim," #############\n"))
+#         
+#         #isim<-1
+#         
+#         if (isim %in% 1:50) {
+#           dens_index_proj_OM1<-data.frame(drop_units(dens_index_proj_OM_50[[paste0('sim',isim)]]$dens),check.names = FALSE)
+#         } else if (isim %in% 51:100) {
+#           dens_index_proj_OM1<-data.frame(drop_units(dens_index_proj_OM_100[[paste0('sim',isim-50)]]$dens),check.names = FALSE)
+#         }
+#         
+#         # #for 100 simulated surveys in each year
+#         # for (y in project_yrs) {
+#         #   
+#         #   y<-2023
+#         #   dd<-dens_index_proj_OM1[,as.character(y)]
+#           
+#         dim(dens_index_proj_OM1)
+#         dd<-dens_index_proj_OM1[,as.character(project_yrs)]
+#     
+#           #for each allocation sampling approach
+#           for (ap in c('sys','rand','sb')) {
+#             
+#             #ap<-'systematic'
+#               
+#             #get allocations by sampling allocation approach
+#             scn_allocations1<-data.frame(scn_allocations[,,ap])
+#             
+#                 #loop over 100 surveys
+#                 for (isur in 1:n_sur) {
+#                   
+#                   #get survey number 1:4000 (5y * 8 sbt * 100sur)
+#                   sur_num<-sur_df[which(sur_df$sbt==sbt & sur_df$sur==isur),] #'num'
+#                   
+#                   for (y in as.character(project_yrs)) {
+#                     
+#                     #y<-project_yrs[1]
+#                     
+#                     scn_allocations2<-scn_allocations1[which(scn_allocations1$sur == sur_num[which(sur_num$year==y),'num']),]
+#                     dd1<-dd[scn_allocations2$cell,as.character(y)]
+# 
+#                     sim_survey[,,isim,ap,isur,y]<-cbind(scn_allocations2,CPUE_kgkm=dd1)
+#                     
+#                   }
+#                 }
+#               }
+#             }
+#         #store results
+#         save(sim_survey, file = paste0('./output/species/',sp,'/simulated survey project/sim_proj_survey_sbt',sbt,'_',samp,'.RData'))  
+#         #save(all_points, file = paste0('./output/species/allocations_hist_survey_',samp,'.RData'))     
+#         
+#         rm(sim_survey)
+#       }
+#     }
+#   }              
+   
+
+
 ################
 # get simulated densities from simulated survey PROJECTED
 ################
@@ -613,10 +724,14 @@ sur_df<-cbind(num=1:nrow(expand.grid(project_yrs,df_sbt$sbt,1:n_sur)),expand.gri
 #load sbt scenarios
 load('./tables/SBT_projection.RData') #df_sbt
 
+simdata<-array(NA,
+               dim = c(nrow(grid), length(spp), length(unique(2023:2027)), n_sim_proj,length(df_sbt$sbt)),
+               dimnames = list(1:nrow(grid),spp, as.character(2023:2027), 1:n_sim_proj,df_sbt$sbt))
+
 #loop over species
 for (sp in spp) {
   
-  #sp<-spp[1]
+  sp<-spp[1]
   
   #loop over 8 temperature scenarios
   for (sbt in unique(df_sbt$sbt_n)) {
@@ -632,84 +747,104 @@ for (sp in spp) {
     dens_index_proj_OM_100<-dens_index_proj_OM
     rm(dens_index_proj_OM)
     
-      #for each sampling design
-      for (samp in samp_df$samp_scn) {
-        
-        #samp<-samp_df$samp_scn[1]
-        
-        #load survey allocations by sampling design
-        load(file = paste0('./output/species/ms_sim_survey/survey_allocations_',samp,'.RData')) #scn_allocations
-        
-        #to store survey samples
-        sim_survey <- array(data = NA, dim = c(dim(scn_allocations)[1]/n_sur/length(yrs),
-                                               length(c("Lon","Lat","cell","strata","sur"))+1,
-                                               n_sim_proj,
-                                               length(c('sys','rand','sb')),
-                                               n_sur,
-                                               length(project_yrs)),
-                            dimnames = list(c(1:(dim(scn_allocations)[1]/n_sur/length(yrs))),
-                                            c("Lon","Lat","cell","strata","sur",'CPUE_kgkm'),
-                                            1:n_sim_proj,
-                                            c('sys','rand','sb'),
-                                            1:n_sur,
-                                            as.character(project_yrs)))
+    for (i in 1:50) {
       
-      #loop over each of 100 simulated projections
-      for (isim in 1:n_sim_proj) {
+      #i<-1
+      d1<-dens_index_proj_OM_50[[i]]$dens[,as.character(2023:2027)]
+      d2<-dens_index_proj_OM_100[[i]]$dens[,as.character(2023:2027)]
       
-        cat(paste(" #############  simulated data", isim," #############\n"))
+      for (y in as.character(2023:2027)) {
         
-        #isim<-1
+        #y<-as.character(2023:2027)[1]
         
-        if (isim %in% 1:50) {
-          dens_index_proj_OM1<-data.frame(drop_units(dens_index_proj_OM_50[[paste0('sim',isim)]]$dens),check.names = FALSE)
-        } else if (isim %in% 51:100) {
-          dens_index_proj_OM1<-data.frame(drop_units(dens_index_proj_OM_100[[paste0('sim',isim-50)]]$dens),check.names = FALSE)
-        }
+        simdata[,sp,y,i,sbt]<-d1[,y]
+        simdata[,sp,y,i+50,sbt]<-d2[,y]
         
-        # #for 100 simulated surveys in each year
-        # for (y in project_yrs) {
-        #   
-        #   y<-2023
-        #   dd<-dens_index_proj_OM1[,as.character(y)]
-          
-        dim(dens_index_proj_OM1)
-        dd<-dens_index_proj_OM1[,as.character(project_yrs)]
-    
-          #for each allocation sampling approach
-          for (ap in c('sys','rand','sb')) {
-            
-            #ap<-'systematic'
-              
-            #get allocations by sampling allocation approach
-            scn_allocations1<-data.frame(scn_allocations[,,ap])
-            
-                #loop over 100 surveys
-                for (isur in 1:n_sur) {
-                  
-                  #get survey number 1:4000 (5y * 8 sbt * 100sur)
-                  sur_num<-sur_df[which(sur_df$sbt==sbt & sur_df$sur==isur),] #'num'
-                  
-                  for (y in as.character(project_yrs)) {
-                    
-                    #y<-project_yrs[1]
-                    
-                    scn_allocations2<-scn_allocations1[which(scn_allocations1$sur == sur_num[which(sur_num$year==y),'num']),]
-                    dd1<-dd[scn_allocations2$cell,as.character(y)]
-
-                    sim_survey[,,isim,ap,isur,y]<-cbind(scn_allocations2,CPUE_kgkm=dd1)
-                    
-                  }
-                }
-              }
-            }
-        #store results
-        save(sim_survey, file = paste0('./output/species/',sp,'/simulated survey project/sim_proj_survey_sbt',sbt,'_',samp,'.RData'))  
-        #save(all_points, file = paste0('./output/species/allocations_hist_survey_',samp,'.RData'))     
-        
-        rm(sim_survey)
       }
     }
-  }              
-                  
+  }
+  
+  
+  
+  
+  
+  #for each sampling design
+  for (samp in samp_df$samp_scn) {
+    
+    #samp<-samp_df$samp_scn[1]
+    
+    #load survey allocations by sampling design
+    load(file = paste0('./output/species/ms_sim_survey/survey_allocations_',samp,'.RData')) #scn_allocations
+    
+    #to store survey samples
+    sim_survey <- array(data = NA, dim = c(dim(scn_allocations)[1]/n_sur/length(yrs),
+                                           length(c("Lon","Lat","cell","strata","sur"))+1,
+                                           n_sim_proj,
+                                           length(c('sys','rand','sb')),
+                                           n_sur,
+                                           length(project_yrs)),
+                        dimnames = list(c(1:(dim(scn_allocations)[1]/n_sur/length(yrs))),
+                                        c("Lon","Lat","cell","strata","sur",'CPUE_kgkm'),
+                                        1:n_sim_proj,
+                                        c('sys','rand','sb'),
+                                        1:n_sur,
+                                        as.character(project_yrs)))
+    
+    #loop over each of 100 simulated projections
+    for (isim in 1:n_sim_proj) {
+      
+      cat(paste(" #############  simulated data", isim," #############\n"))
+      
+      #isim<-1
+      
+      if (isim %in% 1:50) {
+        dens_index_proj_OM1<-data.frame(drop_units(dens_index_proj_OM_50[[paste0('sim',isim)]]$dens),check.names = FALSE)
+      } else if (isim %in% 51:100) {
+        dens_index_proj_OM1<-data.frame(drop_units(dens_index_proj_OM_100[[paste0('sim',isim-50)]]$dens),check.names = FALSE)
+      }
+      
+      # #for 100 simulated surveys in each year
+      # for (y in project_yrs) {
+      #  
+      #   y<-2023
+      #   dd<-dens_index_proj_OM1[,as.character(y)]
+      
+      dim(dens_index_proj_OM1)
+      dd<-dens_index_proj_OM1[,as.character(project_yrs)]
+      
+      #for each allocation sampling approach
+      for (ap in c('sys','rand','sb')) {
+        
+        #ap<-'systematic'
+        
+        #get allocations by sampling allocation approach
+        scn_allocations1<-data.frame(scn_allocations[,,ap])
+        
+        #loop over 100 surveys
+        for (isur in 1:n_sur) {
+          
+          #get survey number 1:4000 (5y * 8 sbt * 100sur)
+          sur_num<-sur_df[which(sur_df$sbt==sbt & sur_df$sur==isur),] #'num'
+          
+          for (y in as.character(project_yrs)) {
+            
+            #y<-project_yrs[1]
+            
+            scn_allocations2<-scn_allocations1[which(scn_allocations1$sur == sur_num[which(sur_num$year==y),'num']),]
+            dd1<-dd[scn_allocations2$cell,as.character(y)]
+            
+            sim_survey[,,isim,ap,isur,y]<-cbind(scn_allocations2,CPUE_kgkm=dd1)
+            
+          }
+        }
+      }
+    }
+    #store results
+    save(sim_survey, file = paste0('./output/species/',sp,'/simulated survey project/sim_proj_survey_sbt',sbt,'_',samp,'.RData'))  
+    #save(all_points, file = paste0('./output/species/allocations_hist_survey_',samp,'.RData'))    
+    
+    rm(sim_survey)
+  }
+}
+}                 
                   
