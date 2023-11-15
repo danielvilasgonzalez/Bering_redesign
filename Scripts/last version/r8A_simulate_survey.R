@@ -161,17 +161,12 @@ n_sim_proj<- 100
 #number of surveys
 n_sur<-100
 
-<<<<<<< HEAD
 ###############
 # get simulated allocations - survey simulation
 ################
  
 #loop over sampling designs
 for (samp in unique(samp_df$samp_scn)) { #sampling designs
-=======
-    #loop over sampling designs
-    for (samp in unique(samp_df$samp_scn)[2:5]) { #sampling designs
->>>>>>> d5cac16b2b00ae481ea48712f33f4722311dfe4e
       
       #samp<-unique(samp_df$samp_scn)[1]
       
@@ -539,7 +534,7 @@ print(list_of_folders)
 # Parallelizing the loop
 for (samp in samp_df$samp_scn)  {
   
-  #samp<-'scn1'
+  samp<-'scn1'
   #start_time_parallel <- Sys.time()
   
   #array to store simulated densities/CPUE
@@ -549,7 +544,7 @@ for (samp in samp_df$samp_scn)  {
   load(file = paste0('./output/survey_allocations_',samp,'.RData')) #scn_allocations
   dimnames(scn_allocations)[[3]]<-c('sys','rand','sb')
   
-  for (isim in 1:n_sim_hist) {
+  for (isim in 2:n_sim_hist) {
 
     fol<- list_of_folders[isim]
     
@@ -561,6 +556,9 @@ for (samp in samp_df$samp_scn)  {
     for (y in as.character(yrs)) {
       
       #isim<-1;y<-as.character(yrs[1])
+      
+      cat(paste(" #############  ",samp,'- simdata',isim, '- year',y," #############\n"))
+      
       
       sim_dens2<-sim_dens1[,,y,isim]
       
@@ -588,9 +586,10 @@ for (samp in samp_df$samp_scn)  {
                 dens=sim_dens2[scn_allocations[scn_allocations[,'sur','sb']==sur,c('cell'),'sb'],])
         
       }
+      
     }
     
-    save(sim_survey, file = paste0('./output/ms_sim_survey/',fol,'/sim_survey_',samp,'.RData'))  
+    save(sim_survey, file = paste0(fol,'/sim_survey_',samp,'.RData'))  
     
   }
 
