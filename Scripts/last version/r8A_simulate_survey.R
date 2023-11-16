@@ -78,6 +78,7 @@ load('./extrapolation grids/northern_bering_sea_grid.rda')
 load('./extrapolation grids/eastern_bering_sea_grid.rda')
 grid<-as.data.frame(rbind(data.frame(northern_bering_sea_grid,region='NBS'),data.frame(eastern_bering_sea_grid,region='EBS')))
 grid$cell<-1:nrow(grid)
+grid2<-grid
 #add col and row number
 x1<-grid[,c('Lon','Lat','cell')]
 names(x1)<-c('x','y','z')
@@ -128,21 +129,9 @@ samp_df<-rbind(samp_df,c('baseline','current',520,15,'scnbase'),
 ###################################
 
 load('./output/baseline_strata.RData')
+#add percent of total area per strata
+baseline_strata$strata_areas$pct<-baseline_strata$strata_areas$Area_in_survey_km2/sum(baseline_strata$strata_areas$Area_in_survey_km2)
 
-# ###################################
-# # SIMULATED DENSITIES
-# ###################################
-# 
-# #load data
-# load(file = paste0("./output/species/sim_hist_dens_spp.RData"))    #sim_hist_dens_spp
-# sim_hist_dens<-sim_hist_dens_spp
-# rm(sim_hist_dens_spp)
-# 
-# #load data
-# load(file = paste0("./output/species/sim_proj_dens_spp.RData"))  #sim_proj_dens_spp
-# sim_proj_dens<-sim_proj_dens_spp
-# rm(sim_proj_dens_spp)
-# 
 ###################################
 # SBT scenarios
 ###################################
@@ -161,357 +150,15 @@ n_sim_proj<- 100
 #number of surveys
 n_sur<-100
 
-###############
-# get simulated allocations - survey simulation
+################
+# HISTORICAL
 ################
  
-#loop over sampling designs
-for (samp in unique(samp_df$samp_scn)) { #sampling designs
-      
-      #samp<-unique(samp_df$samp_scn)[1]
-      
-      s<-match(samp,samp_df$samp_scn)
-      
-      n_strata<-samp_df$n_strata[s]
-      n_samples<-samp_df$n_samples[s]
-      
-      if (grepl('base',samp)) { #if it contains base is baseline scenario
-
-        strata<-as.data.frame(baseline_strata$cell_strata)[,c('cell','Lat','Lon','Stratum')]
-        names(strata)[4]<-c('strata')
-        aggregate(strata$cell,by=list(strata$strata),FUN=length)
-        D8<-strata
-
-        #allocations<-
-        if(samp_df[s,'samp_scn']=='scnbase'){
-          allocations<-data.frame('strata'=baseline_strata$n_samples$stratum,
-                                  'n_samples'=baseline_strata$n_samples$scnbase)
-        }else{
-          allocations<-data.frame('strata'=baseline_strata$n_samples$stratum,
-                                  'n_samples'=baseline_strata$n_samples$scnbase_bis)
-        }
-
-      } else {
-        
-
-        #load results_optimization
-        load(file=paste0('./output/ms_optim_allocations_',samp,'.RData')) #list = c('result_list','ss_sample_allocations','ms_sample_allocations','samples_strata','cv_temp')
-        load(file=paste0('./output/multisp_optimization_static_data.RData')) #df
-        df<-df[,c("Lat",'Lon','cell')]
-        
-        
-        #cell - strata
-        strata<-all$result_list$solution$indices #all$result_list$sol_by_cell
-        colnames(strata)<-c('cell','strata')
-        strata<-strata[order(strata$cell),]
-
-        #add a strata value to each cell
-        D8<-merge(df,strata,by='cell',all.x=TRUE)
-        D8<-D8[,c("cell","Lat","Lon","strata")]
-        names(D8)[4]<-'strata'
-        D8$strata<-as.numeric(D8$strata)
-        D8$strata<-ifelse(is.na(D8$strata),999,D8$strata)
-        
-        #strata - n_samples
-        allocations<-data.frame('strata'=all$samples_strata$strata,
-                                'n_samples'=all$samples_strata$n_samples)
-      }
-      
-        #load baseline strata and specify corner stations
-        load('./output/baseline_strata.RData')
-        baseline_strata$locations[grep('GF|HG|JI|IH|ON|QP|PO',baseline_strata$locations$stationid),]
-        baseline_strata$locations$corner<-ifelse(grepl('GF|HG|JI|IH|ON|QP|PO',baseline_strata$locations$stationid),'TRUE','FALSE')
-        
-        #get strata and cells from the current allocation sampling design (stratum current design - strata optimized stratification)
-        current<-merge(baseline_strata$locations,strata,by='cell',all.x=TRUE)
-
-        #create raster polygon of stratified design
-        #df to spatialpoint df
-        D11<-D8
-        coordinates(D11) <- ~ Lon + Lat
-        crs(D11)<-c(crs="+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
-        
-        #reproject coordinates for plotting purposes
-        df_1<-spTransform(D11,'+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs')
-        df_2<-data.frame(df_1)
-        
-        #x and y cells
-        xycells<-as.integer(sqrt(dim(df_1)[1]))
-        
-        # create a template raster
-        r1 <- raster(ext=extent(df_1),ncol=xycells, nrow=xycells) #c(15800,15800) 7000
-        
-        #create raster
-        r2<-rasterize(df_1, r1 ,field=c('strata'))
-        crs(r2) <- CRS('+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs')
-        r2[r2==999]<-NA
-        
-        #create polygon to get boundaries of each strata
-        r3<-as.data.frame(r2,xy=TRUE)
-        r4<-rasterToPolygons(r2$layer,dissolve=TRUE)
-        r5<-spTransform(r4,"+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
-        # plot(r4)
-        # plot(r5)
-        # r6<-spTransform(r5,'+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs')
-        # 
-        # plot(r2)
-        # plot(r6,add=TRUE)
-        # 
-        #replicates n_surveys x n_years
-        rep_sur<-n_sur*length(yrs)
-        
-        #create array to store results
-        #to store survey samples
-        scn_allocations <- array(data = NA, dim = c(as.numeric(n_samples)*rep_sur,
-                                                    length(c('Lat','Lon','cell','strata','sur')),
-                                                    #length(yrs), 
-                                                    length(c('systematic','random','sb'))),
-                                 dimnames = list(1:(as.numeric(n_samples)*rep_sur),
-                                                 c('Lat','Lon','cell','strata','sur'),
-                                                 #c(yrs),
-                                                 c('sys','rand','sb')))
-
-        
-        #for (isur in 1:n_sur) {
-        #  
-        #  isur<-1
-        #  
-        #  for (y in 1:length(yrs)) { #years
-        #    
-        #    y<-1
-        #    
-        #    #year
-        #    yy<-yrs[y]
-        #    
-        #    #to store points
-            dfcurrent<-data.frame(matrix(NA,nrow=0,ncol=5))
-            colnames(dfcurrent)<-c('Lon','Lat','cell','strata','sur')
-            dfspb<-dfrandom<-dfcurrent
-        #    
-        #    #for while purposes
-        #    flag<-TRUE
-            
-            str_alloc<-list()
-            
-          
-            for (str in allocations$strata) {
-              
-              #str<-allocations$strata[1]
-              
-              #print simulation to check progress
-              cat(paste(" #############  sampling design",samp ,'- strata',str ," #############\n"))
-              
-              #number of samples required by str
-              n_i<-allocations[which(allocations$strata==str),'n_samples']
-              
-              #subset cells grid by strata
-              D9<-subset(D8,strata==str)
-              
-              ########################
-              ### RANDOM SAMPLING
-              ########################
-              
-              # Initializing parallel backend
-              cl <- makeCluster(detectCores()-1)
-              registerDoParallel(cl)
-              
-
-              # Parallelizing the loop
-              dfrandom <- foreach(sur = 1:rep_sur, .combine=rbind) %dopar% {
-                #cat(paste(" #############  random sampling", '- survey', sur, " #############\n"))
-                
-                D10 <- D9[sample(nrow(D9), size = n_i, replace = FALSE), ]
-                D10 <- D10[, c('Lon', 'Lat', 'cell', 'strata')]
-                D10$sur <- sur
-                
-                return(D10)
-              }
-              
-              # Stopping the parallel backend
-              stopCluster(cl)
-              
-              ########################
-              ### SPATIALLY BALANCE SAMPLING
-              ########################
-              
-              #get distance among points
-              dis_la <- as.matrix(dist(cbind(D9$Lon, D9$Lat)))
-              D9_st_sf <- st_as_sf(D9, coords = c("Lon", "Lat"))
-              dis_la_sf <- st_distance(D9_st_sf)
-              
-              #PWD
-              con <- rep(0, nrow(dis_la))
-              stand_dist_la_pwd <- Spbsampling::stprod(mat = dis_la, con = con)$mat
-
-              # Initializing parallel backend
-              cl <- makeCluster(detectCores()-1)
-              registerDoParallel(cl)
-              
-              # Create an empty list to store the results
-              dfspb <- foreach(sur = 1:rep_sur, .combine = rbind) %dopar% {
-                
-                #cat(paste(" #############  spatially-balanced sampling", '- survey', sur, " #############\n"))
-                
-                s_pwd_la <- Spbsampling::pwd(dis = stand_dist_la_pwd, n = n_i)$s
-                D10 <- D9[s_pwd_la[1, ], ]
-                
-                D10$sur <- sur
-                # spatially-balancing strata samples
-                spbsamp <- D10[, c('Lon', 'Lat', 'cell', 'strata', 'sur')]
-                
-                return(spbsamp)
-              }
-
-              # Stopping the parallel backend
-              stopCluster(cl)
-              
-              #######################
-              ### SYSTEMATIC SAMPLING
-              #######################
-              
-              # Initializing parallel backend
-              cl <- makeCluster(detectCores()-1)
-              registerDoParallel(cl)
-              
-              # Create an empty list to store the results
-              dfcurrent <- foreach(sur = 1:rep_sur, .combine = rbind) %dopar% {
-                
-                #cat(paste(" #############  systematic sampling", '- survey', sur, " #############\n"))
-                
-                #if current sampling design
-                if (samp_df[s, 'samp_scn'] == 'scnbase') {
-                  pointsc <- current[which(current$stratum == str), c('longitude', 'latitude', 'cell', 'stratum')]
-                  names(pointsc) <- c('Lon', 'Lat', 'cell', 'strata')
-                  
-                  #if current sampling design w/o corner
-                } else if (samp_df[s, 'samp_scn'] == 'scnbase_bis') {
-                  pointsc <- current[which(current$corner == FALSE & current$stratum == str), c('longitude', 'latitude', 'cell', 'stratum')]
-                  names(pointsc) <- c('Lon', 'Lat', 'cell', 'strata')
-                  
-                  #if optimized sampling design
-                } else {
-                  
-                  sys <- current[which(current$strata == str), c('longitude', 'latitude', 'cell', 'strata')]
-                  names(sys) <- c('Lon', 'Lat', 'cell', 'strata')
-                  
-                  #if more required samples than available
-                  if (nrow(sys) < n_i) {
-                    
-                    #duplicate df strata
-                    dff <- D9
-                    
-                    #df removing available samples from current design
-                    dff <- subset(dff, !(cell %in% sys$cell))
-                    
-                    #cells to complete the required cells
-                    ii <- n_i - nrow(sys)
-                    
-                    #loop over the required samples using random
-                    selcell <- sample(dff$cell, ii)
-                    
-                    if (nrow(subset(D9, cell %in% c(selcell, sys$cell))) == 0) {
-                      
-                      ss <- sample(1:nrow(D9), size = n_i, replace = FALSE)
-                      pointsc <- D9[ss, c('Lon', 'Lat', 'cell', 'strata')]
-                      
-                      #subset points if equal to required number of samples, if not ERROR and rerun iteration
-                    } else if (nrow(subset(D9, cell %in% c(selcell, sys$cell))) != n_i) {
-                      flag <- TRUE
-                      stop("-- different number of points on the current approach", call. = FALSE)
-                    } else {
-                      pointsc <- subset(D9, cell %in% c(selcell, sys$cell))[, c('Lon', 'Lat', 'cell', 'strata')]
-                      names(pointsc) <- c('Lon', 'Lat', 'cell', 'strata')
-                    }
-                    
-                    #else there are enough samples to get from the current sampling design    
-                  } else {
-                    ss <- sample(1:nrow(sys), size = n_i, replace = FALSE)
-                    pointsc <- sys[ss, c('Lon', 'Lat', 'cell', 'strata')]
-                  }
-                }
-                
-                #systematic strata samples
-                syssamp <- pointsc[, c('Lon', 'Lat', 'cell', 'strata')]
-                syssamp$sur <- sur
-                
-                return(syssamp)
-              }
-              
-              stopCluster(cl)
-              
-              #######################
-              ### PLOT
-              #######################
-              
-              #coordinates(rsamp)=~Lon + Lat
-              #crs(rsamp)<-c(crs="+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
-              #rsamp<-spTransform(rsamp,'+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs')
-              #
-              #coordinates(spbsamp)=~Lon + Lat
-              #crs(spbsamp)<-c(crs="+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
-              #spbsamp<-spTransform(spbsamp,'+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs')
-              #
-              #coordinates(syssamp)=~Lon + Lat
-              #crs(syssamp)<-c(crs="+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
-              #syssamp<-spTransform(syssamp,'+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs')
-              #
-              #pol<-r4[r4$layer==str,]
-              #plot(pol)
-              #points(rsamp,col='green',pch=19)
-              #points(spbsamp,col='blue',pch=19)
-              #points(syssamp,col='red',pch=19)
-              
-              #store into a list
-              str_alloc[[str]]<-list(dfrandom = dfrandom, dfspb = dfspb, dfcurrent = dfcurrent)
-              
-            }
-            
-            #reshape
-            cur<-dplyr::bind_rows(lapply(str_alloc, function(x) x[['dfcurrent']]))
-            rand<-dplyr::bind_rows(lapply(str_alloc, function(x) x[['dfrandom']]))
-            spb<-dplyr::bind_rows(lapply(str_alloc, function(x) x[['dfspb']]))
-
-          #append results 
-          scn_allocations[,,'sys'] <- unlist(cur)
-          scn_allocations[,,'rand'] <- unlist(rand)
-          scn_allocations[,,'sb'] <- unlist(spb)
-        
-          
-          #remove
-          rm(dfcurrent,dfrandom,dfspb,str_alloc,cur,rand,spb)
-          
-          #data.frame(table(dfcurrent[,c("strata",'sur')]))
-          #data.frame(table(dfcurrent[,c('sur')]))    
-              
-          #dfcurrent<-dfcurrent[order(dfcurrent$sur),]  #520 100        
-          #nrow(dfcurrent)==as.numeric(n_samples)*n_sur*length(yrs)    
-          #dfcurrent$year<-rep(yrs,each=as.numeric(n_samples)*n_sur)
-
-          save(scn_allocations, file = paste0('./output/survey_allocations_',samp,'.RData')) 
-          
-    }
-      
-      
-################
-# get simulated densities from simulated survey HISTORICAL
-################
- 
-#samp<-samp_df$samp_scn[1];ap<-'sb';isim<-1;isur<-1;y<-'1986'
-n_sur=100
-sur_df<-
-data.frame(num=1:(length(yrs)*n_sur),
+#create a df of 40years x 100sur/sim (it changes on the projected since it simulations have different indeces)
+n_sur<-100
+sur_df<-data.frame(num=1:(length(yrs)*n_sur),
            year=rep(yrs,times=n_sur),
            sur=rep(1:n_sur,each=length(yrs)))
-
-#load simulated densities by spp
-#load(paste0('./output/species/sim_hist_dens_spp.RData')) #sim_hist_dens_spp
-
-# library(foreach)
-# library(doParallel)
-
-# # Initializing parallel backend
-# cl <- makeCluster(detectCores()-1)  # Using all available cores
-# registerDoParallel(cl)
 
 #simulated densities
 load(file = paste0('./output/species/ms_sim_dens.RData'))  #sim_dens1
@@ -519,21 +166,69 @@ load(file = paste0('./output/species/ms_sim_dens.RData'))  #sim_dens1
 #ms_sim_survey folder
 dir.create('./output/ms_sim_survey/')
 
-# # Create folders with numbers from 1 to 100 and leading zeros from simulated data 
-# for (i in 1:100) {
-#   folder_name <- paste0("./output/ms_sim_survey/", formatC(i, width = 3, flag = "0"))
-#   dir.create(folder_name)
-# }
-# 
-# # Check the created folders
-# list_of_folders <- list.dirs("./output/ms_sim_survey/", recursive = FALSE)
-# print(list_of_folders)
+#array to store
+index_hist<-array(NA,
+                  dim=list(length(spp),3,length(yrs),3,n_sur,nrow(samp_df)),
+                  dimnames=list(spp,c('STRS_mean','STRS_var','CV_sim'),paste0('y',yrs),c('sys','rand','sb'),1:n_sur,samp_df$samp_scn))
 
-# Parallelizing the loop
+#loop over sampling design
 for (samp in samp_df$samp_scn)  {
   
-  samp<-'scn1'
+  #samp<-'scnbase_bis'
   #start_time_parallel <- Sys.time()
+  
+  #number of sampling design
+  s<-match(samp,samp_df$samp_scn)
+  
+  #when base sampling other files
+  if (grepl('base',samp)) {
+    
+    #conditions on baseline scenarios
+    if (samp == 'scnbase') {
+      baseline_strata$locations2<-baseline_strata$locations
+    } else if (samp == 'scnbase_bis') {
+      baseline_strata$locations2<-baseline_strata$locations[which(baseline_strata$locations$corner=='FALSE'),]
+    } 
+    
+    #sort by strata
+    baseline_strata$strata_areas<-baseline_strata$strata_areas[order(baseline_strata$strata_areas$X1),]
+    baseline_strata$locations2<-baseline_strata$locations2[order(baseline_strata$locations2$stratum),]
+    
+    #area by strata
+    strata_areas <- baseline_strata$strata_areas
+    
+    #strata data
+    survey_detail <- data.frame("Stratum" = baseline_strata$strata_areas$X1, #strata
+                                'Nh' = baseline_strata$strata_areas$pct*53464, #number of cells
+                                "nh" = data.frame(table(baseline_strata$locations2$stratum))[,c('Freq')]) #number of sample allocations
+    
+    #weight of strata for each
+    survey_detail$Wh <- survey_detail$Nh / sum(survey_detail$Nh)
+    survey_detail$wh <- with(survey_detail, nh/Nh)
+    
+  } else {
+    
+    #load optimization results
+    load(paste0("./output/ms_optim_allocations_",samp_df[s,'samp_scn'],".RData")) #all
+    
+    #area
+    area_cell<-merge(all$result_list$solution$indices, grid2, by.x='ID',by.y='cell')
+    
+    #area by strata
+    strata_areas <- aggregate(Area_in_survey_km2 ~ X1, 
+                              FUN = sum,
+                              data = area_cell)
+    
+    #strata data
+    survey_detail <- data.frame("Stratum" = all$samples_strata$strata, #strata
+                                'Nh' = as.integer(table(all$result_list$solution$indices$X1)), #number of cells
+                                "nh" = all$samples_strata$n_samples) #number of sample allocations
+    
+    #weight of strata for each
+    survey_detail$Wh <- survey_detail$Nh / sum(survey_detail$Nh)
+    survey_detail$wh <- with(survey_detail, nh/Nh)
+    
+  }   
   
   #array to store simulated densities/CPUE
   alloc<-ifelse(samp=='scnbase_bis',494,520)
@@ -542,27 +237,14 @@ for (samp in samp_df$samp_scn)  {
   load(file = paste0('./output/survey_allocations_',samp,'.RData')) #scn_allocations
   dimnames(scn_allocations)[[3]]<-c('sys','rand','sb')
   
-  #for (isim in 1:n_sim_hist) {
-
-    #fol<- list_of_folders[isim]
-
-    library(foreach)
-    library(doParallel)
-    #library(progress)
-    #library(doSNOW)
-
-    # Set up parallel backend
-    cl <- makeCluster(detectCores() - 2)  # Using all availabregisterDoSNOW(cl)
-    registerDoParallel(cl)
-      
+    #array to store results  
     sim_survey <- array(NA,
                         dim = c(alloc, length(spp)+2, n_sur, length(unique(yrs)),length(c('sys','rand','sb'))),
                         dimnames = list(1:alloc, c('cell','strata',spp), 1:n_sur,unique(yrs), c('sys','rand','sb')))
     
     #loop over n combinations of simulated
-    #for (n in sur_df$num) {
-    foreach(n=sur_df$num,.combine = 'c',.verbose = T) %dopar% { 
-     
+    for (n in sur_df$num) {
+
       #n<-sur_df$num[1]
       
       #year of simulation
@@ -570,40 +252,61 @@ for (samp in samp_df$samp_scn)  {
       #isurvey of simulation
       sur<-sur_df[which(sur_df$num==n),'sur']
       
-      #print process        
-      #cat(paste(" #############  ",samp,'- simdata',sur, '- year',y ," #############\n"))
-      
       #simulated densities of survey and year
       sim_dens2<-sim_dens1[,,y,sur]
       
-      #systematic
-      sim_survey[,,sur, y,'sys'] <- 
-        cbind(scn_allocations[scn_allocations[,'sur','sys']==n,c('cell','strata'),'sys'],
-              dens=sim_dens2[scn_allocations[scn_allocations[,'sur','sys']==n,c('cell'),'sys'],])
-      
-      #random
-      sim_survey[,,sur, y,'rand'] <- 
-        cbind(scn_allocations[scn_allocations[,'sur','rand']==n,c('cell','strata'),'rand'],
-              dens=sim_dens2[scn_allocations[scn_allocations[,'sur','rand']==n,c('cell'),'rand'],])
-      
-      #sb
-      sim_survey[,,sur, y,'sb']  <- 
-        cbind(scn_allocations[scn_allocations[,'sur','sb']==n,c('cell','strata'),'sb'],
-              dens=sim_dens2[scn_allocations[scn_allocations[,'sur','sb']==n,c('cell'),'sb'],])
-      
-    }
+      #loop over station allocation approac
+      for (apr in c('sys','rand','sb')) {
+        
+        #apr<-'sys'
+
+        #print process        
+        cat(paste(" #############  ",samp,'- simdata',sur, '- year',y ,'- allocation',apr," #############\n"))
+        
+        #get densities based on station allocations
+        sim_survey<-data.frame(cbind(strata=scn_allocations[scn_allocations[,'sur',apr]==n,c('strata'),apr],
+                             dens=sim_dens2[scn_allocations[scn_allocations[,'sur',apr]==n,c('cell'),apr],]),check.names = FALSE)
+        
+        sim_survey1<-reshape2::melt(sim_survey,id.vars=c('strata'))
+        
+        #mean, sum and var by strata and year (variable)
+        sim_survey2<-aggregate(x=sim_survey1$value,
+                       by=list(strata=sim_survey1$strata,sp=sim_survey1$variable),
+                       FUN = function(x) c('mean' = mean(x,na.rm=T), 'sum' = sum(x),'var' = var(x,na.rm=T) ))
+        
+        #create df
+        zzz<-data.frame('strata'=sim_survey2$strata,'sp'=sim_survey2$sp,'mean'=sim_survey2$x[,c('mean')],'var'=sim_survey2$x[,c('var')]) #/length(yy$value)
+        zzzz<-merge(zzz,strata_areas,by.x='strata',by.y='X1',all.x=TRUE)
+        zzzz<-merge(zzzz,survey_detail,by.x='strata',by.y='Stratum',all.x=TRUE)
+        
+        #add index strata for sum to compute index (mean strata density * area of strata) kg!
+        zzzz$index_strata<-zzzz$mean*zzzz$Area_in_survey_km2
+        
+        #add strata var 
+        zzzz$strs_var<-zzzz$var*(zzzz$Area_in_survey_km2^2)/zzzz$nh #sum(survey_detail$Nh) 
+        
+        #sum of strata var and mean density across years (kg/km2)
+        zzzz1 <- aggregate(zzzz[,c('strs_var','index_strata')], by= list(zzzz$sp),FUN = sum)
+        
+        #get CV across years
+        zzzz1$cv<- sqrt(zzzz1$strs_var) / zzzz1$index_strata
+        
+        #mean CV 
+        mean(zzzz1$cv,na.rm=TRUE)
+        
+        #get outputs
+        STRS_mean <- zzzz1$index_strata
+        STRS_var <- zzzz1$strs_var
+        CV <- sqrt(STRS_var) / STRS_mean
+        
+        #store outputs
+        index_hist[,'STRS_mean',paste0('y',y),apr,sur,samp]<-STRS_mean
+        index_hist[,'STRS_var',paste0('y',y),apr,sur,samp]<-STRS_var
+        index_hist[,'CV_sim',paste0('y',y),apr,sur,samp]<-CV
     
-    #save simulated survey
-    save(sim_survey, file = paste0('./output/ms_sim_survey/sim_survey_',samp,'.RData'))  
-    
+      }
     }
-
-
-
-# Stopping the parallel backend
-stopCluster(cl)
-
-
+  }
 
 
 # ################
