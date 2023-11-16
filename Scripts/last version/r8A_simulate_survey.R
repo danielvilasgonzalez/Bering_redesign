@@ -270,8 +270,6 @@ for (samp in unique(samp_df$samp_scn)) { #sampling designs
                                                  c('Lat','Lon','cell','strata','sur'),
                                                  #c(yrs),
                                                  c('sys','rand','sb')))
-      
-        
 
         
         #for (isur in 1:n_sur) {
@@ -521,15 +519,15 @@ load(file = paste0('./output/species/ms_sim_dens.RData'))  #sim_dens1
 #ms_sim_survey folder
 dir.create('./output/ms_sim_survey/')
 
-# Create folders with numbers from 1 to 100 and leading zeros from simulated data 
-for (i in 1:100) {
-  folder_name <- paste0("./output/ms_sim_survey/", formatC(i, width = 3, flag = "0"))
-  dir.create(folder_name)
-}
-
-# Check the created folders
-list_of_folders <- list.dirs("./output/ms_sim_survey/", recursive = FALSE)
-print(list_of_folders)
+# # Create folders with numbers from 1 to 100 and leading zeros from simulated data 
+# for (i in 1:100) {
+#   folder_name <- paste0("./output/ms_sim_survey/", formatC(i, width = 3, flag = "0"))
+#   dir.create(folder_name)
+# }
+# 
+# # Check the created folders
+# list_of_folders <- list.dirs("./output/ms_sim_survey/", recursive = FALSE)
+# print(list_of_folders)
 
 # Parallelizing the loop
 for (samp in samp_df$samp_scn)  {
@@ -544,57 +542,53 @@ for (samp in samp_df$samp_scn)  {
   load(file = paste0('./output/survey_allocations_',samp,'.RData')) #scn_allocations
   dimnames(scn_allocations)[[3]]<-c('sys','rand','sb')
   
-  for (isim in 2:n_sim_hist) {
+  #for (isim in 1:n_sim_hist) {
 
-    fol<- list_of_folders[isim]
+    #fol<- list_of_folders[isim]
     
     sim_survey <- array(NA,
-                        dim = c(alloc, length(spp)+2, length(unique(yrs)), n_sur,length(c('sys','rand','sb'))),
-                        dimnames = list(1:alloc, c('cell','strata',spp), unique(yrs), 1:n_sur,c('sys','rand','sb')))
+                        dim = c(alloc, length(spp)+2, n_sur, length(unique(yrs)),length(c('sys','rand','sb'))),
+                        dimnames = list(1:alloc, c('cell','strata',spp), 1:n_sur,unique(yrs), c('sys','rand','sb')))
     
+    library(foreach)
+    library(doParallel)
+    #library(progress)
+    #library(doSNOW)
     
-    for (y in as.character(yrs)) {
+    # Set up parallel backend
+    cl <- makeCluster(detectCores() - 1)  # Using all availabregisterDoSNOW(cl)
+    registerDoParallel(cl)
       
-      #isim<-1;y<-as.character(yrs[1])
+    #loop over the 4000 combinations - 40 years and 100 simulated data
+    foreach(n = sur_df$num, .combine = 'c',.verbose = T) %dopar% {
       
-      cat(paste(" #############  ",samp,'- simdata',isim, '- year',y," #############\n"))
+      y <- as.character(sur_df[which(sur_df$num == n), 'year'])
+      sur <- sur_df[which(sur_df$num == n), 'sur']
       
+      cat(paste(" #############  ", samp, '- simdata', sur, '- year', y, " #############\n"))
       
-      sim_dens2<-sim_dens1[,,y,isim]
+      sim_dens2 <- sim_dens1[,,y,sur]
       
-      surs<-sample(1:max(sur_df$num),size = n_sur)  
+      sim_survey[,,sur, y, 'sys'] <- 
+        cbind(scn_allocations[scn_allocations[,'sur','sys']==n, c('cell', 'strata'), 'sys'],
+              dens = sim_dens2[scn_allocations[scn_allocations[,'sur','sys']==n, 'cell', 'sys'], ])
       
-      for (sur in as.character(surs)) {
-        
-        #sur<-as.character(surs)[1]
-
-        cat(paste(" #############  ",samp,'- simdata',isim, '- year',y,'- simsur',sur ," #############\n"))
+      sim_survey[,,sur, y, 'rand'] <- 
+        cbind(scn_allocations[scn_allocations[,'sur','rand']==n, c('cell', 'strata'), 'rand'],
+              dens = sim_dens2[scn_allocations[scn_allocations[,'sur','rand']==n, 'cell', 'rand'], ])
       
-        #systematic
-        sim_survey[,,y, match(sur,surs),'sys'] <- 
-          cbind(scn_allocations[scn_allocations[,'sur','sys']==sur,c('cell','strata'),'sys'],
-                dens=sim_dens2[scn_allocations[scn_allocations[,'sur','sys']==sur,c('cell'),'sys'],])
-        
-        #random
-        sim_survey[,,y, match(sur,surs),'rand'] <- 
-          cbind(scn_allocations[scn_allocations[,'sur','rand']==sur,c('cell','strata'),'rand'],
-                dens=sim_dens2[scn_allocations[scn_allocations[,'sur','rand']==sur,c('cell'),'rand'],])
-        
-        #sb
-        sim_survey[,,y, match(sur,surs),'sb']  <- 
-          cbind(scn_allocations[scn_allocations[,'sur','sb']==sur,c('cell','strata'),'sb'],
-                dens=sim_dens2[scn_allocations[scn_allocations[,'sur','sb']==sur,c('cell'),'sb'],])
-        
-      }
-      
+      sim_survey[,,sur, y, 'sb'] <- 
+        cbind(scn_allocations[scn_allocations[,'sur','sb']==n, c('cell', 'strata'), 'sb'],
+              dens = sim_dens2[scn_allocations[scn_allocations[,'sur','sb']==n, 'cell', 'sb'], ])
+     
     }
     
-    save(sim_survey, file = paste0(fol,'/sim_survey_',samp,'.RData'))  
+    #save simulated survey
+    save(sim_survey, file = paste0('./output/ms_sim_survey/sim_survey_',samp,'.RData'))  
     
-  }
+    }
 
-  
-}
+
 
 # Stopping the parallel backend
 stopCluster(cl)
