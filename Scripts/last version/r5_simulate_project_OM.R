@@ -29,8 +29,8 @@ pacman::p_load(pack_cran,character.only = TRUE)
 
 #setwd - depends on computer using
 #out_dir<-'C:/Users/Daniel.Vilas/Work/Adapting Monitoring to a Changing Seascape/' #NOAA laptop  
-#out_dir<-'/Users/daniel/Work/Adapting Monitoring to a Changing Seascape/' #mac
-out_dir<-'/Users/daniel/Work/VM' #VM
+out_dir<-'/Users/daniel/Work/Adapting Monitoring to a Changing Seascape/' #mac
+#out_dir<-'/Users/daniel/Work/VM' #VM
 setwd(out_dir)
 
 #list of sp
@@ -154,7 +154,6 @@ samp_df$samp_scn<-paste0(paste0('scn',1:nrow(samp_df)))
 samp_df<-rbind(samp_df,c('baseline','current',520,15,'scnbase'),
               c('baseline w/o corner','current',494,15,'scnbase_bis'))
 
- 
 ###################################
 # SBT projections
 ###################################
@@ -173,19 +172,15 @@ n_sim_proj<- 100
 #store index and dens
 dens_index_hist_OM<-list()
 
-
 #array to store simulated densities/CPUE
 sim_hist_dens_spp<-array(NA,
                     dim=c(nrow(grid),length(unique(yrs)),n_sim_hist,length(spp)),
                     dimnames=list(1:nrow(grid),unique(yrs),1:n_sim_hist,spp))
 
-
 #array to store simulated densities/CPUE
 sim_proj_dens_spp<-array(NA,
                          dim=c(nrow(grid),length(project_yrs),1,nrow(df_sbt),length(spp)),
                          dimnames=list(1:nrow(grid),project_yrs,1,1:nrow(df_sbt),spp))
-
-
 
 ######################
 # SIMULATE HISTORICAL DATA
@@ -221,7 +216,6 @@ for (sp in spp) {
   fit<-
     reload_model(x = fit)
   
-
   #store index and dens
   index<-fit$Report$Index_ctl
   dens<-fit$Report$D_gct
@@ -335,47 +329,37 @@ for (sp in spp) {
 # RESHAPE SIMULATED HISTORICAL DATA
 ######################
 
-library(foreach)
-library(doParallel)
-
 # Initializing parallel backend
 cl <- makeCluster(detectCores()-1)  # Using all available cores
 registerDoParallel(cl)
-
-# Parallelizing the loop
-#foreach(samp = samp_df$samp_scn) %dopar% {
-
-#samp<-'scn1'
-#start_time_parallel <- Sys.time()
 
 #array to store simulated densities/CPUE
 sim_dens1 <- array(NA,
                    dim = c(nrow(grid), length(spp), length(unique(yrs)), n_sim),
                    dimnames = list(1:nrow(grid), spp, unique(yrs), 1:n_sim))
 
-
+#parallel loop over spp
 foreach(sp = spp) %do% {
   
   #sp<-spp[1]
   
+  #load data
   load(paste0('./output/species/', sp, '/simulated historical data/sim_dens.RData'))
   
-  #sim_dens[,as.character(yrs),]
-  
+  #parallel loop over years and simulations
   foreach(y = yrs) %:%
     foreach(sim = 1:n_sim) %do% {
       #y<-'1982';sim<-'1'
       
+      #store results
       sim_dens1[, sp, as.character(y), as.character(sim)] <- sim_dens[, as.character(y), as.character(sim)]
     }
 }
-#end_time_parallel <- Sys.time()
-#store results
-#}
+
 # Stopping the parallel backend
 stopCluster(cl)
 
-
+#store HIST simulated data
 save(sim_dens1, file = paste0('./output/species/ms_sim_dens.RData'))  
 
 
@@ -383,19 +367,13 @@ save(sim_dens1, file = paste0('./output/species/ms_sim_dens.RData'))
 # SIMULATE PROJECTED DATA 
 ######################
 
-  #get raster stack
-  stack_files<-list.files('./data processed/SBT projections/')
-  
-  #list covariate data for each scenario
-  #cov_list<-list()
-  
-  #list projected data for each scenario
-  #pr_list<-list()
+#get raster stack
+stack_files<-list.files('./data processed/SBT projections/')
  
 #loop over spp
 for (sp in spp) {
   
-  #sp<-spp[1]
+  sp<-spp[7]
   
   #create folder simulation data
   dir.create(paste0('./output/species/',sp,'/'))
@@ -411,7 +389,7 @@ for (sp in spp) {
   #loop over scenarios
   for (sbt in unique(df_sbt$sbt_n)) {
     
-    #sbt<-unique(df_sbt$sbt_n)[1]
+    #sbt<-unique(df_sbt$sbt_n)[8]
     
     #print scenario to check progress
     cat(paste(" #############     PROJECTING    #############\n",
@@ -484,7 +462,6 @@ for (sp in spp) {
      #save true densities and index under 8 SBT scenarios for all species
      save(dens_index_proj_OM, file = paste0("./output/species/",sp,"/simulated projected data/SBT",sbt," dens_index_proj_OM_50.RData")) 
      
-     
      #to store simulated data
      dens_index_proj_OM<-list()
      
@@ -513,3 +490,48 @@ for (sp in spp) {
     gc()
   }
 }
+
+######################
+# RESHAPE SIMULATED PROJECTED DATA
+######################
+
+simdata<-array(NA,
+               dim = c(nrow(grid), length(spp), length(unique(2023:2027)), n_sim_proj,length(df_sbt$sbt)),
+               dimnames = list(1:nrow(grid),spp, as.character(2023:2027), 1:n_sim_proj,df_sbt$sbt))
+
+#loop over species
+for (sp in spp) {
+  
+  #sp<-spp[1]
+  
+  #loop over 8 temperature scenarios
+  for (sbt in unique(df_sbt$sbt_n)) {
+    
+    #sbt<-df_sbt$sbt_n[1]
+    
+    #load first 50 simulations
+    load(file = paste0("./output/species/",sp,"/simulated projected data/SBT",sbt," dens_index_proj_OM_50.RData")) #dens_index_proj_OM
+    dens_index_proj_OM_50<-dens_index_proj_OM
+    #load following 50 simulations
+    load(file = paste0("./output/species/",sp,"/simulated projected data/SBT",sbt," dens_index_proj_OM_100.RData")) #dens_index_proj_OM
+    dens_index_proj_OM_100<-dens_index_proj_OM
+    rm(dens_index_proj_OM)
+    
+    for (i in 1:50) {
+      
+      cat(paste(" #############  sp",sp,'- sbt',sbt ,'- sim',i," #############\n"))
+      
+      for (y in as.character(2023:2027)) {
+        
+        #y<-as.character(2023:2027)[1]
+        
+        simdata[,sp,y,i,sbt]<-dens_index_proj_OM_50[[i]]$dens[,as.character(2023:2027)][,y]
+        simdata[,sp,y,i+50,sbt]<-dens_index_proj_OM_100[[i]]$dens[,as.character(2023:2027)][,y]
+        
+      }
+    }
+  }
+}
+
+#store PROJ simulated data
+save(sim_dens1, file = paste0('./output/species/ms_sim_proj_dens.RData'))  
