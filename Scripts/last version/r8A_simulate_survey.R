@@ -85,8 +85,8 @@ coordinates(x1)=~x + y
 crs(x1)<-c(crs="+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
 x2<-spTransform(x1,'+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs')
 x3<-data.frame(x2)
-x3$x<-as.integer(x3$coords.x1)
-x3$y<-as.integer(x3$coords.x2)
+#x3$x<-as.integer(x3$coords.x1)
+#x3$y<-as.integer(x3$coords.x2)
 lon<-sort(unique(x3$x),decreasing = FALSE) #1556
 lat<-sort(unique(x3$y),decreasing = TRUE) #1507
 lons<-data.frame(x=lon,col=1:length(lon))
@@ -545,42 +545,52 @@ for (samp in samp_df$samp_scn)  {
   #for (isim in 1:n_sim_hist) {
 
     #fol<- list_of_folders[isim]
-    
-    sim_survey <- array(NA,
-                        dim = c(alloc, length(spp)+2, n_sur, length(unique(yrs)),length(c('sys','rand','sb'))),
-                        dimnames = list(1:alloc, c('cell','strata',spp), 1:n_sur,unique(yrs), c('sys','rand','sb')))
-    
+
     library(foreach)
     library(doParallel)
     #library(progress)
     #library(doSNOW)
-    
+
     # Set up parallel backend
-    cl <- makeCluster(detectCores() - 1)  # Using all availabregisterDoSNOW(cl)
+    cl <- makeCluster(detectCores() - 2)  # Using all availabregisterDoSNOW(cl)
     registerDoParallel(cl)
       
-    #loop over the 4000 combinations - 40 years and 100 simulated data
-    foreach(n = sur_df$num, .combine = 'c',.verbose = T) %dopar% {
-      
-      y <- as.character(sur_df[which(sur_df$num == n), 'year'])
-      sur <- sur_df[which(sur_df$num == n), 'sur']
-      
-      cat(paste(" #############  ", samp, '- simdata', sur, '- year', y, " #############\n"))
-      
-      sim_dens2 <- sim_dens1[,,y,sur]
-      
-      sim_survey[,,sur, y, 'sys'] <- 
-        cbind(scn_allocations[scn_allocations[,'sur','sys']==n, c('cell', 'strata'), 'sys'],
-              dens = sim_dens2[scn_allocations[scn_allocations[,'sur','sys']==n, 'cell', 'sys'], ])
-      
-      sim_survey[,,sur, y, 'rand'] <- 
-        cbind(scn_allocations[scn_allocations[,'sur','rand']==n, c('cell', 'strata'), 'rand'],
-              dens = sim_dens2[scn_allocations[scn_allocations[,'sur','rand']==n, 'cell', 'rand'], ])
-      
-      sim_survey[,,sur, y, 'sb'] <- 
-        cbind(scn_allocations[scn_allocations[,'sur','sb']==n, c('cell', 'strata'), 'sb'],
-              dens = sim_dens2[scn_allocations[scn_allocations[,'sur','sb']==n, 'cell', 'sb'], ])
+    sim_survey <- array(NA,
+                        dim = c(alloc, length(spp)+2, n_sur, length(unique(yrs)),length(c('sys','rand','sb'))),
+                        dimnames = list(1:alloc, c('cell','strata',spp), 1:n_sur,unique(yrs), c('sys','rand','sb')))
+    
+    #loop over n combinations of simulated
+    #for (n in sur_df$num) {
+    foreach(n=sur_df$num,.combine = 'c',.verbose = T) %dopar% { 
      
+      #n<-sur_df$num[1]
+      
+      #year of simulation
+      y<-as.character(sur_df[which(sur_df$num==n),'year'])
+      #isurvey of simulation
+      sur<-sur_df[which(sur_df$num==n),'sur']
+      
+      #print process        
+      #cat(paste(" #############  ",samp,'- simdata',sur, '- year',y ," #############\n"))
+      
+      #simulated densities of survey and year
+      sim_dens2<-sim_dens1[,,y,sur]
+      
+      #systematic
+      sim_survey[,,sur, y,'sys'] <- 
+        cbind(scn_allocations[scn_allocations[,'sur','sys']==n,c('cell','strata'),'sys'],
+              dens=sim_dens2[scn_allocations[scn_allocations[,'sur','sys']==n,c('cell'),'sys'],])
+      
+      #random
+      sim_survey[,,sur, y,'rand'] <- 
+        cbind(scn_allocations[scn_allocations[,'sur','rand']==n,c('cell','strata'),'rand'],
+              dens=sim_dens2[scn_allocations[scn_allocations[,'sur','rand']==n,c('cell'),'rand'],])
+      
+      #sb
+      sim_survey[,,sur, y,'sb']  <- 
+        cbind(scn_allocations[scn_allocations[,'sur','sb']==n,c('cell','strata'),'sb'],
+              dens=sim_dens2[scn_allocations[scn_allocations[,'sur','sb']==n,c('cell'),'sb'],])
+      
     }
     
     #save simulated survey
