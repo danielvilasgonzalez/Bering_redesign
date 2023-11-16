@@ -86,8 +86,8 @@ coordinates(x1)=~x + y
 crs(x1)<-c(crs="+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
 x2<-spTransform(x1,'+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs')
 x3<-data.frame(x2)
-#x3$x<-as.integer(x3$coords.x1)
-#x3$y<-as.integer(x3$coords.x2)
+x3$x<-as.integer(x3$coords.x1)
+x3$y<-as.integer(x3$coords.x2)
 lon<-sort(unique(x3$x),decreasing = FALSE) #1556
 lat<-sort(unique(x3$y),decreasing = TRUE) #1507
 lons<-data.frame(x=lon,col=1:length(lon))
@@ -308,6 +308,8 @@ for (samp in samp_df$samp_scn)  {
     }
   }
 
+save(index_hist, file = paste0('./output/index_hist.RData'))  
+
 
 # ################
 # # get simulated densities from simulated survey PROJECTED
@@ -418,64 +420,12 @@ for (samp in samp_df$samp_scn)  {
 #     }
 #   }              
    
-
-
 ################
-# get simulated densities from simulated survey PROJECTED
+# PROJECTED
 ################
 
-#all 4000 surveys (year5, sur100, sbt8)
-sur_df<-cbind(num=1:nrow(expand.grid(project_yrs,df_sbt$sbt,1:n_sur)),expand.grid(year=project_yrs,sbt=df_sbt$sbt_n,sur=1:n_sur))
-
-#load sbt scenarios
-load('./tables/SBT_projection.RData') #df_sbt
-
-simdata<-array(NA,
-               dim = c(nrow(grid), length(spp), length(unique(2023:2027)), n_sim_proj,length(df_sbt$sbt)),
-               dimnames = list(1:nrow(grid),spp, as.character(2023:2027), 1:n_sim_proj,df_sbt$sbt))
-
-#loop over species
-for (sp in spp) {
-  
-  sp<-spp[1]
-  
-  #loop over 8 temperature scenarios
-  for (sbt in unique(df_sbt$sbt_n)) {
-    
-    #sbt<-df_sbt$sbt_n[1]
-    
-    cat(paste(" #############  spp",sp,'- sbt',sbt ," #############\n"))
-    
-    
-    load(file = paste0("./output/species/",sp,"/simulated projected data/SBT",sbt," dens_index_proj_OM_50.RData")) #dens_index_proj_OM
-    dens_index_proj_OM_50<-dens_index_proj_OM
-    load(file = paste0("./output/species/",sp,"/simulated projected data/SBT",sbt," dens_index_proj_OM_100.RData")) #dens_index_proj_OM
-    dens_index_proj_OM_100<-dens_index_proj_OM
-    rm(dens_index_proj_OM)
-    
-    for (i in 1:50) {
-      
-      #i<-1
-      d1<-dens_index_proj_OM_50[[i]]$dens[,as.character(2023:2027)]
-      d2<-dens_index_proj_OM_100[[i]]$dens[,as.character(2023:2027)]
-      
-      for (y in as.character(2023:2027)) {
-        
-        #y<-as.character(2023:2027)[1]
-        
-        simdata[,sp,y,i,sbt]<-d1[,y]
-        simdata[,sp,y,i+50,sbt]<-d2[,y]
-        
-      }
-    }
-  }
-  
-  
-  
-  
-  
-  #for each sampling design
-  for (samp in samp_df$samp_scn) {
+#for each sampling design
+for (samp in samp_df$samp_scn) {
     
     #samp<-samp_df$samp_scn[1]
     
@@ -551,6 +501,4 @@ for (sp in spp) {
     
     rm(sim_survey)
   }
-}
-}                 
                   
