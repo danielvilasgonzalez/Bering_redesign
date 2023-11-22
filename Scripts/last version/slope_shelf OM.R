@@ -32,7 +32,7 @@ setwd(out_dir)
 version<-'VAST_v14_0_1'
 
 #number of knots
-knots<-'400' #200
+knots<-'200' #200
 
 #list of sp
 splist<-list.dirs('./data processed/',full.names = FALSE,recursive = FALSE)
@@ -149,7 +149,6 @@ grids<-rbind(eastern_bering_sea_grid,bering_sea_slope_grid)
 names(grids)[3]<-'Area_km2'
 grids
 
-
 # grid_ebs<-grid.ebs_year[which(grid.ebs_year$region == 'EBSslope' & grid.ebs_year$Year %in% yrs),]
 # grid_df<-data.frame(Lat=grid_ebs$Lat,
 #                     Lon=grid_ebs$Lon,
@@ -253,8 +252,9 @@ settings <- make_settings(n_x=knots,#knots,
                           purpose="index2", 
                           bias.correct=FALSE,
                           knot_method='grid',
-                          use_anisotropy=FALSE, #TRUE
-                          RhoConfig=rho_c, #RhoConfig=c("Beta1"=2,"Beta2"=2,"Epsilon1"=4,"Epsilon2"=4), 
+                          use_anisotropy=TRUE, #TRUE
+                          #RhoConfig=rho_c, 
+                          RhoConfig=c("Beta1"=2,"Beta2"=2,"Epsilon1"=0,"Epsilon2"=0), 
                           #FieldConfig = matrix( c("IID","IID",'IID',"Identity","IID","IID",'IID',"Identity"), #c("IID","IID",0,"Identity", "IID","IID",0,"Identity"), 
                           #                       ncol=2, 
                           #                       nrow=4, 
@@ -376,6 +376,41 @@ fit <- tryCatch( {fit_model(settings=settings,
                    # Choose a return value in case of error
                    return(NULL)
                  })
+
+# #change lower
+# fit$tmb_list$Lower
+# 
+# Lower = fit$tmb_list$Lower
+# Lower["logkappa1"]<--10
+# 
+# fit <- tryCatch( {fit_model(settings=settings,
+#                             Lat_i=data_geostat1$Lat, 
+#                             Lon_i=data_geostat1$Lon,
+#                             t_i=data_geostat1$Year,
+#                             b_i=data_geostat1$CPUE_kg,
+#                             c_iz = as.numeric(factor(data_geostat1$Species))-1,
+#                             a_i=data_geostat1$Effort,
+#                             input_grid=grids,
+#                             getJointPrecision = TRUE,
+#                             test_fit=FALSE,
+#                             lower=Lower,
+#                             create_strata_per_region = TRUE,  
+#                             covariate_data = covariate_data[,c('Year',"Lat","Lon","ScaleLogDepth","Depth","CPUE_kg")], 
+#                             X1_formula =  X1_formula,
+#                             X2_formula = X2_formula, 
+#                             #newtonsteps = 3,
+#                             #PredTF_i = pred_TF,
+#                             #X_gtp = X_gtp,
+#                             working_dir = paste(out_dir,fol_region,sp,'/',sep='/'))},
+#                  error = function(cond) {
+#                    message("Did not converge. Here's the original error message:")
+#                    message(cond)
+#                    cat(paste(" ERROR MODEL IS NOT CONVERGING "))  
+#                    # Choose a return value in case of error
+#                    return(NULL)
+#                  })
+
+
 
 #check_fit(fit$parameter_estimates)
 plot(fit,working_dir = paste(out_dir,fol_region,sp,'/',sep='/'))
