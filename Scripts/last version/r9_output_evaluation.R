@@ -1,9 +1,7 @@
 ####################################################################
 ####################################################################
 ##    
-##    simulate survey by extracting predicted densities for
-##    each location under each sampling design for each SBT projection
-##    get design-based estimates for each year, species and iteration
+##    plot comparison evaluation for spp
 ##    
 ##    danielvilasgonzalez@gmail.com/dvilasg@uw.edu
 ##
@@ -20,7 +18,7 @@ rm(list = ls(all.names = TRUE))
 gc() 
 
 #libraries from cran to call or install/load
-pack_cran<-c('raster')
+pack_cran<-c('raster','ggplot2')
 
 #install pacman to use p_load function - call library and if not installed, then install
 if (!('pacman' %in% installed.packages())) {
@@ -52,7 +50,8 @@ spp<-c('Limanda aspera',
        'Anoplopoma fimbria',
        'Chionoecetes opilio',
        'Paralithodes platypus',
-       'Paralithodes camtschaticus')
+       'Paralithodes camtschaticus',
+       'Chionoecetes bairdi')
 
 #remove Anoploma and Reinhardtius because habitat preference reasons
 spp<-setdiff(spp, c('Anoplopoma fimbria','Reinhardtius hippoglossoides'))
