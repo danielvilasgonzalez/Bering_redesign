@@ -373,7 +373,7 @@ stack_files<-list.files('./data processed/SBT projections/')
 #loop over spp
 for (sp in spp) {
   
-  sp<-spp[7]
+  sp<-spp[9]
   
   #create folder simulation data
   dir.create(paste0('./output/species/',sp,'/'))
@@ -495,25 +495,30 @@ for (sp in spp) {
 # RESHAPE SIMULATED PROJECTED DATA
 ######################
 
-simdata<-array(NA,
-               dim = c(nrow(grid), length(spp), length(unique(2023:2027)), n_sim_proj,length(df_sbt$sbt)),
-               dimnames = list(1:nrow(grid),spp, as.character(2023:2027), 1:n_sim_proj,df_sbt$sbt))
-
-#loop over species
-for (sp in spp) {
+#loop over 8 temperature scenarios
+for (sbt in unique(df_sbt$sbt_n)) {
   
-  #sp<-spp[1]
+  simdata<-array(NA,
+                 dim = c(nrow(grid), length(spp), length(unique(2023:2027)), n_sim_proj),
+                 dimnames = list(1:nrow(grid),spp, as.character(2023:2027), 1:n_sim_proj))
   
-  #loop over 8 temperature scenarios
-  for (sbt in unique(df_sbt$sbt_n)) {
+  proj_ind<-array(NA,
+                  dim = c(length(spp), length(unique(2023:2027)), n_sim_proj),
+                  dimnames = list(spp, as.character(2023:2027), 1:n_sim_proj))
+  
+  #loop over species
+  for (sp in spp) {
     
-    #sbt<-df_sbt$sbt_n[1]
+    #sp<-spp[1];sbt<-df_sbt$sbt_n[1]
     
     #load first 50 simulations
     load(file = paste0("./output/species/",sp,"/simulated projected data/SBT",sbt," dens_index_proj_OM_50.RData")) #dens_index_proj_OM
+    #load('/Users/Daniel.Vilas/Downloads/SBT1 dens_index_proj_OM_50.RData') #dens_index_proj_OM
     dens_index_proj_OM_50<-dens_index_proj_OM
+    rm(dens_index_proj_OM)
     #load following 50 simulations
     load(file = paste0("./output/species/",sp,"/simulated projected data/SBT",sbt," dens_index_proj_OM_100.RData")) #dens_index_proj_OM
+    #load('/Users/Daniel.Vilas/Downloads/SBT1 dens_index_proj_OM_100.RData') #dens_index_proj_OM
     dens_index_proj_OM_100<-dens_index_proj_OM
     rm(dens_index_proj_OM)
     
@@ -525,13 +530,20 @@ for (sp in spp) {
         
         #y<-as.character(2023:2027)[1]
         
-        simdata[,sp,y,i,sbt]<-dens_index_proj_OM_50[[i]]$dens[,as.character(2023:2027)][,y]
-        simdata[,sp,y,i+50,sbt]<-dens_index_proj_OM_100[[i]]$dens[,as.character(2023:2027)][,y]
+        #densities
+        simdata[,sp,y,i]<-dens_index_proj_OM_50[[i]]$dens[,as.character(2023:2027)][,y]
+        simdata[,sp,y,i+50]<-dens_index_proj_OM_100[[i]]$dens[,as.character(2023:2027)][,y]
+        #index
+        proj_ind[sp,,i]<-dens_index_proj_OM_50[[i]]$index[,as.character(2023:2027),'Stratum_1']
+        proj_ind[sp,,i+50]<-dens_index_proj_OM_100[[i]]$index[,as.character(2023:2027),'Stratum_1']
         
       }
     }
   }
+  
+  #store PROJ simulated data
+  save(simdata, file = paste0("./output/species/SBT",sbt," ms_sim_proj_dens.RData"))  
+  save(proj_ind, file = paste0("./output/species/SBT",sbt," ms_sim_proj_ind.RData"))  
+  
+  
 }
-
-#store PROJ simulated data
-save(sim_dens1, file = paste0('./output/species/ms_sim_proj_dens.RData'))  
