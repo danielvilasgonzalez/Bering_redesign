@@ -28,7 +28,7 @@ if (!('VAST' %in% installed.packages())) {
 pacman::p_load(pack_cran,character.only = TRUE)
 
 #setwd - depends on computer using
-#out_dir<-'C:/Users/Daniel.Vilas/Work/Adapting Monitoring to a Changing Seascape/' #NOAA laptop  
+out_dir<-'C:/Users/Daniel.Vilas/Work/Adapting Monitoring to a Changing Seascape/' #NOAA laptop  
 out_dir<-'/Users/daniel/Work/Adapting Monitoring to a Changing Seascape/' #mac
 #out_dir<-'/Users/daniel/Work/VM' #VM
 setwd(out_dir)
@@ -373,7 +373,7 @@ stack_files<-list.files('./data processed/SBT projections/')
 #loop over spp
 for (sp in spp) {
   
-  sp<-spp[9]
+  sp<-spp[11]
   
   #create folder simulation data
   dir.create(paste0('./output/species/',sp,'/'))
@@ -503,22 +503,22 @@ for (sbt in unique(df_sbt$sbt_n)) {
                  dimnames = list(1:nrow(grid),spp, as.character(2023:2027), 1:n_sim_proj))
   
   proj_ind<-array(NA,
-                  dim = c(length(spp), length(unique(2023:2027)), n_sim_proj),
-                  dimnames = list(spp, as.character(2023:2027), 1:n_sim_proj))
-  
+                 dim = c(length(spp), length(unique(2023:2027)), n_sim_proj),
+                 dimnames = list(spp, as.character(2023:2027), 1:n_sim_proj))
+    
   #loop over species
   for (sp in spp) {
     
     #sp<-spp[1];sbt<-df_sbt$sbt_n[1]
     
     #load first 50 simulations
-    load(file = paste0("./output/species/",sp,"/simulated projected data/SBT",sbt," dens_index_proj_OM_50.RData")) #dens_index_proj_OM
-    #load('/Users/Daniel.Vilas/Downloads/SBT1 dens_index_proj_OM_50.RData') #dens_index_proj_OM
+    #load(file = paste0("./output/species/",sp,"/simulated projected data/SBT",sbt," dens_index_proj_OM_50.RData")) #dens_index_proj_OM
+    load('/Users/Daniel.Vilas/Downloads/SBT1 dens_index_proj_OM_50.RData') #dens_index_proj_OM
     dens_index_proj_OM_50<-dens_index_proj_OM
     rm(dens_index_proj_OM)
     #load following 50 simulations
-    load(file = paste0("./output/species/",sp,"/simulated projected data/SBT",sbt," dens_index_proj_OM_100.RData")) #dens_index_proj_OM
-    #load('/Users/Daniel.Vilas/Downloads/SBT1 dens_index_proj_OM_100.RData') #dens_index_proj_OM
+    #load(file = paste0("./output/species/",sp,"/simulated projected data/SBT",sbt," dens_index_proj_OM_100.RData")) #dens_index_proj_OM
+    load('/Users/Daniel.Vilas/Downloads/SBT1 dens_index_proj_OM_100.RData') #dens_index_proj_OM
     dens_index_proj_OM_100<-dens_index_proj_OM
     rm(dens_index_proj_OM)
     
@@ -536,14 +536,16 @@ for (sbt in unique(df_sbt$sbt_n)) {
         #index
         proj_ind[sp,,i]<-dens_index_proj_OM_50[[i]]$index[,as.character(2023:2027),'Stratum_1']
         proj_ind[sp,,i+50]<-dens_index_proj_OM_100[[i]]$index[,as.character(2023:2027),'Stratum_1']
-        
+
       }
     }
   }
   
   #store PROJ simulated data
-  save(simdata, file = paste0("./output/species/SBT",sbt," ms_sim_proj_dens.RData"))  
-  save(proj_ind, file = paste0("./output/species/SBT",sbt," ms_sim_proj_ind.RData"))  
+  save(simdata, file = paste0("./output/species/SBT",sbt," test_ms_sim_proj_dens.RData"))  
+  save(proj_ind, file = paste0("./output/species/SBT",sbt," test_ms_sim_proj_ind.RData"))  
   
   
 }
+
+
