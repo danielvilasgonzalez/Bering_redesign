@@ -512,13 +512,13 @@ for (sbt in unique(df_sbt$sbt_n)) {
     #sp<-spp[1];sbt<-df_sbt$sbt_n[1]
     
     #load first 50 simulations
-    #load(file = paste0("./output/species/",sp,"/simulated projected data/SBT",sbt," dens_index_proj_OM_50.RData")) #dens_index_proj_OM
-    load('/Users/Daniel.Vilas/Downloads/SBT1 dens_index_proj_OM_50.RData') #dens_index_proj_OM
+    load(file = paste0("./output/species/",sp,"/simulated projected data/SBT",sbt," dens_index_proj_OM_50.RData")) #dens_index_proj_OM
+    #load('/Users/Daniel.Vilas/Downloads/SBT1 dens_index_proj_OM_50.RData') #dens_index_proj_OM
     dens_index_proj_OM_50<-dens_index_proj_OM
     rm(dens_index_proj_OM)
     #load following 50 simulations
-    #load(file = paste0("./output/species/",sp,"/simulated projected data/SBT",sbt," dens_index_proj_OM_100.RData")) #dens_index_proj_OM
-    load('/Users/Daniel.Vilas/Downloads/SBT1 dens_index_proj_OM_100.RData') #dens_index_proj_OM
+    load(file = paste0("./output/species/",sp,"/simulated projected data/SBT",sbt," dens_index_proj_OM_100.RData")) #dens_index_proj_OM
+    #load('/Users/Daniel.Vilas/Downloads/SBT1 dens_index_proj_OM_100.RData') #dens_index_proj_OM
     dens_index_proj_OM_100<-dens_index_proj_OM
     rm(dens_index_proj_OM)
     
@@ -542,8 +542,8 @@ for (sbt in unique(df_sbt$sbt_n)) {
   }
   
   #store PROJ simulated data
-  save(simdata, file = paste0("./output/species/SBT",sbt," test_ms_sim_proj_dens.RData"))  
-  save(proj_ind, file = paste0("./output/species/SBT",sbt," test_ms_sim_proj_ind.RData"))  
+  save(simdata, file = paste0("./output/species/SBT",sbt," ms_sim_proj_dens.RData"))  
+  save(proj_ind, file = paste0("./output/species/SBT",sbt," ms_sim_proj_ind.RData"))  
   
   
 }
