@@ -318,7 +318,7 @@ save(index_hist, file = paste0('./output/index_hist.RData'))
 #dir create sim survey projected
 dir.create('./output/ms_sim_survey_proj')
 
-#create a df of 40years x 100sur/sim (it changes on the projected since it simulations have different indeces)
+#create a df of 5years x 100sur/sim x x 8sbt scenarios (it changes on the projected since it simulations have different indeces)
 n_sur<-100
 
 sur_df<-cbind(expand.grid('year'=project_yrs,'sur'=1:n_sim_proj,'sbt'=df_sbt$sbt_n),'num'=1:4000)
