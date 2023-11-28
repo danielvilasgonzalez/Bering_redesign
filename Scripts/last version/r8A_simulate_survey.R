@@ -167,14 +167,14 @@ load(file = paste0('./output/species/ms_sim_dens.RData'))  #sim_dens1
 dir.create('./output/ms_sim_survey/')
 
 #array to store
-index_hist<-array(NA,
+index_proj<-array(NA,
                   dim=list(length(spp),3,length(yrs),3,n_sur,nrow(samp_df)),
                   dimnames=list(spp,c('STRS_mean','STRS_var','CV_sim'),paste0('y',yrs),c('sys','rand','sb'),1:n_sur,samp_df$samp_scn))
 
 #loop over sampling design
 for (samp in samp_df$samp_scn)  {
   
-  #samp<-'scnbase_bis'
+  samp<-'scnbase_bis'
   #start_time_parallel <- Sys.time()
   
   #number of sampling design
@@ -245,7 +245,7 @@ for (samp in samp_df$samp_scn)  {
     #loop over n combinations of simulated
     for (n in sur_df$num) {
 
-      #n<-sur_df$num[1]
+      n<-sur_df$num[1]
       
       #year of simulation
       y<-as.character(sur_df[which(sur_df$num==n),'year'])
@@ -258,7 +258,7 @@ for (samp in samp_df$samp_scn)  {
       #loop over station allocation approac
       for (apr in c('sys','rand','sb')) {
         
-        #apr<-'sys'
+        apr<-'sys'
 
         #print process        
         cat(paste(" #############  ",samp,'- simdata',sur, '- year',y ,'- allocation',apr," #############\n"))
@@ -309,6 +309,197 @@ for (samp in samp_df$samp_scn)  {
   }
 
 save(index_hist, file = paste0('./output/index_hist.RData'))  
+
+
+################
+# PROJECTED
+################
+
+#dir create sim survey projected
+dir.create('./output/ms_sim_survey_proj')
+
+#create a df of 40years x 100sur/sim (it changes on the projected since it simulations have different indeces)
+n_sur<-100
+
+sur_df<-cbind(expand.grid('year'=project_yrs,'sur'=1:n_sim_proj,'sbt'=df_sbt$sbt_n),'num'=1:4000)
+
+
+#simulated densities
+#load(file = paste0('./output/species/ms_sim_dens.RData'))  #sim_dens1
+
+#ms_sim_survey folder
+#dir.create('./output/ms_sim_survey/')
+
+#loop over n combinations of simulated
+for (sim in 1:n_sim_proj) {
+  
+  #sim<-1
+  
+  # Convert 0 to '001'
+  sim_fol <- sprintf("%03d", sim)
+  
+  #create folder
+  dir.create(paste0('./output/ms_sim_survey_proj/sim',sim_fol))
+
+  
+#loop over projections
+for (sbt in df_sbt$sbt_n) {
+  
+  #num surveys
+  nums<-sur_df[which(sur_df$sbt==sbt),'num']
+  
+  #sbt<-df_sbt$sbt_n[1]
+  #load densities projections
+  load(paste0('./output/species/SBT',sbt,' test_ms_sim_proj_dens.RData'))
+  
+  #array to store
+  index_proj<-array(NA,
+                    dim=list(length(spp),3,length(project_yrs),3,n_sur,nrow(samp_df)),
+                    dimnames=list(spp,c('STRS_mean','STRS_var','CV_sim'),paste0('y',project_yrs),c('sys','rand','sb'),1:n_sur,samp_df$samp_scn))
+  
+  
+  #array to store results  
+  # sim_survey <- array(NA,
+  #                     dim = c(alloc, length(spp)+2, n_sur, length(unique(project_yrs)),length(samp_df$samp_scn),length(c('sys','rand','sb'))),
+  #                     dimnames = list(1:alloc, c('cell','strata',spp), 1:n_sur,unique(project_yrs), samp_df$samp_scn, c('sys','rand','sb')))
+  
+  
+  #loop over sampling design
+  for (samp in samp_df$samp_scn)  {
+    
+    #samp<-'scn1'
+    #start_time_parallel <- Sys.time()
+    
+    #number of sampling design
+    s<-match(samp,samp_df$samp_scn)
+    
+    #when base sampling other files
+    if (grepl('base',samp)) {
+      
+      #conditions on baseline scenarios
+      if (samp == 'scnbase') {
+        baseline_strata$locations2<-baseline_strata$locations
+      } else if (samp == 'scnbase_bis') {
+        baseline_strata$locations2<-baseline_strata$locations[which(baseline_strata$locations$corner=='FALSE'),]
+      } 
+      
+      #sort by strata
+      baseline_strata$strata_areas<-baseline_strata$strata_areas[order(baseline_strata$strata_areas$X1),]
+      baseline_strata$locations2<-baseline_strata$locations2[order(baseline_strata$locations2$stratum),]
+      
+      #area by strata
+      strata_areas <- baseline_strata$strata_areas
+      
+      #strata data
+      survey_detail <- data.frame("Stratum" = baseline_strata$strata_areas$X1, #strata
+                                  'Nh' = baseline_strata$strata_areas$pct*53464, #number of cells
+                                  "nh" = data.frame(table(baseline_strata$locations2$stratum))[,c('Freq')]) #number of sample allocations
+      
+      #weight of strata for each
+      survey_detail$Wh <- survey_detail$Nh / sum(survey_detail$Nh)
+      survey_detail$wh <- with(survey_detail, nh/Nh)
+      
+    } else {
+      
+      #load optimization results
+      load(paste0("./output/ms_optim_allocations_",samp_df[s,'samp_scn'],".RData")) #all
+      
+      #area
+      area_cell<-merge(all$result_list$solution$indices, grid2, by.x='ID',by.y='cell')
+      
+      #area by strata
+      strata_areas <- aggregate(Area_in_survey_km2 ~ X1, 
+                                FUN = sum,
+                                data = area_cell)
+      
+      #strata data
+      survey_detail <- data.frame("Stratum" = all$samples_strata$strata, #strata
+                                  'Nh' = as.integer(table(all$result_list$solution$indices$X1)), #number of cells
+                                  "nh" = all$samples_strata$n_samples) #number of sample allocations
+      
+      #weight of strata for each
+      survey_detail$Wh <- survey_detail$Nh / sum(survey_detail$Nh)
+      survey_detail$wh <- with(survey_detail, nh/Nh)
+      
+    }   
+    
+    #array to store simulated densities/CPUE
+    alloc<-ifelse(samp=='scnbase_bis',494,520)
+    
+    #load survey allocations by sampling design
+    load(file = paste0('./output/survey_allocations_',samp,'.RData')) #scn_allocations
+    dimnames(scn_allocations)[[3]]<-c('sys','rand','sb')
+      
+    #loop over n combinations of simulated
+    for (n in nums) {
+      
+      #n<-nums[1]
+      
+      #year of simulation
+      y<-as.character(sur_df[which(sur_df$num==n),'year'])
+      #isurvey of simulation
+      sur<-sur_df[which(sur_df$num==n),'sur']
+      
+      #simulated densities of survey and year
+      sim_dens2<-simdata[,,y,sim]
+      
+      #loop over station allocation approac
+      for (apr in c('sys','rand','sb')) {
+        
+        #apr<-'sys'
+        
+        #print process        
+        cat(paste(" #############  ",samp,'- simdata',sur, '- year',y ,'- allocation',apr," #############\n"))
+        
+        #get densities based on station allocations
+        sim_survey<-data.frame(cbind(strata=scn_allocations[scn_allocations[,'sur',apr]==n,c('strata'),apr],
+                                     dens=sim_dens2[scn_allocations[scn_allocations[,'sur',apr]==n,c('cell'),apr],]),check.names = FALSE)
+        
+        sim_survey1<-reshape2::melt(sim_survey,id.vars=c('strata'))
+        
+        #mean, sum and var by strata and year (variable)
+        sim_survey2<-aggregate(x=sim_survey1$value,
+                               by=list(strata=sim_survey1$strata,sp=sim_survey1$variable),
+                               FUN = function(x) c('mean' = mean(x,na.rm=T), 'sum' = sum(x),'var' = var(x,na.rm=T) ))
+        
+        #create df
+        zzz<-data.frame('strata'=sim_survey2$strata,'sp'=sim_survey2$sp,'mean'=sim_survey2$x[,c('mean')],'var'=sim_survey2$x[,c('var')]) #/length(yy$value)
+        zzzz<-merge(zzz,strata_areas,by.x='strata',by.y='X1',all.x=TRUE)
+        zzzz<-merge(zzzz,survey_detail,by.x='strata',by.y='Stratum',all.x=TRUE)
+        
+        #add index strata for sum to compute index (mean strata density * area of strata) kg!
+        zzzz$index_strata<-zzzz$mean*zzzz$Area_in_survey_km2
+        
+        #add strata var 
+        zzzz$strs_var<-zzzz$var*(zzzz$Area_in_survey_km2^2)/zzzz$nh #sum(survey_detail$Nh) 
+        
+        #sum of strata var and mean density across years (kg/km2)
+        zzzz1 <- aggregate(zzzz[,c('strs_var','index_strata')], by= list(zzzz$sp),FUN = sum)
+        
+        #get CV across years
+        zzzz1$cv<- sqrt(zzzz1$strs_var) / zzzz1$index_strata
+        
+        #mean CV 
+        mean(zzzz1$cv,na.rm=TRUE)
+        
+        #get outputs
+        STRS_mean <- zzzz1$index_strata
+        STRS_var <- zzzz1$strs_var
+        CV <- sqrt(STRS_var) / STRS_mean
+        
+        #store outputs
+        index_proj[,'STRS_mean',paste0('y',y),apr,sur,samp]<-STRS_mean
+        index_proj[,'STRS_var',paste0('y',y),apr,sur,samp]<-STRS_var
+        index_proj[,'CV_sim',paste0('y',y),apr,sur,samp]<-CV
+        
+      }
+     }
+    }
+  save(index_proj, file = paste0('./output/ms_sim_survey_proj/sim',sim_fol,'/SBT',sbt,' index_proj.RData'))  
+  
+  } 
+}
+
 
 
 # ################
