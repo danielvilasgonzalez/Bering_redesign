@@ -66,6 +66,9 @@ spp<-c('Limanda aspera',
  
 splist<-list() 
  
+mod<-c('slope','slope_outshelf')[2]
+
+
 for (sp in spp) {
 
  #example
@@ -145,7 +148,13 @@ eastern_bering_sea_grid<-subset(as.data.frame(eastern_bering_sea_grid),Stratum %
 load('./extrapolation grids/bering_sea_slope_grid.rda')
 names(bering_sea_slope_grid)[4]<-'Stratum'
 bering_sea_slope_grid$Stratum<-99
-grids<-rbind(eastern_bering_sea_grid,bering_sea_slope_grid)  
+
+if (mod=='slope') {
+  grids<-bering_sea_slope_grid
+} else {
+  grids<-rbind(eastern_bering_sea_grid,bering_sea_slope_grid)  
+}
+
 names(grids)[3]<-'Area_km2'
 grids
 
@@ -239,7 +248,12 @@ if(enc0==FALSE){
 }
 
 #regions (predefined in VAST)
-region<-'User'#c("bering_sea_slope")
+if (mod=='slope') {
+  region<-'bering_sea_slope'#c("bering_sea_slope")
+} else{
+  region<-'User'  
+}
+#c("bering_sea_slope")
 #region<-'bering_sea_slope'#c("bering_sea_slope")
 
 #create folder to store results
@@ -252,9 +266,9 @@ settings <- make_settings(n_x=knots,#knots,
                           purpose="index2", 
                           bias.correct=FALSE,
                           knot_method='grid',
-                          use_anisotropy=TRUE, #TRUE
+                          use_anisotropy=FALSE, #TRUE
                           #RhoConfig=rho_c, 
-                          RhoConfig=c("Beta1"=2,"Beta2"=2,"Epsilon1"=0,"Epsilon2"=0), 
+                          RhoConfig=c("Beta1"=0,"Beta2"=0,"Epsilon1"=0,"Epsilon2"=0), 
                           #FieldConfig = matrix( c("IID","IID",'IID',"Identity","IID","IID",'IID',"Identity"), #c("IID","IID",0,"Identity", "IID","IID",0,"Identity"), 
                           #                       ncol=2, 
                           #                       nrow=4, 
@@ -366,7 +380,7 @@ fit <- tryCatch( {fit_model(settings=settings,
                             X1_formula =  X1_formula,
                             X2_formula = X2_formula, 
                             #newtonsteps = 3,
-                            #PredTF_i = pred_TF,
+                            #PredTF_i = presloped_TF,
                             #X_gtp = X_gtp,
                             working_dir = paste(out_dir,fol_region,sp,'/',sep='/'))},
                  error = function(cond) {
