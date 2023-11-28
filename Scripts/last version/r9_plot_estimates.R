@@ -176,7 +176,7 @@ true_ind1$dummy<-'true index'
 true_ind1$com_sci<-paste0(true_ind1$common,'\n(',true_ind1$spp,')')
 
 #plot
-#p<-
+p<-
   ggplot()+
   geom_ribbon(data=df,aes(x=year,ymax=index[,'q95']/1000,ymin=index[,'q5']/1000,group=interaction(scn,approach,com_sci),fill=scn),alpha=0.1)+
   geom_line(data=df,aes(x=year,y=index[,'mean']/1000,color=scn,group=interaction(scn,approach),linetype=approach),linewidth=0.7,alpha=0.8)+
@@ -201,14 +201,14 @@ true_ind1$com_sci<-paste0(true_ind1$common,'\n(',true_ind1$spp,')')
   scale_y_continuous(expand = c(0,0),limits = c(0,NA),labels = scales::comma)+
   #                    limits =  c(0, max(df$index[,'mean']/1000) + mean(df$index[,'mean'])/10000))+
   theme(panel.grid.minor = element_line(linetype=2,color='grey90'),strip.background = element_rect(fill='white'),
-        legend.position=c(.92,.30),legend.key.size = unit(20, 'points'),legend.text = element_text(size=10), #legend.position=c(.85,.19)
-        legend.title = element_text(size=14),strip.text = element_text(size=12))+ #axis.text.x = element_text(angle=90,vjust=0.5),
+        legend.position=c(.92,.15),legend.key.size = unit(10, 'points'),legend.text = element_text(size=8), #legend.position=c(.85,.19)
+        legend.title = element_text(size=9),strip.text = element_text(size=12),legend.spacing.y = unit(0.05, "cm"))+ #axis.text.x = element_text(angle=90,vjust=0.5),
   expand_limits(y = 0)+
   facet_wrap(~com_sci,scales='free',dir='v',nrow = 3)
   #pacific cod #facet_wrap(~com_sci,scales='free',dir='v',nrow = 5)
 
   
-  ragg::agg_png(paste0('./figures/ms_hist_indices2.png'), width = 12, height = 15, units = "in", res = 300)
+  ragg::agg_png(paste0('./figures/ms_hist_indices2.png'), width = 16, height = 8, units = "in", res = 300)
   p
   dev.off()
   
@@ -290,7 +290,7 @@ df1$approach<-factor(df1$approach,levels=c('sys','rand','sb'))
 df1$com_sci<-paste0(df1$common,'\n(',df1$spp,')')
 
 #plot
-#p<-
+p<-
   ggplot()+
   geom_boxplot(data=df1,aes(x=strat_var,y=index[,'mean'],fill=scn,group =interaction(scn,approach),linetype=approach),alpha=1)+
   labs(y='CV',x='')+
@@ -309,17 +309,22 @@ df1$com_sci<-paste0(df1$common,'\n(',df1$spp,')')
     scale_shape_manual(values=c('true index'=21),name='')+
     scale_y_continuous(expand = c(0.01,0),limits = c(0,NA))+
     #                    limits =  c(0, max(df$index[,'mean']/1000) + mean(df$index[,'mean'])/10000))+
-    theme(panel.grid.minor = element_line(linetype=2,color='grey90'),strip.background = element_rect(fill='white'),
-          legend.position=c(.90,.30),legend.key.size = unit(20, 'points'),legend.text = element_text(size=10),
-          legend.title = element_text(size=14),strip.text = element_text(size=15),
-          axis.text.x = element_blank())+ #axis.text.x = element_text(angle=90,vjust=0.5),
+  theme(panel.grid.minor = element_line(linetype=2,color='grey90'),strip.background = element_rect(fill='white'),
+        legend.position=c(.92,.18),legend.key.size = unit(10, 'points'),legend.text = element_text(size=8), #legend.position=c(.85,.19)
+        legend.title = element_text(size=9),strip.text = element_text(size=12),legend.spacing.y = unit(0.05, "cm"),
+        axis.text.x = element_blank())+ #axis.text.x = element_text(angle=90,vjust=0.5),
+  
+    # theme(panel.grid.minor = element_line(linetype=2,color='grey90'),strip.background = element_rect(fill='white'),
+    #       legend.position=c(.90,.30),legend.key.size = unit(20, 'points'),legend.text = element_text(size=10),
+    #       legend.title = element_text(size=14),strip.text = element_text(size=15),
+    #       axis.text.x = element_blank())+ #axis.text.x = element_text(angle=90,vjust=0.5),
     #expand_limits(y = 0)+
     facet_wrap(~com_sci,scales='free_y',dir='v',nrow = 3)
   
                      #limits =  c(0, max(df$index[,'mean']) + mean(df$index[,'mean'])/10))
 
 #save plot
-ragg::agg_png(paste0('./figures/ms_hist_indices_cv_box.png'), width = 12, height = 12, units = "in", res = 300)
+ragg::agg_png(paste0('./figures/ms_hist_indices_cv_box.png'), width = 14, height = 8, units = "in", res = 300)
 p
 dev.off()
 
@@ -395,7 +400,7 @@ df1<-merge(df1,df_spp,by.x='spp',by.y='spp')
 df1$com_sci<-paste0(df1$common,'\n(',df1$spp,')')
 
 #plot boxplot
-#p<-
+p<-
   ggplot()+
   geom_boxplot(data=df1,aes(x=scn,y=rrmse,fill=scn,group =interaction(scn,approach,spp),linetype=approach),alpha=1)+
   labs(y='RRMSE of CV',x='')+
@@ -411,17 +416,18 @@ df1$com_sci<-paste0(df1$common,'\n(',df1$spp,')')
     scale_shape_manual(values=c('true index'=21),name='')+
     theme_bw()+
     scale_y_continuous(expand = c(0.01,0),limits = c(0,0.5))+
-    #                    limits =  c(0, max(df$index[,'mean']/1000) + mean(df$index[,'mean'])/10000))+
-    theme(panel.grid.minor = element_line(linetype=2,color='grey90'),strip.background = element_rect(fill='white'),
-          legend.position=c(.90,.30),legend.key.size = unit(20, 'points'),legend.text = element_text(size=10),
-          legend.title = element_text(size=14),strip.text = element_text(size=15),
-          axis.text.x = element_blank())+ #axis.text.x = element_text(angle=90,vjust=0.5),
+    #                    limits =  c(0, max(df$index[,'mean']/1000) + mean(df$index[,'mean'])/10000))+  
+  theme(panel.grid.minor = element_line(linetype=2,color='grey90'),strip.background = element_rect(fill='white'),
+  legend.position=c(.92,.18),legend.key.size = unit(10, 'points'),legend.text = element_text(size=8), #legend.position=c(.85,.19)
+  legend.title = element_text(size=9),strip.text = element_text(size=12),legend.spacing.y = unit(0.05, "cm"),
+  axis.text.x = element_blank())+ #axis.text.x = element_text(angle=90,vjust=0.5),
+
     #expand_limits(y = 0)+
     facet_wrap(~com_sci,scales='free_y',dir='v',nrow = 3)
   
   
   #save plot210notio
-  ragg::agg_png(paste0('./figures/ms_hist_indices_rrmse_box.png'), width = 12, height = 12, units = "in", res = 300)
+  ragg::agg_png(paste0('./figures/ms_hist_indices_rrmse_box.png'), width = 14, height = 8, units = "in", res = 300)
   p
   dev.off()
   

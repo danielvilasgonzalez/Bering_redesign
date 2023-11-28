@@ -28,7 +28,7 @@ if (!('VAST' %in% installed.packages())) {
 pacman::p_load(pack_cran,character.only = TRUE)
 
 #setwd - depends on computer using
-#out_dir<-'C:/Users/Daniel.Vilas/Work/Adapting Monitoring to a Changing Seascape/' #NOAA laptop  
+out_dir<-'C:/Users/Daniel.Vilas/Work/Adapting Monitoring to a Changing Seascape/' #NOAA laptop  
 out_dir<-'/Users/daniel/Work/Adapting Monitoring to a Changing Seascape/' #mac
 #out_dir<-'/Users/daniel/Work/VM' #VM
 setwd(out_dir)
@@ -373,7 +373,7 @@ stack_files<-list.files('./data processed/SBT projections/')
 #loop over spp
 for (sp in spp) {
   
-  sp<-spp[9]
+  sp<-spp[11]
   
   #create folder simulation data
   dir.create(paste0('./output/species/',sp,'/'))
@@ -503,9 +503,9 @@ for (sbt in unique(df_sbt$sbt_n)) {
                  dimnames = list(1:nrow(grid),spp, as.character(2023:2027), 1:n_sim_proj))
   
   proj_ind<-array(NA,
-                  dim = c(length(spp), length(unique(2023:2027)), n_sim_proj),
-                  dimnames = list(spp, as.character(2023:2027), 1:n_sim_proj))
-  
+                 dim = c(length(spp), length(unique(2023:2027)), n_sim_proj),
+                 dimnames = list(spp, as.character(2023:2027), 1:n_sim_proj))
+    
   #loop over species
   for (sp in spp) {
     
@@ -536,7 +536,7 @@ for (sbt in unique(df_sbt$sbt_n)) {
         #index
         proj_ind[sp,,i]<-dens_index_proj_OM_50[[i]]$index[,as.character(2023:2027),'Stratum_1']
         proj_ind[sp,,i+50]<-dens_index_proj_OM_100[[i]]$index[,as.character(2023:2027),'Stratum_1']
-        
+
       }
     }
   }
@@ -547,3 +547,5 @@ for (sbt in unique(df_sbt$sbt_n)) {
   
   
 }
+
+
