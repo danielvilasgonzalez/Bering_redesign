@@ -172,7 +172,7 @@ dir.create(paste0('./output/ms_sim_survey_hist/'))
 #loop over n combinations of simulated
 for (sim in 1:n_sim_hist) {
   
-  sim<-1
+  #sim<-1
   
   # Convert 0 to '001'
   sim_fol <- sprintf("%03d", sim)
@@ -188,7 +188,7 @@ for (sim in 1:n_sim_hist) {
   #loop over sampling design
     for (samp in samp_df$samp_scn)  {
       
-      samp<-'scnbase_bis'
+      #samp<-'scnbase_bis'
       #start_time_parallel <- Sys.time()
       
       #number of sampling design
@@ -261,7 +261,7 @@ for (sim in 1:n_sim_hist) {
         #loop over n combinations of simulated
         for (n in sur_df$num) {
     
-          n<-sur_df$num[1]
+          #n<-sur_df$num[1]
           
           #year of simulation
           y<-as.character(sur_df[which(sur_df$num==n),'year'])
@@ -274,7 +274,7 @@ for (sim in 1:n_sim_hist) {
           #loop over station allocation approac
           for (apr in c('sys','rand','sb')) {
             
-            apr<-'sys'
+            #apr<-'sys'
     
             #print process        
             cat(paste(" #############  ",samp,'- simdata',sur, '- year',y ,'- allocation',apr," #############\n"))
