@@ -175,6 +175,14 @@ true_ind1$year<-as.integer(true_ind1$year)
 true_ind1$dummy<-'true index'
 true_ind1$com_sci<-paste0(true_ind1$common,'\n(',true_ind1$spp,')')
 
+
+df$value<-df$index[,'q95']/1000
+y_scale<-aggregate(value ~ com_sci, df,max)
+y_scale$scale<-y_scale$value+y_scale$value*0.2
+y_scale$apr<-'sys'
+y_scale$year<-2010
+y_scale$scn<-'scn1'
+
 #plot
 p<-
   ggplot()+
@@ -194,21 +202,29 @@ p<-
                                      'sb'='dotted'),
                           label=c('systematic','random','spatially-balanced'),
                           name='station allocation')+
-  scale_shape_manual(values=c('true index'=4),name='')+
+  scale_shape_manual(values=c('true index'=4))+
+    #coord_trans(y = "exp")+
   scale_x_continuous(expand=c(0,0),
                      breaks = c(1985,1990,1995,2000,2005,2010,2015,2020),
                      minor_breaks = setdiff(1982:2022,c(1982,1985,1990,1995,2000,2005,2010,2015,2020,2022)))+
   scale_y_continuous(expand = c(0,0),limits = c(0,NA),labels = scales::comma)+
   #                    limits =  c(0, max(df$index[,'mean']/1000) + mean(df$index[,'mean'])/10000))+
-  theme(panel.grid.minor = element_line(linetype=2,color='grey90'),strip.background = element_rect(fill='white'),
-        legend.position=c(.92,.15),legend.key.size = unit(10, 'points'),legend.text = element_text(size=8), #legend.position=c(.85,.19)
-        legend.title = element_text(size=9),strip.text = element_text(size=12),legend.spacing.y = unit(0.05, "cm"))+ #axis.text.x = element_text(angle=90,vjust=0.5),
+  theme(panel.grid.minor = element_line(linetype=2,color='grey90'),#strip.background = element_rect(fill='white'),
+        legend.position=c(.85,.065),legend.key.size = unit(12, 'points'),legend.text = element_text(size=9), #legend.position=c(.85,.19)
+        legend.title = element_text(size=10),legend.spacing.y = unit(0.05, "cm"),legend.box.spacing =  unit(0.01, "cm"), #,strip.text = element_text(size=12)
+        strip.background = element_blank(),legend.background = element_blank(),
+        strip.text = element_blank())+ #axis.text.x = element_text(angle=90,vjust=0.5),
   expand_limits(y = 0)+
-  facet_wrap(~com_sci,scales='free',dir='v',nrow = 3)
-  #pacific cod #facet_wrap(~com_sci,scales='free',dir='v',nrow = 5)
+  geom_text(data=df,aes(label = common),x = Inf, y = Inf, hjust = 1.1, vjust = 1.5,size=4) + #,fontface='italic'
+  #  geom_text(data=df,aes(label = common),x = Inf, y = -Inf, hjust = 1.1, vjust = -0.8,size=4) + #,fontface='italic'
+  guides(fill=guide_legend(ncol=2),color=guide_legend(ncol=2),linetype=guide_legend(ncol=2),shape=guide_legend(title = element_blank()))+
+  #facet_wrap(~com_sci,scales='free',dir='v',nrow = 3)
+  #pacific cod 
+  geom_blank(data=y_scale,aes(x=year,y=scale,fill=scn,group =interaction(scn,apr)))+
+  facet_wrap(~com_sci,scales='free_y',dir='h',nrow = 5)
 
-  
-  ragg::agg_png(paste0('./figures/ms_hist_indices2.png'), width = 16, height = 8, units = "in", res = 300)
+
+  ragg::agg_png(paste0('./figures/ms_hist_indices2.png'), width = 10, height = 9, units = "in", res = 300)
   p
   dev.off()
   
@@ -285,48 +301,88 @@ df1<-merge(df,samp_df,by.x='scn',by.y='samp_scn',all.x=TRUE)
 #sort and corrections for plotting purposes
 df1$scn<-factor(df1$scn,levels=c('scnbase','scnbase_bis',paste0('scn',3:1)))
 df1$strat_var<-gsub('_','\n',df1$strat_var)
-df1$strat_var<-factor(df1$strat_var,levels=c('baseline','baseline w/o corner','Depth','varTemp','Depth\nvarTemp'))
+#df1$strat_var<-factor(df1$strat_var,levels=c('baseline','baseline w/o corner','Depth','varTemp','Depth\nvarTemp'))
 df1$approach<-factor(df1$approach,levels=c('sys','rand','sb'))
 df1$com_sci<-paste0(df1$common,'\n(',df1$spp,')')
+
+#for geom_blank(0 and adjust scale)
+df1$value<-df1$index[,'mean']
+y_scale<-aggregate(value ~ common, df1,max)
+y_scale$scale<-y_scale$value+y_scale$value*0.2
+y_scale$apr<-'sys'
+y_scale$scn<-'scn1'
 
 #plot
 p<-
   ggplot()+
-  geom_boxplot(data=df1,aes(x=strat_var,y=index[,'mean'],fill=scn,group =interaction(scn,approach),linetype=approach),alpha=1)+
+  geom_boxplot(data=df1,aes(x=scn,y=value,fill=scn,group =interaction(scn,approach,spp),linetype=approach),alpha=1)+
   labs(y='CV',x='')+
-    scale_fill_manual(values=c('scn1'='#4e79a7','scn2'='#59a14f','scn3'='#edc948','scnbase'='#79706E','scnbase_bis'='#e15759'),
+    scale_fill_manual(values=c('scnbase'='#79706E','scnbase_bis'='#e15759','scn3'='#edc948','scn2'='#59a14f','scn1'='#4e79a7'),
                       labels = c('baseline','baseline w/o corner','depth','var temp','depth + var temp'),name='sampling design')+
-    scale_color_manual(values=c('scn1'='#4e79a7','scn2'='#59a14f','scn3'='#edc948','scnbase'='#79706E','scnbase_bis'='#e15759'),
-                       labels = c('baseline','baseline w/o corner','depth','var temp','depth + var temp'),name='sampling design')+
-    scale_alpha_manual(values = c('scn1'=1,'scn2'=1,'scn3'=1,'scnbase'=0.8,'scnbase_bis'=1),
-                       labels = c('baseline','baseline w/o corner','depth','var temp','depth + var temp'),name='sampling design')+
-    theme_bw()+
+    # scale_color_manual(values=c('scn1'='#4e79a7','scn2'='#59a14f','scn3'='#edc948','scnbase'='#79706E','scnbase_bis'='#e15759'),
+    #                    labels = c('baseline','baseline w/o corner','depth','var temp','depth + var temp'),name='sampling design')+
+    #scale_alpha_manual(values = c('scn1'=1,'scn2'=1,'scn3'=1,'scnbase'=,'scnbase_bis'=1),
+    #                   labels = c('baseline','baseline w/o corner','depth','var temp','depth + var temp'),name='sampling design')+
+    theme_bw()+ 
+    facet_wrap(~common,scales='free_y',dir='h',nrow = 5)+
     scale_linetype_manual(values = c('sys'='solid',
                                      'rand'='dashed',
                                      'sb'='dotted'),
                           label=c('systematic','random','spatially-balanced'),
                           name='station allocation')+
     scale_shape_manual(values=c('true index'=21),name='')+
-    scale_y_continuous(expand = c(0.01,0),limits = c(0,NA))+
+    scale_y_continuous(labels=function(x) sprintf('%.2f',x),expand = c(NA,0.1),limits = c(0,NA))+ #expand = c(NA,0.1),limits = c(0,NA)
     #                    limits =  c(0, max(df$index[,'mean']/1000) + mean(df$index[,'mean'])/10000))+
-  theme(panel.grid.minor = element_line(linetype=2,color='grey90'),strip.background = element_rect(fill='white'),
-        legend.position=c(.92,.18),legend.key.size = unit(10, 'points'),legend.text = element_text(size=8), #legend.position=c(.85,.19)
-        legend.title = element_text(size=9),strip.text = element_text(size=12),legend.spacing.y = unit(0.05, "cm"),
-        axis.text.x = element_blank())+ #axis.text.x = element_text(angle=90,vjust=0.5),
+  theme(panel.grid.minor = element_line(linetype=2,color='grey90'),#strip.background = element_rect(fill='white'),
+        legend.position=c(.85,.08),legend.key.size = unit(12, 'points'),legend.text = element_text(size=9), #legend.position=c(.85,.19)
+        legend.title = element_text(size=10),legend.spacing.y = unit(0.05, "cm"),legend.box.spacing =  unit(0.01, "cm"), #,strip.text = element_text(size=12)
+        strip.background = element_blank(),legend.background = element_blank(),
+        strip.text = element_blank(),axis.text.x =element_blank())+ #axis.text.x = element_text(angle=90,vjust=0.5),
+  expand_limits(y = 0)+
+    geom_text(data=df1,aes(label = common),x = Inf, y = Inf, hjust = 1.1, vjust = 1.5,size=4) + #,fontface='italic'
+    #  geom_text(data=df1,aes(label = common),x = Inf, y = -Inf, hjust = 1.1, vjust = -0.8,size=4) + #,fontface='italic'
+    guides(fill=guide_legend(ncol=2),color=guide_legend(ncol=2),linetype=guide_legend(ncol=2))+
+  #facet_wrap(~com_sci,scales='free',dir='v',nrow = 3)
+  geom_blank(data=y_scale,aes(x=scn,y=scale,fill=scn,group =interaction(scn,apr)))
   
-    # theme(panel.grid.minor = element_line(linetype=2,color='grey90'),strip.background = element_rect(fill='white'),
-    #       legend.position=c(.90,.30),legend.key.size = unit(20, 'points'),legend.text = element_text(size=10),
-    #       legend.title = element_text(size=14),strip.text = element_text(size=15),
-    #       axis.text.x = element_blank())+ #axis.text.x = element_text(angle=90,vjust=0.5),
-    #expand_limits(y = 0)+
-    facet_wrap(~com_sci,scales='free_y',dir='v',nrow = 3)
-  
-                     #limits =  c(0, max(df$index[,'mean']) + mean(df$index[,'mean'])/10))
+                    #limits =  c(0, max(df$index[,'mean']) + mean(df$index[,'mean'])/10))
 
 #save plot
-ragg::agg_png(paste0('./figures/ms_hist_indices_cv_box.png'), width = 14, height = 8, units = "in", res = 300)
+ragg::agg_png(paste0('./figures/ms_hist_indices_cv_box.png'), width = 9, height = 8, units = "in", res = 300)
 p
 dev.off()
+
+
+ggplot()+
+  geom_boxplot(data=df1,aes(x=reorder(strat_var,value),y=value,fill=scn,group =interaction(scn,approach),linetype=approach),alpha=1)+
+  labs(y='CV',x='')+
+  scale_fill_manual(values=c('scn1'='#4e79a7','scn2'='#59a14f','scn3'='#edc948','scnbase'='#79706E','scnbase_bis'='#e15759'),
+                    labels = c('baseline','baseline w/o corner','depth','var temp','depth + var temp'),name='sampling design')+
+  scale_color_manual(values=c('scn1'='#4e79a7','scn2'='#59a14f','scn3'='#edc948','scnbase'='#79706E','scnbase_bis'='#e15759'),
+                     labels = c('baseline','baseline w/o corner','depth','var temp','depth + var temp'),name='sampling design')+
+  scale_alpha_manual(values = c('scn1'=1,'scn2'=1,'scn3'=1,'scnbase'=0.8,'scnbase_bis'=1),
+                     labels = c('baseline','baseline w/o corner','depth','var temp','depth + var temp'),name='sampling design')+
+  theme_bw()+ 
+  #facet_wrap(~common,scales='free_y',dir='h',nrow = 5)+
+  scale_linetype_manual(values = c('sys'='solid',
+                                   'rand'='dashed',
+                                   'sb'='dotted'),
+                        label=c('systematic','random','spatially-balanced'),
+                        name='station allocation')+
+  scale_shape_manual(values=c('true index'=21),name='')+
+  scale_y_continuous(labels=function(x) sprintf('%.2f',x),expand = c(NA,0.1),limits = c(0,NA))+ #expand = c(NA,0.1),limits = c(0,NA)
+  #                    limits =  c(0, max(df$index[,'mean']/1000) + mean(df$index[,'mean'])/10000))+
+  theme(panel.grid.minor = element_line(linetype=2,color='grey90'),#strip.background = element_rect(fill='white'),
+        legend.position='none',legend.key.size = unit(12, 'points'),legend.text = element_text(size=9), #legend.position=c(.85,.19)
+        legend.title = element_text(size=10),legend.spacing.y = unit(0.05, "cm"),legend.box.spacing =  unit(0.01, "cm"), #,strip.text = element_text(size=12)
+        strip.background = element_blank(),legend.background = element_blank(),
+        strip.text = element_blank(),axis.text.x = element_blank())+ #axis.text.x = element_text(angle=90,vjust=0.5),
+  expand_limits(y = 0)+
+  #geom_text(data=df1,aes(label = common),x = Inf, y = Inf, hjust = 1.1, vjust = 1.5,size=4) + #,fontface='italic'
+  #  geom_text(data=df1,aes(label = common),x = Inf, y = -Inf, hjust = 1.1, vjust = -0.8,size=4) + #,fontface='italic'
+  guides(fill=guide_legend(ncol=2),color=guide_legend(ncol=2),linetype=guide_legend(ncol=2))#+
+  #facet_wrap(~com_sci,scales='free',dir='v',nrow = 3)
+  #geom_blank(data=y_scale,aes(x=scn,y=scale,fill=scn,group =interaction(scn,apr)))
 
 ######################
 # RRMSE of CV
@@ -399,6 +455,16 @@ df1$approach<-factor(df1$approach,levels=c('sys','rand','sb'))
 df1<-merge(df1,df_spp,by.x='spp',by.y='spp')
 df1$com_sci<-paste0(df1$common,'\n(',df1$spp,')')
 
+#remove outliers for visualization purposes
+df1<-df1[which(df1$rrmse <= mean(df1$rrmse)+3*sd(df1$rrmse)),]
+
+#for geom_blank and adjust scale
+#df1$rrmse<-df1$rrmse
+y_scale<-aggregate(rrmse ~ common, df1,max)
+y_scale$scale<-y_scale$rrmse+y_scale$rrmse*0.2
+y_scale$apr<-'sys'
+y_scale$scn<-'scn1'
+
 #plot boxplot
 p<-
   ggplot()+
@@ -415,21 +481,62 @@ p<-
                           name='station allocation')+
     scale_shape_manual(values=c('true index'=21),name='')+
     theme_bw()+
-    scale_y_continuous(expand = c(0.01,0),limits = c(0,0.5))+
+    #scale_y_continuous(expand = c(0.01,0),limits = c(0,0.5))+
     #                    limits =  c(0, max(df$index[,'mean']/1000) + mean(df$index[,'mean'])/10000))+  
-  theme(panel.grid.minor = element_line(linetype=2,color='grey90'),strip.background = element_rect(fill='white'),
-  legend.position=c(.92,.18),legend.key.size = unit(10, 'points'),legend.text = element_text(size=8), #legend.position=c(.85,.19)
-  legend.title = element_text(size=9),strip.text = element_text(size=12),legend.spacing.y = unit(0.05, "cm"),
-  axis.text.x = element_blank())+ #axis.text.x = element_text(angle=90,vjust=0.5),
-
+    scale_y_continuous(labels=function(x) sprintf('%.2f',x),expand = c(NA,0.1),limits = c(0,NA))+ #expand = c(NA,0.1),limits = c(0,NA)
+    #                    limits =  c(0, max(df$index[,'mean']/1000) + mean(df$index[,'mean'])/10000))+
+    theme(panel.grid.minor = element_line(linetype=2,color='grey90'),#strip.background = element_rect(fill='white'),
+          legend.position=c(.85,.08),legend.key.size = unit(12, 'points'),legend.text = element_text(size=9), #legend.position=c(.85,.19)
+          legend.title = element_text(size=10),legend.spacing.y = unit(0.05, "cm"),legend.box.spacing =  unit(0.01, "cm"), #,strip.text = element_text(size=12)
+          strip.background = element_blank(),legend.background = element_blank(),
+          strip.text = element_blank(),axis.text.x = element_blank())+ #axis.text.x = element_text(angle=90,vjust=0.5),
+    expand_limits(y = 0)+
+    geom_text(data=df1,aes(label = common),x = Inf, y = Inf, hjust = 1.1, vjust = 1.5,size=4) + #,fontface='italic'
+    #  geom_text(data=df1,aes(label = common),x = Inf, y = -Inf, hjust = 1.1, vjust = -0.8,size=4) + #,fontface='italic'
+    guides(fill=guide_legend(ncol=2),color=guide_legend(ncol=2),linetype=guide_legend(ncol=2))+
+    #facet_wrap(~com_sci,scales='free',dir='v',nrow = 3)
+    geom_blank(data=y_scale,aes(x=scn,y=scale,fill=scn,group =interaction(scn,apr)))+
     #expand_limits(y = 0)+
-    facet_wrap(~com_sci,scales='free_y',dir='v',nrow = 3)
+    facet_wrap(~common,scales='free_y',dir='h',nrow = 5)
   
   
   #save plot210notio
-  ragg::agg_png(paste0('./figures/ms_hist_indices_rrmse_box.png'), width = 14, height = 8, units = "in", res = 300)
+  ragg::agg_png(paste0('./figures/ms_hist_indices_rrmse_box.png'), width = 9, height = 8, units = "in", res = 300)
   p
   dev.off()
+  
+  ggplot()+
+    geom_boxplot(data=df1,aes(x=reorder(scn,rrmse),y=rrmse,fill=scn,group =interaction(scn,approach),linetype=approach),alpha=1)+
+    labs(y='RRMSE of CV',x='')+
+    scale_fill_manual(values=c('scn1'='#4e79a7','scn2'='#59a14f','scn3'='#edc948','scnbase'='#79706E','scnbase_bis'='#e15759'),
+                      labels = c('baseline','baseline w/o corner','depth','var temp','depth + var temp'),name='sampling design')+
+    scale_color_manual(values=c('scn1'='#4e79a7','scn2'='#59a14f','scn3'='#edc948','scnbase'='#79706E','scnbase_bis'='#e15759'),
+                       labels = c('baseline','baseline w/o corner','depth','var temp','depth + var temp'),name='sampling design')+
+    scale_linetype_manual(values = c('sys'='solid',
+                                     'rand'='dashed',
+                                     'sb'='dotted'),
+                          label=c('systematic','random','spatially-balanced'),
+                          name='station allocation')+
+    scale_shape_manual(values=c('true index'=21),name='')+
+    theme_bw()+
+    #scale_y_continuous(expand = c(0.01,0),limits = c(0,0.5))+
+    #                    limits =  c(0, max(df$index[,'mean']/1000) + mean(df$index[,'mean'])/10000))+  
+    scale_y_continuous(labels=function(x) sprintf('%.2f',x),expand = c(NA,0.1),limits = c(0,NA))+ #expand = c(NA,0.1),limits = c(0,NA)
+    #                    limits =  c(0, max(df$index[,'mean']/1000) + mean(df$index[,'mean'])/10000))+
+    theme(panel.grid.minor = element_line(linetype=2,color='grey90'),#strip.background = element_rect(fill='white'),
+          legend.position='none',legend.key.size = unit(12, 'points'),legend.text = element_text(size=9), #legend.position=c(.85,.19)
+          legend.title = element_text(size=10),legend.spacing.y = unit(0.05, "cm"),legend.box.spacing =  unit(0.01, "cm"), #,strip.text = element_text(size=12)
+          strip.background = element_blank(),legend.background = element_blank(),
+          strip.text = element_blank(),axis.text.x = element_blank())+ #axis.text.x = element_text(angle=90,vjust=0.5),
+    expand_limits(y = 0)+
+    #geom_text(data=df1,aes(label = common),x = Inf, y = Inf, hjust = 1.1, vjust = 1.5,size=4) + #,fontface='italic'
+    #  geom_text(data=df1,aes(label = common),x = Inf, y = -Inf, hjust = 1.1, vjust = -0.8,size=4) + #,fontface='italic'
+    guides(fill=guide_legend(ncol=2),color=guide_legend(ncol=2),linetype=guide_legend(ncol=2))#+
+    #facet_wrap(~com_sci,scales='free',dir='v',nrow = 3)
+   # geom_blank(data=y_scale,aes(x=scn,y=scale,fill=scn,group =interaction(scn,apr)))+
+    #expand_limits(y = 0)+
+    #facet_wrap(~common,scales='free_y',dir='h',nrow = 5)
+  
   
 ######################
 # PROJECTED INDEX
