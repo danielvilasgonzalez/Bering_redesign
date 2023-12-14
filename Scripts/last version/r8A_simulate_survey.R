@@ -172,7 +172,7 @@ dir.create(paste0('./output/ms_sim_survey_hist/'))
 #loop over n combinations of simulated
 for (sim in 1:n_sim_hist) {
   
-  sim<-1
+  #sim<-1
   
   # Convert 0 to '001'
   sim_fol <- sprintf("%03d", sim)
