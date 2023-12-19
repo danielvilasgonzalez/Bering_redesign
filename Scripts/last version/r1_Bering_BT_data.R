@@ -17,7 +17,7 @@ rm(list = ls(all.names = TRUE))
 gc() 
 
 #libraries from cran to call or install/load
-pack_cran<-c('googledrive','lubridate','ggplot2','fishualize')
+pack_cran<-c('googledrive','lubridate','ggplot2','fishualize','sp','raster')
 
 #install pacman to use p_load function - call library and if not installed, then install
 if (!('pacman' %in% installed.packages())) {
@@ -32,8 +32,8 @@ if (!('akgfmaps' %in% installed.packages())) {
 
 #setwd - depends on computer using
 #out_dir<-'C:/Users/Daniel.Vilas/Work/Adapting Monitoring to a Changing Seascape/' #NOAA laptop  
-#out_dir<-'/Users/daniel/Work/Adapting Monitoring to a Changing Seascape/' #mac
-out_dir<-'/Users/daniel/Work/VM' #VM
+out_dir<-'/Users/daniel/Work/Adapting Monitoring to a Changing Seascape/' #mac
+#out_dir<-'/Users/daniel/Work/VM' #VM
 setwd(out_dir)
 
 #range years of data
@@ -104,6 +104,14 @@ googledrive::drive_download(file=files.2$id[5],
 
 #create directory
 dir.create('./data raw/',showWarnings = FALSE)
+
+#get id shared folder from google drive
+id.bering.folder<-files[which(files$name=='Bering redesign RWP project'),'id']
+
+#list of files and folder
+files.1<-googledrive::drive_ls(id.bering.folder$id)
+id.data<-files.1[which(files.1$name=='data raw'),'id']
+files.2<-googledrive::drive_ls(id.data$id)
 
 #get haul (stations) data
 file<-files.2[grep('haul',files.2$name),]
@@ -444,8 +452,12 @@ ebs_layers <- akgfmaps::get_base_layers(select.region = "ebs", set.crs = "EPSG:3
 
 #baseline strata areas
 strata_areas<-as.data.frame(ebs_layers$survey.strata)
+sum(strata_areas$F_AREA)
+sum(strata_areas$Precise_Ar/1000000)
+
 #dataframe stratum and area
-strata_areas <- data.frame('Stratum'=strata_areas$Stratum,'Area_in_survey_km2'=strata_areas$Precise_Ar/1000)
+strata_areas <- data.frame('Stratum'=strata_areas$Stratum,'Area_in_survey_km2'=strata_areas$Precise_Ar/1000000)
+sum(strata_areas$Area_in_survey_km2)
 
 #strata polygon
 strata_pol<-as(ebs_layers$survey.strata, 'Spatial')
@@ -476,7 +488,7 @@ proj4string(st) <- CRS('+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0
 st<-spTransform(st,CRSobj = CRS('+proj=longlat +ellps=WGS84 +towgs84=0,0,0,0,0,0,0 +no_defs'))
 #cell
 locations$cell<-extract(r2,st)
-st1<-as.data.frame(st)[,c("Lon","Lat")]
+st1<-as.data.frame(st)[,c("coords.x1","coords.x2")]#[,c("Lon","Lat")]
 names(st1)<-c('x','y')
 xy<-st1
 sampled = apply(X = xy, MARGIN = 1, FUN = function(xy) r2@data@values[which.min(replace(distanceFromPoints(r2,xy), is.na(r2), NA))])
