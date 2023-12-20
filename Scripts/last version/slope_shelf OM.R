@@ -38,7 +38,8 @@ knots<-'200' #200
 splist<-list.dirs('./data processed/',full.names = FALSE,recursive = FALSE)
 
 #folder region
-fol_region<-'slope EBS VAST'
+fol_region<-c('slope EBS VAST','slope_outshelf EBS VAST')[2]
+dir.create(paste0('./',fol_region))
 
 #load grid
 load('./extrapolation grids/lastversion_grid_EBS.RData')
@@ -66,9 +67,6 @@ spp<-c('Limanda aspera',
  
 splist<-list() 
  
-mod<-c('slope','slope_outshelf')[2]
-
-
 for (sp in spp) {
 
  #example
@@ -134,10 +132,12 @@ df3<-df3[complete.cases(df3$CPUE_kg),]
 for (sp in spp) {
 
 #example
-sp<-spp[5]  
+#sp<-spp[1]  
   
 #filter by sp
 data_geostat<-subset(df3,Species==sp)
+if (fol_region=='slope EBS VAST') {
+  data_geostat<-subset(data_geostat,Region=='slope')}
 
 #add grid to get prediction for simulate data on each cell of the grid (sim$b_i)
 
@@ -149,7 +149,7 @@ load('./extrapolation grids/bering_sea_slope_grid.rda')
 names(bering_sea_slope_grid)[4]<-'Stratum'
 bering_sea_slope_grid$Stratum<-99
 
-if (mod=='slope') {
+if (fol_region=='slope EBS VAST') {
   grids<-bering_sea_slope_grid
 } else {
   grids<-rbind(eastern_bering_sea_grid,bering_sea_slope_grid)  
@@ -164,20 +164,18 @@ grids
 #                     Year=grid_ebs$Year,
 #                     Species=rep(sp,times=nrow(grid_ebs)),
 #                     CPUE_kg=mean(data_geostat$CPUE_kg),
-#                     Effort=grid_ebs$Area_in_survey_km2,
+#                     Effort=gris$Area_in_survey_km2,
 #                     Depth=grid_ebs$Depth,
 #                     #BotTemp=grid_ebs$Temp,
 #                     Region=grid_ebs$region,
 #                     stringsAsFactors = T)
-# 
 
 #ha to km2 ------ so kg/km2
 data_geostat$Effort<-data_geostat$Effort/100
 
 # 
 # #rbind grid and data_geostat to get prediction into grid values when simulating data
-
-# data_geostat1<-rbind(data_geostat[,c("Lat","Lon","Year","Species","CPUE_kg","Effort","Depth","Region")],
+#data_geostat1<-rbind(data_geostat[,c("Lat","Lon","Year","Species","CPUE_kg","Effort","Depth","Region")],
 #                      grids)
 
 data_geostat1<-rbind(data_geostat[,c("Lat","Lon","Year","Species","CPUE_kg","Effort","Depth","Region")])
@@ -193,8 +191,10 @@ pred_TF <- rep(1, nrow(data_geostat1))
 pred_TF[1:nrow(data_geostat)] <- 0
 
 #create folder
-dir.create(paste0('./slope EBS VAST/',sp))
-
+#dir.create(paste0('./',fol_region,'/',sp))
+#create folder to store results
+dir.create(paste(out_dir,fol_region,sp,sep='/'),
+           showWarnings = FALSE)
 #save data
 saveRDS(data_geostat1,paste(out_dir,fol_region,sp,'data_geostat_temp.rds',sep='/'))
 
@@ -248,17 +248,13 @@ if(enc0==FALSE){
 }
 
 #regions (predefined in VAST)
-if (mod=='slope') {
+if (fol_region=='slope EBS VAST') {
   region<-'bering_sea_slope'#c("bering_sea_slope")
 } else{
   region<-'User'  
 }
 #c("bering_sea_slope")
 #region<-'bering_sea_slope'#c("bering_sea_slope")
-
-#create folder to store results
-dir.create(paste(out_dir,fol_region,sp,sep='/'),
-           showWarnings = FALSE)
 
 #VAST model settings
 settings <- make_settings(n_x=knots,#knots, 
@@ -268,7 +264,7 @@ settings <- make_settings(n_x=knots,#knots,
                           knot_method='grid',
                           use_anisotropy=FALSE, #TRUE
                           #RhoConfig=rho_c, 
-                          RhoConfig=c("Beta1"=0,"Beta2"=0,"Epsilon1"=0,"Epsilon2"=0), 
+                          RhoConfig=rho_c,#c("Beta1"=0,"Beta2"=0,"Epsilon1"=0,"Epsilon2"=0), 
                           #FieldConfig = matrix( c("IID","IID",'IID',"Identity","IID","IID",'IID',"Identity"), #c("IID","IID",0,"Identity", "IID","IID",0,"Identity"), 
                           #                       ncol=2, 
                           #                       nrow=4, 
@@ -379,8 +375,8 @@ fit <- tryCatch( {fit_model(settings=settings,
                             covariate_data = covariate_data[,c('Year',"Lat","Lon","ScaleLogDepth","Depth","CPUE_kg")], 
                             X1_formula =  X1_formula,
                             X2_formula = X2_formula, 
-                            #newtonsteps = 3,
-                            #PredTF_i = presloped_TF,
+                            newtonsteps = 1,
+                            #PredTF_i = pred_TF,
                             #X_gtp = X_gtp,
                             working_dir = paste(out_dir,fol_region,sp,'/',sep='/'))},
                  error = function(cond) {
@@ -425,9 +421,16 @@ fit <- tryCatch( {fit_model(settings=settings,
 #                  })
 
 
-
+tryCatch({
 #check_fit(fit$parameter_estimates)
-plot(fit,working_dir = paste(out_dir,fol_region,sp,'/',sep='/'))
+plot(fit,working_dir = paste(out_dir,fol_region,sp,'/',sep='/'))},
+error = function(cond) {
+  message("Did not converge. Here's the original error message:")
+  message(cond)
+  #cat(paste(" ERROR MODEL IS NOT CONVERGING "))  
+  # Choose a return value in case of error
+  return(NULL)
+})
 
 #save fit
 save(list = "fit", file = paste(out_dir,fol_region,sp,'fit.RData',sep='/')) #paste(yrs_region,collapse = "")
@@ -444,7 +447,125 @@ error = function(cond) {
 
 
 }
+for (sp in spp) {
+  
+  #sp<-spp[1]
+  
+  cat(paste0('#######################\n#',sp,'\n#######################\n'))
+  
+  #save fit
+  load(paste(out_dir,fol_region,sp,'fit.RData',sep='/')) #paste(yrs_region,collapse = "")
+  
+  if (is.null(fit$parameter_estimates$Convergence_check)) {
+    cat(paste0(fit$Report,'\n')) 
+  } else  {
+    
+    tryCatch({
+      cat(paste(fit$parameter_estimates$Convergence_check,'\n'))},
+      error = function(cond) {
+        message("Did not converge. Here's the original error message:")
+        #message(cond)
+        #cat(paste(" ERROR MODEL IS NOT CONVERGING "))  
+        # Choose a return value in case of error
+        return(NULL)
+      })
+    
+  }
+  
+}
 
 
 
 
+
+
+
+##################################################
+####   10-fold Cross Validation
+##################################################
+n_fold <- 10
+for (fI in 1:n_fold) { 
+  if (!dir.exists(paste0(result_dir, "CV_", fI))) {
+    dir.create(paste0(result_dir, "CV_", fI))
+    
+    file.copy(from = paste0(result_dir, get_latest_version(), 
+                            c(".cpp", ".dll", ".o")),
+              to = paste0(result_dir, "CV_", fI, "/", 
+                          get_latest_version(), 
+                          c(".cpp", ".dll", ".o")))
+    
+  }
+} 
+
+# Loop through partitions, refitting each time with a different PredTF_i
+for (fI in 1:n_fold) {
+  PredTF_i <- ifelse( test = data_geostat$fold == fI, 
+                      yes = TRUE, 
+                      no = FALSE )
+  
+  fit_CV <- switch(paste0(depth_in_model),
+                   "FALSE" = FishStatsUtils::fit_model( 
+                     "settings" = settings,
+                     "working_dir" = temp_res,
+                     "Lat_i" = data_geostat[, "Lat"],
+                     "Lon_i" = data_geostat[, "Lon"],
+                     "t_i" = data_geostat[, "Year"],
+                     "c_i" = as.numeric(data_geostat[, "spp"]) - 1,
+                     "b_i" = data_geostat[, "Catch_KG"],
+                     "a_i" = data_geostat[, "AreaSwept_km2"],
+                     "getJointPrecision" = TRUE,
+                     "newtonsteps" = 1,
+                     "test_fit" = F,
+                     "input_grid" = grid_goa,
+                     "PredTF_i" = PredTF_i,
+                     "Parameters" = fit$ParHat),
+                   
+                   "TRUE" = FishStatsUtils::fit_model( 
+                     "settings" = settings,
+                     "working_dir" = temp_res,
+                     "Lat_i" = data_geostat[, "Lat"],
+                     "Lon_i" = data_geostat[, "Lon"],
+                     "t_i" = data_geostat[, "Year"],
+                     "c_i" = as.numeric(data_geostat[, "spp"]) - 1,
+                     "b_i" = data_geostat[, "Catch_KG"],
+                     "a_i" = data_geostat[, "AreaSwept_km2"],
+                     "getJointPrecision" = TRUE,
+                     "newtonsteps" = 1,
+                     "test_fit" = F,
+                     "input_grid" = grid_goa[, c("Area_km2", "Lon", "Lat")],
+                     "PredTF_i" = PredTF_i,
+                     
+                     ##Additional arguments for covariates
+                     "X1_formula" =  "Catch_KG ~ LOG_DEPTH + LOG_DEPTH2",
+                     "X2_formula" =  "Catch_KG ~ LOG_DEPTH + LOG_DEPTH2",
+                     "covariate_data" = cbind(data_geostat[, c("Lat",
+                                                               "Lon",
+                                                               "LOG_DEPTH",
+                                                               "LOG_DEPTH2",
+                                                               "Catch_KG")],
+                                              Year = NA),
+                     "X_gtp" = X_gtp,
+                     "Parameters" = fit$ParHat))
+  
+  ## Save fit
+  save(list = "fit_CV",  
+       file = paste0(result_dir, "CV_", fI, "/fit.RData"))
+  
+  ## Save predicted and observed CPUEs
+  obs_cpue <- with(data_geostat[PredTF_i, ], Catch_KG / AreaSwept_km2)
+  pred_cpue <- fit_CV$Report$D_i[PredTF_i]
+  
+  cv_performance <- list(cpues = data.frame(cv_fold = fI, 
+                                            obs_cpue, 
+                                            pred_cpue),
+                         prednll = fit_CV$Report$pred_jnll)
+  
+  save(cv_performance,
+       file = paste0(result_dir, "CV_", fI, 
+                     "/crossval_fit_performance.RData"))
+  
+  ## Copy other outputs to the CV-fold directory
+  file.copy(from = dir(temp_res, full.names = T), 
+            to = paste0(result_dir, "CV_", fI, "/"))
+  
+}
