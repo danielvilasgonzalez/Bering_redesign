@@ -47,9 +47,9 @@ pacman::p_load(pack_cran,character.only = TRUE)
 #doParallel::registerDoParallel(cl)
 
 #setwd - depends on computer using
-#out_dir<-'C:/Users/Daniel.Vilas/Work/Adapting Monitoring to a Changing Seascape/' #NOAA laptop  
+out_dir<-'C:/Users/Daniel.Vilas/Work/Adapting Monitoring to a Changing Seascape/' #NOAA laptop  
 #out_dir<-'/Users/daniel/Work/Adapting Monitoring to a Changing Seascape/' #mac
-out_dir<-'/Users/daniel/Work/VM' #VM
+#out_dir<-'/Users/daniel/Work/VM' #VM
 setwd(out_dir)
 
 #version VAST (cpp)
@@ -567,9 +567,13 @@ samp_df$samp_scn<-paste0(paste0('scn',1:nrow(samp_df)))
   # Plot comparison sampling effort x strata for each species under singlesp or multisp allocation of samples
   ###################
     
+  cvs<-data.frame(matrix(NA,nrow = 0,ncol = 4))
+  names(cvs)<-c('sp','samp','ss','ms')
+  
   for (s in 1:nrow(samp_df)) {
     
     #s<-1
+    
     samp<-samp_df[s,'samp_scn']
     
     #load multispecies data
@@ -633,6 +637,14 @@ samp_df$samp_scn<-paste0(paste0('scn',1:nrow(samp_df)))
     
     #ss SCV
     ss_scv<-(ss_cv*100)^2
+    
+    icvs<-data.frame('sp'=isp,
+                     'samp'=samp,
+                     'ss'=ss_cv,
+                     'ms'=ms_cv)
+    
+    #append
+    cvs<-rbind(cvs,icvs)
     
     #df to spatialpoint df
     coordinates(df2) <- ~ Lon + Lat
@@ -805,7 +817,64 @@ samp_df$samp_scn<-paste0(paste0('scn',1:nrow(samp_df)))
   dev.off()
   
 }  
-    
+  
+  save(cvs,file = './output/ss_ms.RData')
+  
+  cvs1<-merge(cvs,spp_name,by.x='sp',by.y='spp')
+  cvs1<-cvs1[order(cvs1$common,decreasing = FALSE),]
+  cvs1$common<-factor(cvs1$common,levels = rev(sort(unique(cvs1$common))))
+  #cvs1$samp<-factor(cvs1$samp,
+  #               levels = c('scn3','scn2','scn1'))
+  
+  levels(cvs1$samp)
+  
+  ggplot()+
+    geom_linerange(data=cvs1,aes(xmin=ss,xmax=ms,x=ms,y=common,color=samp),linewidth=1,stat = "identity", position = position_dodge(width = 0.7))+ 
+    geom_point(data=cvs1,aes(x=ss,y=common,group=samp),shape=4,stat = "identity", position = position_dodge(width = 0.7),size=2)+
+    geom_point(data=cvs1,aes(x=ms,y=common,group=samp),shape=16,stat = "identity", position = position_dodge(width = 0.7),size=2)+
+    scale_fill_manual(values=c('scn1'='#4b7a99','scn2'='#679bc3','scn3'='#8db6c3'),
+                      labels = c('opt depth','opt varSBT','opt depth + varSBT'),name='stratification')+
+    scale_color_manual(values=c('scn1'='#4b7a99','scn2'='#679bc3','scn3'='#8db6c3'),
+                       labels = c('opt depth','opt varSBT','opt depth + varSBT'),name='stratification')+
+    theme_bw()+
+    theme(panel.grid.minor = element_line(linetype=2,color='grey90',),#strip.background = element_rect(fill='white'),
+        legend.key.size = unit(12, 'points'),legend.direction = 'vertical',legend.text = element_text(size=9), #legend.position=c(.85,.19)
+        legend.title = element_text(size=10),legend.spacing.x = unit(0.05, "cm"),legend.box.spacing =  unit(0.01, "cm"), #,strip.text = element_text(size=12)
+        strip.background = element_blank(),legend.background = element_blank(),legend.position='right',legend.box = 'horizontal',#legend.justification = 'right',legend.position='bottom',#
+        strip.text = element_blank())+ #axis.text.x = element_text(angle=90,vjust=0.5),
+    expand_limits(x = 0)+
+    labs(y='',x='CV')+
+    scale_x_continuous(limits = c(0,max(cvs1$ms)+max(cvs1$ms)*0.1),expand = c(NA,0)) #expand = c(NA,0.1),limits = c(0,NA)
+  
+  cvs1$samp<-factor(cvs1$samp,
+                    levels = c('scn3','scn2','scn1'))
+  
+  p<- 
+  ggplot()+
+    #geom_linerange(data=cvs1,aes(xmin=ss,xmax=ms,x=ms,y=common,color=samp),linewidth=1,stat = "identity", position = position_dodge(width = 0.7))+ 
+    geom_point(data=cvs1,aes(x=log(ms/ss),y=common,group=samp,fill=samp),stat = "identity", position = position_dodge(width = 0.5),size=3,shape=21)+
+    #geom_point(data=cvs1,aes(x=ms,y=common,group=samp),shape=16,stat = "identity", position = position_dodge(width = 0.7),size=2)+
+      scale_fill_manual(values=c('scn1'='#4b7a99','scn2'='#679bc3','scn3'='#8db6c3'),
+                        labels = c('opt depth','opt varSBT','opt depth + varSBT'),
+                        limits=c('scn3','scn2','scn1'),
+                        name='stratification')+
+    # scale_color_manual(values=c('scn1'='#4b7a99','scn2'='#679bc3','scn3'='#8db6c3'),
+    #                   labels = c('opt depth','opt varSBT','opt depth + varSBT'),name='stratification')+
+    theme_bw()+
+    theme(panel.grid.minor = element_line(linetype=2,color='grey90',),#strip.background = element_rect(fill='white'),
+          legend.key.size = unit(12, 'points'),legend.direction = 'vertical',legend.text = element_text(size=9),legend.position=c(.78,.925),
+          legend.title = element_text(size=10),legend.spacing.x = unit(0.05, "cm"),legend.box.spacing =  unit(0.01, "cm"), #,strip.text = element_text(size=12)
+          strip.background = element_blank(), legend.box.background = element_rect(fill = "white", color = "black"),#legend.background = element_blank(),legend.box = 'horizontal',#legend.justification = 'right',legend.position='bottom',#
+          strip.text = element_blank())+ #axis.text.x = element_text(angle=90,vjust=0.5),
+    expand_limits(x = 0)+
+    labs(y='',x='log(CVms/CVss)')+
+    scale_x_continuous(limits = c(0,max(log(cvs1$ms/cvs1$ss))+max(log(cvs1$ms/cvs1$ss))*0.1),expand = c(NA,0)) #expand = c(NA,0.1),limits = c(0,NA)
+  
+  #save plot
+  ragg::agg_png(paste0('./figures/CVss_CVms.png'),  width = 5, height = 7, units = "in", res = 300)
+  p
+  dev.off()
+  
   ###################
   # Plot spatial random fields
   ###################
