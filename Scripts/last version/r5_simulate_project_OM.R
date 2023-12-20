@@ -28,7 +28,7 @@ if (!('VAST' %in% installed.packages())) {
 pacman::p_load(pack_cran,character.only = TRUE)
 
 #setwd - depends on computer using
-out_dir<-'C:/Users/Daniel.Vilas/Work/Adapting Monitoring to a Changing Seascape/' #NOAA laptop  
+#out_dir<-'C:/Users/Daniel.Vilas/Work/Adapting Monitoring to a Changing Seascape/' #NOAA laptop  
 out_dir<-'/Users/daniel/Work/Adapting Monitoring to a Changing Seascape/' #mac
 #out_dir<-'/Users/daniel/Work/VM' #VM
 setwd(out_dir)
@@ -42,14 +42,14 @@ spp<-c('Limanda aspera',
        'Gadus chalcogrammus',
        'Gadus macrocephalus',
        'Atheresthes stomias',
-       'Reinhardtius hippoglossoides',
+       #'Reinhardtius hippoglossoides',
        'Lepidopsetta polyxystra',
        'Hippoglossoides elassodon',
        'Pleuronectes quadrituberculatus',
        'Hippoglossoides robustus',
        'Boreogadus saida',
        'Eleginus gracilis',
-       'Anoplopoma fimbria',
+       #'Anoplopoma fimbria',
        'Chionoecetes opilio',
        'Paralithodes platypus',
        'Paralithodes camtschaticus',
@@ -99,23 +99,23 @@ project_yrs<-((yrs[length(yrs)])+1):(yrs[length(yrs)]+n_proj)
 # download model from google drive
 ###################################
 
-#get files from google drive and set up
-files<-googledrive::drive_find()
-1 #for dvilasg@uw.edu
-
-#get id shared folder from google drive
-id.bering.folder<-files[which(files$name=='Bering redesign RWP project'),'id']
-#list of files and folder
-files.1<-googledrive::drive_ls(id.bering.folder$id)
-id.data<-files.1[which(files.1$name=='manuscripts'),'id']
-files.2<-googledrive::drive_ls(id.data$id)
-id.data<-files.2[which(files.2$name=='static survey'),'id']
-files.3<-googledrive::drive_ls(id.data$id)
-id.data<-files.3[which(files.3$name=='OM EBS+NBS'),'id']
-files.4<-googledrive::drive_ls(id.data$id)
-
-#get list of fit data
-dir.create(paste0('./shelf EBS NBS VAST/'))
+# #get files from google drive and set up
+# files<-googledrive::drive_find()
+# 1 #for dvilasg@uw.edu
+# 
+# #get id shared folder from google drive
+# id.bering.folder<-files[which(files$name=='Bering redesign RWP project'),'id']
+# #list of files and folder
+# files.1<-googledrive::drive_ls(id.bering.folder$id)
+# id.data<-files.1[which(files.1$name=='manuscripts'),'id']
+# files.2<-googledrive::drive_ls(id.data$id)
+# id.data<-files.2[which(files.2$name=='static survey'),'id']
+# files.3<-googledrive::drive_ls(id.data$id)
+# id.data<-files.3[which(files.3$name=='OM EBS+NBS'),'id']
+# files.4<-googledrive::drive_ls(id.data$id)
+# 
+# #get list of fit data
+# dir.create(paste0('./shelf EBS NBS VAST/'))
 
 ###################################
 # GRID NBS AND EBS
@@ -373,7 +373,7 @@ stack_files<-list.files('./data processed/SBT projections/')
 #loop over spp
 for (sp in spp) {
   
-  sp<-spp[11]
+  #sp<-spp[14]
   
   #create folder simulation data
   dir.create(paste0('./output/species/',sp,'/'))
@@ -487,6 +487,7 @@ for (sp in spp) {
      save(dens_index_proj_OM, file = paste0("./output/species/",sp,"/simulated projected data/SBT",sbt," dens_index_proj_OM_100.RData")) 
      
     rm(pm)
+    
     gc()
   }
 }
@@ -503,9 +504,9 @@ for (sbt in unique(df_sbt$sbt_n)) {
                  dimnames = list(1:nrow(grid),spp, as.character(2023:2027), 1:n_sim_proj))
   
   proj_ind<-array(NA,
-                 dim = c(length(spp), length(unique(2023:2027)), n_sim_proj),
-                 dimnames = list(spp, as.character(2023:2027), 1:n_sim_proj))
-    
+                  dim = c(length(spp), length(unique(2023:2027)), n_sim_proj),
+                  dimnames = list(spp, as.character(2023:2027), 1:n_sim_proj))
+  
   #loop over species
   for (sp in spp) {
     
@@ -536,7 +537,7 @@ for (sbt in unique(df_sbt$sbt_n)) {
         #index
         proj_ind[sp,,i]<-dens_index_proj_OM_50[[i]]$index[,as.character(2023:2027),'Stratum_1']
         proj_ind[sp,,i+50]<-dens_index_proj_OM_100[[i]]$index[,as.character(2023:2027),'Stratum_1']
-
+        
       }
     }
   }
@@ -547,5 +548,3 @@ for (sbt in unique(df_sbt$sbt_n)) {
   
   
 }
-
-
