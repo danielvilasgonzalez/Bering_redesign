@@ -25,8 +25,8 @@ pacman::p_load(pack_cran,character.only = TRUE)
 
 #setwd - depends on computer using
 #out_dir<-'C:/Users/Daniel.Vilas/Work/Adapting Monitoring to a Changing Seascape/' #NOAA laptop  
-#out_dir<-'/Users/daniel/Work/Adapting Monitoring to a Changing Seascape/' #mac
-out_dir<-'/Users/daniel/Work/VM' #VM
+out_dir<-'/Users/daniel/Work/Adapting Monitoring to a Changing Seascape/' #mac
+#out_dir<-'/Users/daniel/Work/VM' #VM
 setwd(out_dir)
 
 #range years of data
@@ -238,14 +238,18 @@ df_sbt1<-reshape2::melt(df_sbt[,1:7],id='Scenario')
 df_sbt1$Scenario <- factor(df_sbt1$Scenario, levels = df_sbt$Scenario)
 
 #plot
-#p<-
+p<-
   ggplot()+
   geom_line(data=df_sbt1,aes(x=variable,y=value,group=Scenario,color=Scenario))+
   scale_color_tableau(palette = 'Tableau 10')+
   #scale_color_manual(values=c("#ea5545", "#f46a9b", "#ef9b20", "#edbf33", "#ede15b", "#bdcf32", "#87bc45", "#27aeef", "#b33dc6"))+
   theme_bw()+
   scale_x_discrete(labels=c(2022:2027))+
-  labs(color='SBT projections',x='Year',y='SBT change (°C)')
+  labs(color='SBT scenarios',x='',y='SBT anomaly (°C)')
+
+ragg::agg_png(paste0('./figures/SBT_projections.png'), width = 7, height = 4, units = "in", res = 300)
+print(p)
+dev.off()
 
 
 # #Table  
