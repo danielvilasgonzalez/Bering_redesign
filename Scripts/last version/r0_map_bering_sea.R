@@ -18,7 +18,7 @@ rm(list = ls(all.names = TRUE))
 gc() 
 
 #libraries from cran to call or install/load
-pack_cran<-c('ggspatial','raster','rasterVis','rgeos','scales','rnaturalearth','grid','ggplot2')
+pack_cran<-c('ggspatial','raster','rasterVis','rgeos','scales','rnaturalearth','grid','ggplot2','lubridate')
 
 #install pacman to use p_load function - call library and if not installed, then install
 if (!('pacman' %in% installed.packages())) {
@@ -243,11 +243,148 @@ ggplot()+
                               "Eastern Bering Sea Slope Bottom Trawl Survey"="#B4AF46"))+
   scale_y_continuous(expand = c(0,0),position = 'right',sec.axis = dup_axis())#+
 
+###########################
+#
+###########################
+
+#5rows - str x 3columns - apr 
+
+#load optimization data
+load(paste0('./output/multisp_optimization_static_data.RData')) #df
+#load(paste0('./output/species/',sp,'/projection_data.RData')) #temp_dens_vals
+D6<-df
+#removed cells because of depth
+rem_cells<-D6[which(D6$include==FALSE),'cell']
+ok_cells<-D6[which(D6$include==1),'cell']
+
+for (samp in df_samp$) {
+
+    
+load(file = paste0("./output/ms_optim_allocations_",samp,".RData")) #all
+
+strata<-rbind(all$result_list$solution$indices,
+              data.frame(ID=rem_cells,X1=NA))
+colnames(strata)<-c('cell','Strata')
+
+#n cells by strata
+strata_sum<-aggregate(cell ~ Strata, data = strata, FUN = length)
+names(strata_sum)[2]<-'total_cell'
+#merge
+strata<-merge(strata,all$samples_strata,by.x='Strata',by.y='strata')
+strata<-merge(strata,strata_sum,by='Strata')
+strata$prop<-strata$n_samples/strata$total_cell
+dim(strata)
+
+D8<-merge(D6,strata,by='cell')
+D8$Strata[is.na(D8$Strata)]<-99
+
+#df to spatialpoint df
+coordinates(D8) <- ~ Lon + Lat
+crs(D8)<-c(crs="+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
+
+#reproject coordinates for plotting purposes
+D8_1<-spTransform(D8,'+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs')
+D8_2<-data.frame(D8_1)
+
+#x and y cells
+xycells<-as.integer(sqrt(dim(D8_1)[1]))
+
+# create a template raster
+r1 <- raster(ext=extent(D8_1),ncol=xycells, nrow=xycells) #c(15800,15800) 7000
+crs(r1)<-CRS('+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs')
+#create raster
+r2<-rasterize(D8_1, r1 ,field=c('Strata','n_samples','prop'))
+crs(r2) <- CRS('+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs')
+#plot(r2)
+
+r2[r2==99]<-NA
+
+r3<-as.data.frame(r2,xy=TRUE)
+r4<-rasterToPolygons(r2$Strata,dissolve=TRUE,digits = 1)
+plot(r4)
+
+
+r3<-r3[complete.cases(r3$Strata),] 
+
+r3$prop<-as.factor(r3$prop)
+r3$n_samples<-as.factor(r3$n_samples)
+# Create a named vector for scale_colour_manual
+pal <- wesanderson::wes_palette("Zissou1", length(sort(unique(r3$n_samples))), type = "continuous")
+color_scale <- setNames(as.character(pal), sort(unique(r3$n_samples)))
+
+#p1<-
+  ggplot()+
+  geom_raster(data=r3,aes(x=x,y=y,fill=n_samples))+
+  geom_polygon(data=r4,aes(x=long,y=lat,group=group), colour="black", fill=NA)+
+  #geom_point(data=D8_2, aes(Lon, Lat, fill=Strata, group=NULL),size=2, stroke=0,shape=21)+
+  #scale_fill_gradientn(colours=c("#ea5545", "#f46a9b", "#ef9b20", "#edbf33", "#ede15b", "#bdcf32", "#87bc45", "#27aeef", "#b33dc6"))+
+  scale_fill_manual(values = color_scale)+ 
+  #scale_fill_gradientn(colors=pal,values = sort(unique(r3$prop)))+ 
+  scale_x_continuous(expand = c(0,0),position = 'bottom',
+                     breaks = c(-175,-170,-165,-160,-155),sec.axis = dup_axis())+
+  coord_sf(crs = '+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs',
+           xlim = panel_extent$x-c(000000,100000),
+           ylim = panel_extent$y-c(0,300000),
+           label_axes = "-NE-")+
+  theme(aspect.ratio = 1,panel.grid.major = element_blank(),
+        panel.background = element_rect(fill = NA),panel.ontop = TRUE,
+        legend.background =  element_rect(fill = "transparent", colour = "transparent"),legend.key.height= unit(20, 'points'),
+        legend.key.width= unit(20, 'points'),axis.title = element_blank(),legend.position = 'none',
+        panel.border = element_rect(fill = NA, colour = NA),legend.key = element_rect(color="black"),
+        legend.spacing.y = unit(8, 'points'),
+        axis.text=element_blank(),axis.ticks = element_blank(),
+        plot.margin = margin(0.01,0.01,0.01,0.01), 
+        axis.ticks.length = unit(-5,"points"),plot.title = element_text(size=18,hjust = 0.5,vjust=-5, face="bold"))+
+  scale_y_continuous(expand = c(0,0),position = 'right',sec.axis = dup_axis())+
+  guides(fill = guide_legend(order=2,override.aes=list(shape = 22,size=8)),
+         color = guide_legend(order=1,override.aes=list(size=8)),
+         shape = guide_legend(order=1),override.aes=list(size=8))#+
+  #labs(title=paste0(gsub('_',' + ',samp_df[s,'strat_var'])),fill='')
+
+}
+
+
+#geom_sf from stratification design
+#samples as one from scn_allocations
+
+#plot
+ggplot()+
+  #geom_sf(data=ebs_layers$survey.strata,fill = NA)+
+  #geom_point(data=haul1,aes(x=lon_start,y=lat_start,fill=survey_name),shape=21)+
+  geom_polygon(data=ak_sppoly,aes(x=long,y=lat,group=group),fill = 'grey60')+
+  scale_x_continuous(expand = c(0,0),position = 'bottom',
+                     breaks = c(-175,-170,-165,-160,-155),sec.axis = dup_axis())+
+  #geom_polygon(data=NBS_sh,aes(x=long,y=lat,group=group),fill=NA,col='black')+
+  #geom_polygon(data=EBSshelf_sh,aes(x=long,y=lat,group=group),fill=NA,col='black')+
+  #geom_polygon(data=EBSslope_sh,aes(x=long,y=lat,group=group),fill=NA,col='black')+
+  coord_sf(crs = '+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs',
+           #xlim = c(panel_extent$x[1]+200000,panel_extent$x[2]),
+           xlim = c(panel_extent$x[1]+200000,panel_extent$x[2]+100000),
+           ylim = c(panel_extent$y[1]-100000,panel_extent$y[2]-200000),
+           label_axes = "-NE-")+
+  theme(aspect.ratio = 1,panel.grid.major = element_line(color = rgb(0, 0, 0,20, maxColorValue = 285), linetype = 'dashed', linewidth =  0.5),
+        panel.background = element_rect(fill = NA),panel.ontop = TRUE,text = element_text(size=10),
+        legend.background =  element_rect(fill = "transparent", colour = "transparent"),legend.key.height= unit(25, 'points'),
+        legend.key.width= unit(25, 'points'),axis.title = element_blank(),legend.position = 'none', #c(0.12,0.47)
+        panel.border = element_rect(fill = NA, colour = 'black'),legend.key = element_rect(color="black"),
+        axis.text = element_text(color='black'),legend.spacing.y = unit(10, 'points'),
+        axis.text.y.right = element_text(hjust= 0.1 ,margin = margin(0,7,0,-25, unit = 'points'),color='black'),
+        axis.text.x = element_text(vjust = 6, margin = margin(-7,0,7,0, unit = 'points'),color='black'),
+        axis.ticks.length = unit(-5,"points"))+
+  # scale_fill_manual(values=c("Northern Bering Sea Crab/Groundfish Survey - Eastern Bering Sea Shelf Survey Extension"="#4682B4",
+  #                            "Eastern Bering Sea Crab/Groundfish Bottom Trawl Survey"="#B4464B",
+  #                            "Eastern Bering Sea Slope Bottom Trawl Survey"="#B4AF46"))+
+  scale_y_continuous(expand = c(0,0),position = 'right',sec.axis = dup_axis())#+
 
 
 
 
-#####################################
+
+
+
+
+
+  #####################################
 # Current sampling stations 
 #####################################
 
