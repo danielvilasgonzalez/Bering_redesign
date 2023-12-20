@@ -86,8 +86,8 @@ coordinates(x1)=~x + y
 crs(x1)<-c(crs="+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
 x2<-spTransform(x1,'+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs')
 x3<-data.frame(x2)
-#x3$x<-as.integer(x3$coords.x1)
-#x3$y<-as.integer(x3$coords.x2)
+x3$x<-as.integer(x3$coords.x1)
+x3$y<-as.integer(x3$coords.x2)
 lon<-sort(unique(x3$x),decreasing = FALSE) #1556
 lat<-sort(unique(x3$y),decreasing = TRUE) #1507
 lons<-data.frame(x=lon,col=1:length(lon))
@@ -107,6 +107,13 @@ load('./data processed/grid_EBS_NBS.RData')
 #yrs<-setdiff(1982:2022,2020)
 grid_ebs<-grid.ebs_year[which(grid.ebs_year$region != 'EBSslope' & grid.ebs_year$Year %in% yrs),]
 dim(grid_ebs)
+
+#load grid of NBS and EBS
+load('./extrapolation grids/northern_bering_sea_grid.rda')
+load('./extrapolation grids/eastern_bering_sea_grid.rda')
+grid<-as.data.frame(rbind(data.frame(northern_bering_sea_grid,region='NBS'),data.frame(eastern_bering_sea_grid,region='EBS')))
+grid$cell<-1:nrow(grid)
+grid2<-grid
 
 ###################################
 # Sampling designs (from script #11) 
@@ -150,6 +157,88 @@ n_sim_proj<- 100
 #number of surveys
 n_sur<-100
 
+####################################
+# CRABS
+####################################
+
+# Set the path to the geodatabase file
+gdb_path <- "./shapefiles/CrabStrataShapefiles_GAPgrid.gdb/"
+
+# List the layers/tables in the geodatabase file
+gdb_layers <- st_layers(gdb_path)
+
+# Select the specific table you want to read
+selected_layer <- gdb_layers$name[1]
+
+# Read the selected table from the geodatabase
+#"BBRKC_strata"        "Pribilof_BKC_strata" "Pribilof_RKC_strata" "StMatt_BKC_strata"   "Norton_RKC_Strata"  
+#[6] "EBS_CO_CB_strata"   
+gdb_table1 <- st_read(dsn = gdb_path, layer = gdb_layers$name[1])
+gdb_table2 <- st_read(dsn = gdb_path, layer = gdb_layers$name[2])
+gdb_table3 <- st_read(dsn = gdb_path, layer = gdb_layers$name[3])
+gdb_table4 <- st_read(dsn = gdb_path, layer = gdb_layers$name[4])
+gdb_table5 <- st_read(dsn = gdb_path, layer = gdb_layers$name[5])
+gdb_table6 <- st_read(dsn = gdb_path, layer = gdb_layers$name[6])
+
+crabs<-c('PBL_BKC','PBL_RKC','STM_BKC','SNW_CRB','TNR_CRB')
+names(area)<-crabs
+crabs_spp<-c('Paralithodes platypus','Paralithodes camtschaticus','Paralithodes platypus','Chionoecetes opilio','Chionoecetes bairdi')
+
+areacrab<-list()
+
+for (i in 1:length(gdb_layers$name)) {
+  
+  #i<-3
+  
+  #load grid of NBS and EBS
+  load('./extrapolation grids/northern_bering_sea_grid.rda')
+  load('./extrapolation grids/eastern_bering_sea_grid.rda')
+  grid<-as.data.frame(rbind(data.frame(northern_bering_sea_grid,region='NBS'),data.frame(eastern_bering_sea_grid,region='EBS')))
+  grid$cell<-1:nrow(grid)
+  #grid2<-grid
+  coordinates(grid)<-~Lon + Lat
+  proj4string(grid) <- CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0") 
+  pts<-spTransform(grid,CRSobj = crs(gdb_table1))
+  #pts<-as.data.frame(pts)
+  
+  
+  #st to sp
+  gdb_tablea<-as(get(paste0('gdb_table',i)),'Spatial')
+  #plot(pts)
+  #plot(gdb_tablea)
+  
+  if (length(gdb_tablea$Shape_Area)!=1) {
+    iarea<-sum(gdb_tablea$Shape_Area/1000000)
+  } else{
+    iarea<-gdb_tablea$Shape_Area/1000000
+  }
+  
+  areacrab[[i]]<-iarea
+  
+  
+  #plot(gdb_tablea[2])
+  
+  #points over polygon
+  xx<-over(pts,gdb_tablea)
+  
+  # Check which points fall within the sf object using st_within
+  points_within_polygon <- as.data.frame(pts)[!is.na(xx), 'cell']
+  
+  #name<-
+  grid2$newcolumn<-FALSE
+  grid2$newcolumn[points_within_polygon]<-TRUE
+  names(grid2)[ncol(grid2)]<-gdb_layers$name[i]
+}
+
+areacrab[[1]]<-NULL
+areacrab[[4]]<-areacrab[[5]]
+names(areacrab)<-crabs
+
+#get cells in each region
+PBL_KC_cells<-grid2[which(grid2$Pribilof_BKC_strata==TRUE),'cell']
+STM_BKC_cells<-grid2[which(grid2$StMatt_BKC_strata==TRUE),'cell']
+EBS_C_cells<-grid2[which(grid2$EBS_CO_CB_strata==TRUE),'cell']
+
 ################
 # HISTORICAL
 ################
@@ -170,7 +259,7 @@ dir.create('./output/ms_sim_survey/')
 dir.create(paste0('./output/ms_sim_survey_hist/'))
 
 #loop over n combinations of simulated
-for (sim in 2:n_sim_hist) {
+for (sim in 1:n_sim_hist) {
   
   #sim<-1
   
@@ -181,9 +270,13 @@ for (sim in 2:n_sim_hist) {
   dir.create(paste0('./output/ms_sim_survey_hist/sim',sim_fol))
   
   #array to store
+  # index_hist<-array(NA,
+  #                   dim=list(length(spp)+length(crabs),3,length(yrs),3,n_sur,nrow(samp_df)),
+  #                   dimnames=list(c(spp,crabs),c('STRS_mean','STRS_var','CV_sim'),paste0('y',yrs),c('sys','rand','sb'),1:n_sur,samp_df$samp_scn))
+  
   index_hist<-array(NA,
                     dim=list(length(spp),3,length(yrs),3,n_sur,nrow(samp_df)),
-                    dimnames=list(spp,c('STRS_mean','STRS_var','CV_sim'),paste0('y',yrs),c('sys','rand','sb'),1:n_sur,samp_df$samp_scn))
+                    dimnames=list(c(spp),c('STRS_mean','STRS_var','CV_sim'),paste0('y',yrs),c('sys','rand','sb'),1:n_sur,samp_df$samp_scn))
   
   #loop over sampling design
     for (samp in samp_df$samp_scn)  {
@@ -287,7 +380,7 @@ for (sim in 2:n_sim_hist) {
             
             #get densities based on station allocations
             sim_survey<-data.frame(cbind(strata=scn_allocations[scn_allocations[,'sur',apr]==n,c('strata'),apr],
-                                 dens=sim_dens2[scn_allocations[scn_allocations[,'sur',apr]==n,c('cell'),apr],]),check.names = FALSE)
+                                    dens=sim_dens2[scn_allocations[scn_allocations[,'sur',apr]==n,c('cell'),apr],]),check.names = FALSE)
             
             sim_survey1<-reshape2::melt(sim_survey,id.vars=c('strata'))
             
@@ -320,6 +413,57 @@ for (sim in 2:n_sim_hist) {
             STRS_mean <- zzzz1$index_strata
             STRS_var <- zzzz1$strs_var
             CV <- sqrt(STRS_var) / STRS_mean
+            
+            # ######
+            # #CRABS
+            # ######
+            # 
+            # for (c in crabs) {
+            #   
+            #   #c<-crabs[1]
+            #   
+            #   if (grepl('PBL',c)) {
+            #     cells<-PBL_KC_cells
+            #   } else if (grepl('CRB',c)) {
+            #     cells<-EBS_C_cells
+            #   } else {
+            #     cells<-STM_BKC_cells
+            #   }
+            #   
+            #   crab_sp<-crabs_spp[match(c,crabs)]
+            #   
+            #   #get densities based on station allocations
+            #   sim_survey_crabs<-data.frame(cbind(strata=scn_allocations[scn_allocations[,'sur',apr]==n & scn_allocations[,'cell',apr] %in% cells,c('strata'),apr],
+            #                                      dens=sim_dens2[scn_allocations[scn_allocations[,'sur',apr]==n & scn_allocations[,'cell',apr] %in% cells,c('cell'),apr],crab_sp]),check.names = FALSE)
+            #   names(sim_survey_crabs)[ncol(sim_survey_crabs)]<-crab_sp
+            #   
+            #   
+            #   sim_survey1<-reshape2::melt(sim_survey_crabs,id.vars=c('strata'))
+            #   sim_survey1$strata<-'crab'
+            #   
+            #   #mean, sum and var by strata and year (variable)
+            #   sim_survey2<-aggregate(x=sim_survey1$value,
+            #                          by=list(strata=sim_survey1$strata,sp=sim_survey1$variable),
+            #                          FUN = function(x) c('mean' = mean(x,na.rm=T), 'sum' = sum(x),'var' = var(x,na.rm=T) ))
+            #   zzz<-data.frame('strata'=sim_survey2$strata,'sp'=sim_survey2$sp,'mean'=sim_survey2$x[,c('mean')],'var'=sim_survey2$x[,c('var')]) #/length(yy$value)
+            #   
+            #   #add index strata for sum to compute index (mean strata density * area of strata) kg!
+            #   zzz$index_strata<-zzz$mean*areacrab[[c]]
+            #   
+            #   #add strata var 
+            #   zzz$strs_var<-zzz$var*(areacrab[[c]]^2)/nrow(sim_survey_crabs) #sum(survey_detail$Nh) 
+            #   
+            #   #get CV across years
+            #   zzz$cv<- sqrt(zzz$strs_var) / zzz$index_strata
+            #   
+            #   
+            #   #get outputs
+            #   STRS_mean <- c(STRS_mean,zzz$index_strata)
+            #   STRS_var <- c(STRS_var,zzz$strs_var)
+            #   CV <- c(CV,sqrt(zzz$strs_var) / zzz$index_strata)
+            #   
+            # }
+            
             
             #store outputs
             index_hist[,'STRS_mean',paste0('y',y),apr,sur,samp]<-STRS_mean
@@ -378,9 +522,12 @@ for (sbt in df_sbt$sbt_n) {
   load(paste0('./output/species/SBT',sbt,' ms_sim_proj_dens.RData'))
   
   #array to store
+  # index_proj<-array(NA,
+  #                   dim=list(length(spp)+length(crabs),3,length(project_yrs),3,n_sur,nrow(samp_df)),
+  #                   dimnames=list(c(spp,crabs),c('STRS_mean','STRS_var','CV_sim'),paste0('y',project_yrs),c('sys','rand','sb'),1:n_sur,samp_df$samp_scn))
   index_proj<-array(NA,
                     dim=list(length(spp),3,length(project_yrs),3,n_sur,nrow(samp_df)),
-                    dimnames=list(spp,c('STRS_mean','STRS_var','CV_sim'),paste0('y',project_yrs),c('sys','rand','sb'),1:n_sur,samp_df$samp_scn))
+                    dimnames=list(c(spp),c('STRS_mean','STRS_var','CV_sim'),paste0('y',project_yrs),c('sys','rand','sb'),1:n_sur,samp_df$samp_scn))
   
   
   #array to store results  
@@ -515,6 +662,56 @@ for (sbt in df_sbt$sbt_n) {
         STRS_mean <- zzzz1$index_strata
         STRS_var <- zzzz1$strs_var
         CV <- sqrt(STRS_var) / STRS_mean
+        
+        # ######
+        # #CRABS
+        # ######
+        # 
+        # for (c in crabs) {
+        #   
+        #   #c<-crabs[1]
+        #   
+        #   if (grepl('PBL',c)) {
+        #     cells<-PBL_KC_cells
+        #   } else if (grepl('CRB',c)) {
+        #     cells<-EBS_C_cells
+        #   } else {
+        #     cells<-STM_BKC_cells
+        #   }
+        #   
+        #   crab_sp<-crabs_spp[match(c,crabs)]
+        #   
+        #   #get densities based on station allocations
+        #   sim_survey_crabs<-data.frame(cbind(strata=scn_allocations[scn_allocations[,'sur',apr]==n & scn_allocations[,'cell',apr] %in% cells,c('strata'),apr],
+        #                                      dens=sim_dens2[scn_allocations[scn_allocations[,'sur',apr]==n & scn_allocations[,'cell',apr] %in% cells,c('cell'),apr],crab_sp]),check.names = FALSE)
+        #   names(sim_survey_crabs)[ncol(sim_survey_crabs)]<-crab_sp
+        #   
+        #   
+        #   sim_survey1<-reshape2::melt(sim_survey_crabs,id.vars=c('strata'))
+        #   sim_survey1$strata<-'crab'
+        #   
+        #   #mean, sum and var by strata and year (variable)
+        #   sim_survey2<-aggregate(x=sim_survey1$value,
+        #                          by=list(strata=sim_survey1$strata,sp=sim_survey1$variable),
+        #                          FUN = function(x) c('mean' = mean(x,na.rm=T), 'sum' = sum(x),'var' = var(x,na.rm=T) ))
+        #   zzz<-data.frame('strata'=sim_survey2$strata,'sp'=sim_survey2$sp,'mean'=sim_survey2$x[,c('mean')],'var'=sim_survey2$x[,c('var')]) #/length(yy$value)
+        #   
+        #   #add index strata for sum to compute index (mean strata density * area of strata) kg!
+        #   zzz$index_strata<-zzz$mean*areacrab[[c]]
+        #   
+        #   #add strata var 
+        #   zzz$strs_var<-zzz$var*(areacrab[[c]]^2)/nrow(sim_survey_crabs) #sum(survey_detail$Nh) 
+        #   
+        #   #get CV across years
+        #   zzz$cv<- sqrt(zzz$strs_var) / zzz$index_strata
+        #   
+        #   
+        #   #get outputs
+        #   STRS_mean <- c(STRS_mean,zzz$index_strata)
+        #   STRS_var <- c(STRS_var,zzz$strs_var)
+        #   CV <- c(CV,sqrt(zzz$strs_var) / zzz$index_strata)
+        #   
+        # }
         
         #store outputs
         index_proj[,'STRS_mean',paste0('y',y),apr,sur,samp]<-STRS_mean
