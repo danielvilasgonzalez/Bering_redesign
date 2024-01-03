@@ -168,7 +168,7 @@ gdb_path <- "./shapefiles/CrabStrataShapefiles_GAPgrid.gdb/"
 gdb_layers <- st_layers(gdb_path)
 
 # Select the specific table you want to read
-selected_layer <- gdb_layers$name[1]
+#selected_layer <- gdb_layers$name[1]
 
 # Read the selected table from the geodatabase
 #"BBRKC_strata"        "Pribilof_BKC_strata" "Pribilof_RKC_strata" "StMatt_BKC_strata"   "Norton_RKC_Strata"  
@@ -179,10 +179,11 @@ gdb_table3 <- st_read(dsn = gdb_path, layer = gdb_layers$name[3])
 gdb_table4 <- st_read(dsn = gdb_path, layer = gdb_layers$name[4])
 gdb_table5 <- st_read(dsn = gdb_path, layer = gdb_layers$name[5])
 gdb_table6 <- st_read(dsn = gdb_path, layer = gdb_layers$name[6])
+plot(gdb_table6)
 
-crabs<-c('PBL_BKC','PBL_RKC','STM_BKC','SNW_CRB','TNR_CRB')
+crabs<-c('BB_RKC','PBL_BKC','PBL_RKC','STM_BKC','SNW_CRB','TNR_CRB')
 names(area)<-crabs
-crabs_spp<-c('Paralithodes platypus','Paralithodes camtschaticus','Paralithodes platypus','Chionoecetes opilio','Chionoecetes bairdi')
+crabs_spp<-c('Paralithodes camtschaticus','Paralithodes platypus','Paralithodes camtschaticus','Paralithodes platypus','Chionoecetes opilio','Chionoecetes bairdi')
 
 areacrab<-list()
 
@@ -205,10 +206,11 @@ for (i in 1:length(gdb_layers$name)) {
   #st to sp
   gdb_tablea<-as(get(paste0('gdb_table',i)),'Spatial')
   #plot(pts)
-  #plot(gdb_tablea)
+  plot(gdb_tablea)
   
   if (length(gdb_tablea$Shape_Area)!=1) {
-    iarea<-sum(gdb_tablea$Shape_Area/1000000)
+    
+    iarea<-sum(gdb_tablea$Shape_Area)/1000000
   } else{
     iarea<-gdb_tablea$Shape_Area/1000000
   }
@@ -223,21 +225,30 @@ for (i in 1:length(gdb_layers$name)) {
   
   # Check which points fall within the sf object using st_within
   points_within_polygon <- as.data.frame(pts)[!is.na(xx), 'cell']
+  #points_within_polygon <- as.data.frame(pts)[!is.na(xx), ]
   
   #name<-
   grid2$newcolumn<-FALSE
   grid2$newcolumn[points_within_polygon]<-TRUE
   names(grid2)[ncol(grid2)]<-gdb_layers$name[i]
+
 }
 
-areacrab[[1]]<-NULL
-areacrab[[4]]<-areacrab[[5]]
+areacrab[[5]]<-areacrab[[6]]
 names(areacrab)<-crabs
 
+# Convert the list to a dataframe with one column
+dfarea <- data.frame(area = unlist(areacrab))
+
+# Convert the column to factors with column names as levels
+dfarea$sp <- rownames(dfarea)
+
 #get cells in each region
+BB_RKC_cells<-grid2[which(grid2$BBRKC_strata==TRUE),'cell']
 PBL_KC_cells<-grid2[which(grid2$Pribilof_BKC_strata==TRUE),'cell']
 STM_BKC_cells<-grid2[which(grid2$StMatt_BKC_strata==TRUE),'cell']
 EBS_C_cells<-grid2[which(grid2$EBS_CO_CB_strata==TRUE),'cell']
+
 
 ################
 # HISTORICAL
@@ -366,8 +377,8 @@ for (sim in 1:n_sim_hist) {
           #simulated densities of survey and year
           sim_dens2<-sim_dens1[,,y,sim]
           
-          scn_allocations_sur<-scn_allocations[scn_allocations[,'sur','rand']==n ,c('cell'),]
-          
+          scn_allocations_sur<-scn_allocations[scn_allocations[,'sur','sys']==n ,c('cell'),]
+          #rownames(scn_allocations_sur)<-NULL
           
           #loop over station allocation approac
           for (apr in c('sys','rand','sb')) {
@@ -438,7 +449,8 @@ for (sim in 1:n_sim_hist) {
               
 
               #get densities based on station allocations
-              sim_survey_crabs<-data.frame(rbind(cbind(sim_dens2[intersect(scn_allocations_sur1,PBL_KC_cells),"Paralithodes platypus"],'PBL_BKC'),
+              sim_survey_crabs<-data.frame(rbind(cbind(sim_dens2[intersect(scn_allocations_sur1,BB_RKC_cells),"Paralithodes camtschaticus"],'BB_RKC'),
+                                                 cbind(sim_dens2[intersect(scn_allocations_sur1,PBL_KC_cells),"Paralithodes platypus"],'PBL_BKC'),
                                                  cbind(sim_dens2[intersect(scn_allocations_sur1,PBL_KC_cells),"Paralithodes camtschaticus"],'PBL_RKC'),
                                                        cbind(sim_dens2[intersect(scn_allocations_sur1,STM_BKC_cells),"Paralithodes platypus"],'STM_BKC'),
                                                              cbind(sim_dens2[intersect(scn_allocations_sur1,EBS_C_cells),"Chionoecetes opilio"],'SNW_CRB'),
@@ -452,26 +464,29 @@ for (sim in 1:n_sim_hist) {
               sim_survey2<-aggregate(x=as.numeric(sim_survey_crabs$value),
                                      by=list(sp=sim_survey_crabs$stock),
                                      FUN = function(x) c('mean' = mean(x,na.rm=T), 'length' = length(x),'var' = var(x,na.rm=T) ))
-              zzz<-data.frame('sp'=sim_survey2$sp,'mean'=sim_survey2$x[,c('mean')],'var'=sim_survey2$x[,c('var')]) #/length(yy$value)
+              zzz<-data.frame('sp'=sim_survey2$sp,'mean'=sim_survey2$x[,c('mean')],'var'=sim_survey2$x[,c('var')],'n_samples'=sim_survey2$x[,c('length')]) #/length(yy$value)
               
               #add index strata for sum to compute index (mean strata density * area of strata) kg!
-              zzz$index_strata<-zzz$mean*unlist(areacrab)
+              zzz<-merge(zzz,dfarea,by='sp')
+              zzz$index_strata<-zzz$mean*zzz$area
               
               #add strata var 
-              zzz$strs_var<-zzz$var*(unlist(areacrab)^2)/sim_survey2$x[,c('length')] #sum(survey_detail$Nh) 
+              zzz$strs_var<-zzz$var*(zzz$area^2)/zzz$n_samples #sum(survey_detail$Nh) 
               
               #get CV across years
               zzz$cv<- sqrt(zzz$strs_var) / zzz$index_strata
               
+              # Convert 'column_to_sort' to a factor with the custom order
+              zzz$sp <- factor(zzz$sp, levels = crabs)
+              
+              # Sort the dataframe based on the 'column_to_sort' column with custom order
+              zzz <- zzz[order(zzz$sp), ]
               
               #get outputs
               STRS_mean <- zzz$index_strata
               STRS_var <- zzz$strs_var
               CV <- sqrt(zzz$strs_var) / zzz$index_strata
               
-            
-            
-            
             #store outputs
             index_hist[,'STRS_mean',paste0('y',y),apr,sur,samp]<-STRS_mean
             index_hist[,'STRS_var',paste0('y',y),apr,sur,samp]<-STRS_var
@@ -679,7 +694,8 @@ for (sbt in df_sbt$sbt_n) {
         #CRABS
         ######
         
-        sim_survey_crabs<-data.frame(rbind(cbind(sim_dens2[intersect(scn_allocations_sur1,PBL_KC_cells),"Paralithodes platypus"],'PBL_BKC'),
+        sim_survey_crabs<-data.frame(rbind(cbind(sim_dens2[intersect(scn_allocations_sur1,BB_RKC_cells),"Paralithodes camtschaticus"],'BB_RKC'),
+                                           cbind(sim_dens2[intersect(scn_allocations_sur1,PBL_KC_cells),"Paralithodes platypus"],'PBL_BKC'),
                                            cbind(sim_dens2[intersect(scn_allocations_sur1,PBL_KC_cells),"Paralithodes camtschaticus"],'PBL_RKC'),
                                            cbind(sim_dens2[intersect(scn_allocations_sur1,STM_BKC_cells),"Paralithodes platypus"],'STM_BKC'),
                                            cbind(sim_dens2[intersect(scn_allocations_sur1,EBS_C_cells),"Chionoecetes opilio"],'SNW_CRB'),
@@ -693,16 +709,23 @@ for (sbt in df_sbt$sbt_n) {
         sim_survey2<-aggregate(x=as.numeric(sim_survey_crabs$value),
                                by=list(sp=sim_survey_crabs$stock),
                                FUN = function(x) c('mean' = mean(x,na.rm=T), 'length' = length(x),'var' = var(x,na.rm=T) ))
-        zzz<-data.frame('sp'=sim_survey2$sp,'mean'=sim_survey2$x[,c('mean')],'var'=sim_survey2$x[,c('var')]) #/length(yy$value)
+        zzz<-data.frame('sp'=sim_survey2$sp,'mean'=sim_survey2$x[,c('mean')],'var'=sim_survey2$x[,c('var')],'n_samples'=sim_survey2$x[,c('length')]) #/length(yy$value)
         
         #add index strata for sum to compute index (mean strata density * area of strata) kg!
-        zzz$index_strata<-zzz$mean*unlist(areacrab)
+        zzz<-merge(zzz,dfarea,by='sp')
+        zzz$index_strata<-zzz$mean*zzz$area
         
         #add strata var 
-        zzz$strs_var<-zzz$var*(unlist(areacrab)^2)/sim_survey2$x[,c('length')] #sum(survey_detail$Nh) 
+        zzz$strs_var<-zzz$var*(zzz$area^2)/zzz$n_samples #sum(survey_detail$Nh) 
         
         #get CV across years
         zzz$cv<- sqrt(zzz$strs_var) / zzz$index_strata
+        
+        # Convert 'column_to_sort' to a factor with the custom order
+        zzz$sp <- factor(zzz$sp, levels = crabs)
+        
+        # Sort the dataframe based on the 'column_to_sort' column with custom order
+        zzz <- zzz[order(zzz$sp), ]
         
         #get outputs
         STRS_mean <- zzz$index_strata
@@ -721,5 +744,3 @@ for (sbt in df_sbt$sbt_n) {
   
   } 
 }
-
-        
