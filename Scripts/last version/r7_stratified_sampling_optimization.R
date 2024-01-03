@@ -47,8 +47,8 @@ pacman::p_load(pack_cran,character.only = TRUE)
 #doParallel::registerDoParallel(cl)
 
 #setwd - depends on computer using
-out_dir<-'C:/Users/Daniel.Vilas/Work/Adapting Monitoring to a Changing Seascape/' #NOAA laptop  
-#out_dir<-'/Users/daniel/Work/Adapting Monitoring to a Changing Seascape/' #mac
+#out_dir<-'C:/Users/Daniel.Vilas/Work/Adapting Monitoring to a Changing Seascape/' #NOAA laptop  
+out_dir<-'/Users/daniel/Work/Adapting Monitoring to a Changing Seascape/' #mac
 #out_dir<-'/Users/daniel/Work/VM' #VM
 setwd(out_dir)
 
@@ -121,8 +121,8 @@ coordinates(x1)=~x + y
 crs(x1)<-c(crs="+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
 x2<-spTransform(x1,'+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs')
 x3<-data.frame(x2)
-#x3$x<-as.integer(x3$coords.x1)
-#x3$y<-as.integer(x3$coords.x2)
+x3$x<-as.integer(x3$coords.x1)
+x3$y<-as.integer(x3$coords.x2)
 lon<-sort(unique(x3$x),decreasing = FALSE) #1556
 lat<-sort(unique(x3$y),decreasing = TRUE) #1507
 lons<-data.frame(x=lon,col=1:length(lon))
@@ -819,7 +819,8 @@ samp_df$samp_scn<-paste0(paste0('scn',1:nrow(samp_df)))
 }  
   
   save(cvs,file = './output/ss_ms.RData')
-  
+  load(file = './output/ss_ms.RData')
+  spp_name$common<-gsub('_EBSNBS','',spp_name$common)
   cvs1<-merge(cvs,spp_name,by.x='sp',by.y='spp')
   cvs1<-cvs1[order(cvs1$common,decreasing = FALSE),]
   cvs1$common<-factor(cvs1$common,levels = rev(sort(unique(cvs1$common))))
@@ -828,20 +829,23 @@ samp_df$samp_scn<-paste0(paste0('scn',1:nrow(samp_df)))
   
   levels(cvs1$samp)
   
+  p1<-
   ggplot()+
     geom_linerange(data=cvs1,aes(xmin=ss,xmax=ms,x=ms,y=common,color=samp),linewidth=1,stat = "identity", position = position_dodge(width = 0.7))+ 
     geom_point(data=cvs1,aes(x=ss,y=common,group=samp),shape=4,stat = "identity", position = position_dodge(width = 0.7),size=2)+
     geom_point(data=cvs1,aes(x=ms,y=common,group=samp),shape=16,stat = "identity", position = position_dodge(width = 0.7),size=2)+
-    scale_fill_manual(values=c('scn1'='#4b7a99','scn2'='#679bc3','scn3'='#8db6c3'),
-                      labels = c('opt depth','opt varSBT','opt depth + varSBT'),name='stratification')+
     scale_color_manual(values=c('scn1'='#4b7a99','scn2'='#679bc3','scn3'='#8db6c3'),
-                       labels = c('opt depth','opt varSBT','opt depth + varSBT'),name='stratification')+
+                      labels = c('opt depth','opt varSBT','opt depth + varSBT'),
+                      limits=c('scn3','scn2','scn1'),
+                      name='stratification')+
+    # scale_color_manual(values=c('scn1'='#4b7a99','scn2'='#679bc3','scn3'='#8db6c3'),
+    #                   labels = c('opt depth','opt varSBT','opt depth + varSBT'),name='stratification')+
     theme_bw()+
     theme(panel.grid.minor = element_line(linetype=2,color='grey90',),#strip.background = element_rect(fill='white'),
-        legend.key.size = unit(12, 'points'),legend.direction = 'vertical',legend.text = element_text(size=9), #legend.position=c(.85,.19)
-        legend.title = element_text(size=10),legend.spacing.x = unit(0.05, "cm"),legend.box.spacing =  unit(0.01, "cm"), #,strip.text = element_text(size=12)
-        strip.background = element_blank(),legend.background = element_blank(),legend.position='right',legend.box = 'horizontal',#legend.justification = 'right',legend.position='bottom',#
-        strip.text = element_blank())+ #axis.text.x = element_text(angle=90,vjust=0.5),
+          legend.key.size = unit(12, 'points'),legend.direction = 'vertical',legend.text = element_text(size=9),legend.position=c(.78,.925),
+          legend.title = element_text(size=10),legend.spacing.x = unit(0.05, "cm"),legend.box.spacing =  unit(0.01, "cm"), #,strip.text = element_text(size=12)
+          strip.background = element_blank(), legend.box.background = element_rect(fill = "white", color = "black"),#legend.background = element_blank(),legend.box = 'horizontal',#legend.justification = 'right',legend.position='bottom',#
+          strip.text = element_blank())+ #axis.text.x = element_text(angle=90,vjust=0.5),
     expand_limits(x = 0)+
     labs(y='',x='CV')+
     scale_x_continuous(limits = c(0,max(cvs1$ms)+max(cvs1$ms)*0.1),expand = c(NA,0)) #expand = c(NA,0.1),limits = c(0,NA)
@@ -852,7 +856,7 @@ samp_df$samp_scn<-paste0(paste0('scn',1:nrow(samp_df)))
   p<- 
   ggplot()+
     #geom_linerange(data=cvs1,aes(xmin=ss,xmax=ms,x=ms,y=common,color=samp),linewidth=1,stat = "identity", position = position_dodge(width = 0.7))+ 
-    geom_point(data=cvs1,aes(x=log(ms/ss),y=common,group=samp,fill=samp),stat = "identity", position = position_dodge(width = 0.5),size=3,shape=21)+
+    geom_point(data=cvs1,aes(x=log(ms/ss),y=rev(common),group=samp,fill=samp),stat = "identity", position = position_dodge(width = 0.5),size=3,shape=21)+
     #geom_point(data=cvs1,aes(x=ms,y=common,group=samp),shape=16,stat = "identity", position = position_dodge(width = 0.7),size=2)+
       scale_fill_manual(values=c('scn1'='#4b7a99','scn2'='#679bc3','scn3'='#8db6c3'),
                         labels = c('opt depth','opt varSBT','opt depth + varSBT'),
@@ -871,9 +875,15 @@ samp_df$samp_scn<-paste0(paste0('scn',1:nrow(samp_df)))
     scale_x_continuous(limits = c(0,max(log(cvs1$ms/cvs1$ss))+max(log(cvs1$ms/cvs1$ss))*0.1),expand = c(NA,0)) #expand = c(NA,0.1),limits = c(0,NA)
   
   #save plot
-  ragg::agg_png(paste0('./figures/CVss_CVms.png'),  width = 5, height = 7, units = "in", res = 300)
+  ragg::agg_png(paste0('./figures/CVss_CVms_ratio.png'),  width = 5, height = 7, units = "in", res = 300)
   p
   dev.off()
+  
+  #save plot
+  ragg::agg_png(paste0('./figures/CVss_CVms.png'),  width = 5, height = 7, units = "in", res = 300)
+  p1
+  dev.off()
+  
   
   ###################
   # Plot spatial random fields
