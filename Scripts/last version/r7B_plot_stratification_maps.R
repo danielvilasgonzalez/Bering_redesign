@@ -63,7 +63,41 @@ spp<-c('Limanda aspera',
        'Anoplopoma fimbria',
        'Chionoecetes opilio',
        'Paralithodes platypus',
-       'Paralithodes camtschaticus')
+       'Paralithodes camtschaticus',
+       'Chionoecetes bairdi')
+
+#remove Anoploma and Reinhardtius because habitat preference reasons
+spp<-setdiff(spp, c('Anoplopoma fimbria','Reinhardtius hippoglossoides'))
+
+spp1<-c('Yellowfin sole',
+        'Alaska pollock',
+        'Pacific cod',
+        'Arrowtooth flounder',
+        #'Greenland turbot',
+        'Northern rock sole',
+        'Flathead sole',
+        'Alaska plaice',
+        'Bering flounder',
+        'Arctic cod',
+        'Saffon cod',
+        #'Sablefish',
+        'Snow crab',
+        'Blue king crab',
+        'Red king crab',
+        'Tanner crab')
+
+spp_name<-data.frame('spp'=spp,
+                     'common'=spp1) 
+
+
+#df spp, number and target variables
+df_spp<-data.frame('spp'=spp,
+                   'n'=c(1:length(spp)),
+                   'Y'=paste0('Y',c(1:length(spp))))
+
+#number sp
+n_spp<-length(spp)
+
 
 ##############################
 #OBJECTS FOR PLOTTING
@@ -470,8 +504,8 @@ for (samp in samp_df$samp_scn) {
   r3$prop<-as.factor(r3$prop)
   r3$n_samples<-as.factor(r3$n_samples)
   # Create a named vector for scale_colour_manual
-  pal <- wesanderson::wes_palette("Zissou1", length(sort(unique(r3$n_samples))), type = "continuous")
-  color_scale <- setNames(as.character(pal), sort(unique(r3$n_samples)))
+  pal <- wesanderson::wes_palette("Zissou1", length(sort(unique(r3$prop))), type = "continuous")
+  color_scale <- setNames(as.character(pal), sort(unique(r3$prop)))
   
   r5<-crop(r2,gdb_table3)
   plot(r5)
@@ -484,7 +518,7 @@ for (samp in samp_df$samp_scn) {
   #base map
   p<-
   ggplot()+
-    geom_raster(data=r3,aes(x=x,y=y,fill=n_samples),alpha=0.8)+
+    geom_raster(data=r3,aes(x=x,y=y,fill=prop),alpha=0.8)+
     geom_polygon(data=r4,aes(x=long,y=lat,group=group), colour=rgb(0, 0, 0, 0.4),alpha=0.2, fill=NA)+
     #geom_point(data=D8_2, aes(Lon, Lat, fill=Strata, group=NULL),size=2, stroke=0,shape=21)+
     #scale_fill_gradientn(colours=c("#ea5545", "#f46a9b", "#ef9b20", "#edbf33", "#ede15b", "#bdcf32", "#87bc45", "#27aeef", "#b33dc6"))+
@@ -499,7 +533,8 @@ for (samp in samp_df$samp_scn) {
     theme(aspect.ratio = 1,panel.grid.major = element_blank(),plot.background = element_rect(color='black'),
           panel.background = element_rect(fill = NA),panel.ontop = TRUE,
           legend.background =  element_rect(fill = "transparent", colour = "transparent"),legend.key.height= unit(20, 'points'),
-          legend.key.width= unit(20, 'points'),axis.title = element_blank(),legend.position = 'none',
+          legend.key.width= unit(20, 'points'),axis.title = element_blank(),
+          legend.position = 'none',
           #panel.border = element_rect(fill = NA, colour = 'grey'),
           legend.key = element_rect(color="black"),
           legend.spacing.y = unit(8, 'points'),
@@ -511,6 +546,17 @@ for (samp in samp_df$samp_scn) {
            color = guide_legend(order=1,override.aes=list(size=8)),
            shape = guide_legend(order=1),override.aes=list(size=8))#+
   #labs(title=paste0(gsub('_',' + ',samp_df[s,'strat_var'])),fill='')
+  
+  #legend_d<-
+    # ggplot()+
+    # geom_raster(data=r3,aes(x=x,y=y,fill=prop),alpha=0.8)+
+    # geom_polygon(data=r4,aes(x=long,y=lat,group=group), colour=rgb(0, 0, 0, 0.4),alpha=0.2, fill=NA)+
+    # #geom_point(data=D8_2, aes(Lon, Lat, fill=Strata, group=NULL),size=2, stroke=0,shape=21)+
+    # #scale_fill_gradientn(colours=c("#ea5545", "#f46a9b", "#ef9b20", "#edbf33", "#ede15b", "#bdcf32", "#87bc45", "#27aeef", "#b33dc6"))+
+    # scale_fill_manual(values = color_scale,breaks=unique(r3$prop)[c(1,15)])+ #,labels=c("Lower","Higher"),name='log(ss/ms samples)' 
+    # guides(fill=guide_colorsteps(title.position = 'top', title.hjust = 0.5,ticks.colour = NA,frame.colour = 'black'))+
+    # theme(legend.position = 'bottom')+
+    # labs(fill='')
   
   pcrab<-
   ggplot()+
@@ -543,8 +589,8 @@ for (samp in samp_df$samp_scn) {
   
   
   plot_list[[paste0('sys_',samp)]] <-p + geom_point(data=sys1,aes(x=Lon,y=Lat),size=1,shape=4,stroke=1,alpha=0.7) #+ theme(axis.title.x.top = element_text(size=18,vjust = 2),axis.title.y.left =  element_text(size=18)) +labs(x='optimized_depth+SBTvar',y=' ')
-  plot_list[[paste0('rand_',samp)]] <-p + geom_point(data=rand1,aes(x=Lon,y=Lat),size=1,shape=4,stroke=1,alpha=0.7)#+ theme(axis.title.x.top = element_text(size=18),axis.title.y.left =  element_text(size=18)) +labs(x=' ',y=' ')
   plot_list[[paste0('spb_',samp)]] <- p + geom_point(data=sb,aes(x=Lon,y=Lat),size=1,shape=4,stroke=1,alpha=0.7)#+ theme(axis.title.x.top = element_text(size=18),axis.title.y.left =  element_text(size=18)) +labs(x=' ',y=' ')
+  plot_list[[paste0('rand_',samp)]] <-p + geom_point(data=rand1,aes(x=Lon,y=Lat),size=1,shape=4,stroke=1,alpha=0.7)#+ theme(axis.title.x.top = element_text(size=18),axis.title.y.left =  element_text(size=18)) +labs(x=' ',y=' ')
   
   #samp<-samp_df$samp_scn[1]
   
@@ -580,11 +626,14 @@ for (samp in samp_df$samp_scn) {
 
 
 
-pp<-cowplot::plot_grid(plotlist = plot_list,nrow = 3,ncol=5,byrow = 'column')
-#+
-#  theme(panel.border = element_rect(fill = NA, colour = 'grey'))
+pp<-cowplot::plot_grid(plotlist = plot_list,nrow = 3,ncol=5,byrow = 'column')+
+  theme(panel.border = element_rect(fill = NA, colour = 'grey'))
 
-ragg::agg_png(paste0('./figures/sampling_designs.png'), width = 25, height = 15, units = "in", res = 300)
+pp1<-cowplot::plot_grid(pp,legend2,nrow = 2,ncol=1,rel_heights = c(1,0.01))
+
+
+
+ragg::agg_png(paste0('./figures/stratification_maps.png'), width = 25, height = 15, units = "in", res = 300)
 print(pp)
 dev.off()
 
@@ -670,7 +719,7 @@ for (sp in spp) {
   r2[r2==99]<-NA
   
   r3<-as.data.frame(r2,xy=TRUE)
-  r4<-rasterToPolygons(r2$Strata,dissolve=TRUE,)
+  r4<-rasterToPolygons(r2$Strata,dissolve=TRUE,digits = 1)
   
   pal <- wes_palette("Zissou1", 15, type = "continuous")
   
@@ -795,7 +844,7 @@ crs(r2) <- CRS('+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=
 
 r2[r2==99]<-NA
 r3<-as.data.frame(r2,xy=TRUE)
-r4<-rasterToPolygons(r2,dissolve=TRUE)
+r4<-rasterToPolygons(r2,dissolve=TRUE,digits = 1)
 
 #aggregate(r3$layer,by=list(r3$layer),FUN=length)
 # 
@@ -964,7 +1013,7 @@ cowplot::plot_grid(plot_list_nsamples[['baseline']],plot_list_nsamples[[3]],plot
     strata2<-merge(strata1,ms_strata,by='Strata')
     strata2<-merge(strata2,strata_sum,by='Strata')
     #strata2$prop<-strata2$n_samples/strata2$total_cell
-    strata2$ratio<-log(strata2$ss_samples/strata2$ms_samples)
+    strata2$ratio<-log(strata2$ms_samples/strata2$ss_samples)
     dim(strata2)
     
     df1<-df[,c('Lat','Lon','cell')]
@@ -1016,7 +1065,7 @@ cowplot::plot_grid(plot_list_nsamples[['baseline']],plot_list_nsamples[[3]],plot
       
       #create polygon to get boundaries of each strata
       r3<-as.data.frame(r2,xy=TRUE)
-      r4<-rasterToPolygons(r2$Strata,dissolve=TRUE,)
+      r4<-rasterToPolygons(r2$Strata,dissolve=TRUE,digits = 1)
       
       #color palette
       pal <- wes_palette("Zissou1", length(sort(unique(r3$ss_samples))), type = "continuous")
@@ -1126,15 +1175,15 @@ cowplot::plot_grid(plot_list_nsamples[['baseline']],plot_list_nsamples[[3]],plot
       ggplot()+
       geom_raster(data=r3,aes(x=x,y=y,fill=as.numeric(ratio)))+
       scale_fill_gradient2(midpoint = mean(range(r3$ratio)), low = "red", mid = "white",
-                           high = "blue",breaks=range(as.numeric(r3$ratio)),labels=c("Lower","Higher"),name='log(ss/ms samples)')+
+                           high = "blue",breaks=range(as.numeric(r3$ratio)),labels=c("Lower","Higher"),name='log(ms/ss samples)')+
       guides(fill=guide_colorbar(title.position = 'top', title.hjust = 0.5,ticks.colour = NA,frame.colour = 'black'))+
       theme(legend.position = 'bottom')+
       labs(fill='')
     
-    legend_n<-
+    legend_prop<-
       ggplot()+
       geom_raster(data=r3,aes(x=x,y=y,fill=as.numeric(ss_samples)))+
-      scale_fill_gradientn(colours = pal,breaks=range(as.numeric(r3$ss_samples)),labels=c("Low","High"),name='sampling effort (n samples)')+
+      scale_fill_gradientn(colours = pal,breaks=range(as.numeric(r3$ss_samples)),labels=c("Low","High"),name='sampling effort (stations/area)')+
       guides(fill=guide_colorbar(title.position = 'top', title.hjust = 0.5,ticks.colour = NA,frame.colour = 'black'))+
       theme(legend.position = 'bottom')+
       labs(fill='')
@@ -1145,7 +1194,7 @@ cowplot::plot_grid(plot_list_nsamples[['baseline']],plot_list_nsamples[[3]],plot
     ) 
     
     legend2 <- cowplot::get_legend( 
-      legend_n + 
+      legend_prop + 
         theme(legend.position = "bottom") 
     ) 
     
