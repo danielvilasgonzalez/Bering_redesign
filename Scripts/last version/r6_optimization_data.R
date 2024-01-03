@@ -104,7 +104,7 @@ grid$cell<-1:nrow(grid)
 #annually grid data
 grid.ebs_year1<-grid.ebs_year[which(grid.ebs_year$region!='EBSslope'),]
 ncells<-nrow(grid.ebs_year1[which(grid.ebs_year1$Year==1982),])
-yrs<-1982:2022
+yrs<-c(1982:2019,2021:2022)
 
 #build array for temporal array to store results
 temp_dens_vals <- array(NA,
@@ -131,8 +131,7 @@ true_index<-array(NA,
 # ###################################
 
 #loop over species
-for (sp in spp
-     ) {
+for (sp in spp) {
   
   #sp<-spp[1]
   
