@@ -741,7 +741,7 @@ df3<-merge(df3,df_spp1,by='spp')
 df3$scn<-factor(df3$scn,levels=c('scnbase','scnbase_bis',paste0('scn',3:1)))
 df3$approach<-factor(df3$approach,levels=c('sys','sb','rand'))
 
-save(df3,file = './output/ms_sim_survey_proj/rrmse_cv_hist.RData')
+save(df3,file = './output/rrmse_cv_hist.RData')
 
 y_scale<-aggregate(rrmse ~ spp+common+label, df3,max)
 y_scale$scale<-y_scale$rrmse+y_scale$rrmse*0.2
@@ -751,7 +751,7 @@ y_scale$scn<-'scn1'
 y_scale$year<-2022
 
 #load rrmse
-load(file = './output/ms_sim_survey_proj/rrmse_cv_hist.RData') #df3,
+load(file = './output/rrmse_cv_hist.RData') #df3,
 
 #plot boxplot
 #p<-
@@ -1484,26 +1484,27 @@ load(file = './output/rrmse_cv_proj.RData') #rrmse,
 df<-rrmse  
 df2<-rrmse
 
-# Function to remove values 3 SD away from the mean for each category
-remove_outliers <- function(x) {
-  mean_val <- mean(x)
-  sd_val <- sd(x)
-  x[!(x > mean_val + 3 * sd_val | x < mean_val - 3 * sd_val)]
-}
 
-# Apply the function to each category
-df_cleaned <- do.call(rbind, by(df, df$sbt, FUN = function(sub_df) {
-  sub_df$value <- remove_outliers(sub_df$value)
-  return(sub_df)
-}))
-
-# Reset row names if needed
-rownames(df_cleaned) <- NULL
-
-print(df_cleaned)
-
-#remove 3sd of rrmse
-df2<-df2[which(df2$rrmse <= mean(df2$rrmse)+3*sd(df2$rrmse)),]
+# # Function to remove values 3 SD away from the mean for each category
+# remove_outliers <- function(x) {
+#   mean_val <- mean(x)
+#   sd_val <- sd(x)
+#   x[!(x > mean_val + 3 * sd_val | x < mean_val - 3 * sd_val)]
+# }
+# 
+# # Apply the function to each category
+# df_cleaned <- do.call(rbind, by(df, df$sbt, FUN = function(sub_df) {
+#   sub_df$value <- remove_outliers(sub_df$value)
+#   return(sub_df)
+# }))
+# 
+# # Reset row names if needed
+# rownames(df_cleaned) <- NULL
+# 
+# print(df_cleaned)
+# 
+# #remove 3sd of rrmse
+# df2<-df2[which(df2$rrmse <= mean(df2$rrmse)+3*sd(df2$rrmse)),]
 df3<-df2[which(df2$spp %in% df_spp1$spp),]
 
 #######################################
