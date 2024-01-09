@@ -38,7 +38,7 @@ knots<-'200' #200
 splist<-list.dirs('./data processed/',full.names = FALSE,recursive = FALSE)
 
 #folder region
-fol_region<-c('slope EBS VAST','slope_outshelf EBS VAST')[2]
+fol_region<-c('slope EBS VAST','slope_outshelf EBS VAST')[1]
 dir.create(paste0('./',fol_region))
 
 #load grid
@@ -132,7 +132,7 @@ df3<-df3[complete.cases(df3$CPUE_kg),]
 for (sp in spp) {
 
 #example
-#sp<-spp[1]  
+sp<-spp[3]  
   
 #filter by sp
 data_geostat<-subset(df3,Species==sp)
@@ -212,7 +212,7 @@ ggplot(data = data_geostat, aes(CPUE_kg)) +
   geom_histogram(bins =20,
                  aes(y = after_stat(density))) +
   facet_wrap(~Year) +
-  scale_y_continuous(labels = scales::percent_format()) +
+  #scale_y_continuous(labels = scales::percent_format()) +
   theme_bw()
 
 
@@ -361,6 +361,9 @@ X2config_cp = X1config_cp
 # }
 st<-Sys.time()
 #fit model #### ADD TryCatch{(),}
+
+names(data_geostat1)[5]<-'CPUE_kg'
+
 fit <- tryCatch( {fit_model(settings=settings,
                             Lat_i=data_geostat1$Lat, 
                             Lon_i=data_geostat1$Lon,
@@ -386,6 +389,23 @@ fit <- tryCatch( {fit_model(settings=settings,
                    # Choose a return value in case of error
                    return(NULL)
                  })
+
+
+#add predictions
+data_geostat1$pred<-fit$Report$D_i
+names(data_geostat1)[5]<-'obs'
+
+#plot comparison pred/obs
+ggplot(data = data_geostat1, aes(x = obs)) +
+  geom_histogram(aes(color = "obs"), bins = 20, alpha = 0.5, fill='white',position = "identity") +
+  geom_histogram(data = data_geostat1, aes(x = pred, color = "pred"), bins = 20, alpha = 0.5,fill='white', position = "identity") +
+  scale_color_manual(values = c("obs" = "blue", "pred" = "red"),name='') +
+  labs(fill = "") +
+  facet_wrap(~Year,nrow = 1) +
+  theme_bw()
+
+
+plot_results(fit,plot_set = 1)
 
 # #change lower
 # fit$tmb_list$Lower
