@@ -32,7 +32,7 @@ setwd(out_dir)
 version<-'VAST_v14_0_1'
 
 #number of knots
-knots<-'200' #200
+knots<-'300' #200
 
 #list of sp
 splist<-list.dirs('./data processed/',full.names = FALSE,recursive = FALSE)
@@ -63,7 +63,8 @@ spp<-c('Limanda aspera',
        'Paralithodes camtschaticus',
        'Chionoecetes bairdi',
        'Sebastes alutus',
-       'Sebastes melanostictus')
+       'Sebastes melanostictus',
+       'Atheresthes evermanni')
  
 splist<-list() 
  
@@ -125,14 +126,14 @@ df2<-df2[,c("lat_start","lon_start","year",'scientific_name','weight_kg','effort
 colnames(df2)<-c('Lat','Lon','Year','Species','CPUE_kg','Effort','Depth','Region')
 
 #data geostat
-df3<-subset(df2,Region %in%  c(">100 EBS shelf",'slope'))
+df3<-subset(df2,Region %in%  c('slope'))
 yrs_region<-unique(df3$Year)
 df3<-df3[complete.cases(df3$CPUE_kg),]
 
 for (sp in spp) {
 
 #example
-sp<-spp[3]  
+sp<-spp[14]  
   
 #filter by sp
 data_geostat<-subset(df3,Species==sp)
@@ -390,7 +391,6 @@ fit <- tryCatch( {fit_model(settings=settings,
                    return(NULL)
                  })
 
-
 #add predictions
 data_geostat1$pred<-fit$Report$D_i
 names(data_geostat1)[5]<-'obs'
@@ -405,7 +405,9 @@ ggplot(data = data_geostat1, aes(x = obs)) +
   theme_bw()
 
 
-plot_results(fit,plot_set = 1)
+#fit$catchability_data
+
+#plot_results(fit,plot_set = 1)
 
 # #change lower
 # fit$tmb_list$Lower
@@ -467,9 +469,10 @@ error = function(cond) {
 
 
 }
+
 for (sp in spp) {
   
-  #sp<-spp[1]
+  sp<-spp[19]
   
   cat(paste0('#######################\n#',sp,'\n#######################\n'))
   
@@ -498,94 +501,94 @@ for (sp in spp) {
 
 
 
-
-
-##################################################
-####   10-fold Cross Validation
-##################################################
-n_fold <- 10
-for (fI in 1:n_fold) { 
-  if (!dir.exists(paste0(result_dir, "CV_", fI))) {
-    dir.create(paste0(result_dir, "CV_", fI))
-    
-    file.copy(from = paste0(result_dir, get_latest_version(), 
-                            c(".cpp", ".dll", ".o")),
-              to = paste0(result_dir, "CV_", fI, "/", 
-                          get_latest_version(), 
-                          c(".cpp", ".dll", ".o")))
-    
-  }
-} 
-
-# Loop through partitions, refitting each time with a different PredTF_i
-for (fI in 1:n_fold) {
-  PredTF_i <- ifelse( test = data_geostat$fold == fI, 
-                      yes = TRUE, 
-                      no = FALSE )
-  
-  fit_CV <- switch(paste0(depth_in_model),
-                   "FALSE" = FishStatsUtils::fit_model( 
-                     "settings" = settings,
-                     "working_dir" = temp_res,
-                     "Lat_i" = data_geostat[, "Lat"],
-                     "Lon_i" = data_geostat[, "Lon"],
-                     "t_i" = data_geostat[, "Year"],
-                     "c_i" = as.numeric(data_geostat[, "spp"]) - 1,
-                     "b_i" = data_geostat[, "Catch_KG"],
-                     "a_i" = data_geostat[, "AreaSwept_km2"],
-                     "getJointPrecision" = TRUE,
-                     "newtonsteps" = 1,
-                     "test_fit" = F,
-                     "input_grid" = grid_goa,
-                     "PredTF_i" = PredTF_i,
-                     "Parameters" = fit$ParHat),
-                   
-                   "TRUE" = FishStatsUtils::fit_model( 
-                     "settings" = settings,
-                     "working_dir" = temp_res,
-                     "Lat_i" = data_geostat[, "Lat"],
-                     "Lon_i" = data_geostat[, "Lon"],
-                     "t_i" = data_geostat[, "Year"],
-                     "c_i" = as.numeric(data_geostat[, "spp"]) - 1,
-                     "b_i" = data_geostat[, "Catch_KG"],
-                     "a_i" = data_geostat[, "AreaSwept_km2"],
-                     "getJointPrecision" = TRUE,
-                     "newtonsteps" = 1,
-                     "test_fit" = F,
-                     "input_grid" = grid_goa[, c("Area_km2", "Lon", "Lat")],
-                     "PredTF_i" = PredTF_i,
-                     
-                     ##Additional arguments for covariates
-                     "X1_formula" =  "Catch_KG ~ LOG_DEPTH + LOG_DEPTH2",
-                     "X2_formula" =  "Catch_KG ~ LOG_DEPTH + LOG_DEPTH2",
-                     "covariate_data" = cbind(data_geostat[, c("Lat",
-                                                               "Lon",
-                                                               "LOG_DEPTH",
-                                                               "LOG_DEPTH2",
-                                                               "Catch_KG")],
-                                              Year = NA),
-                     "X_gtp" = X_gtp,
-                     "Parameters" = fit$ParHat))
-  
-  ## Save fit
-  save(list = "fit_CV",  
-       file = paste0(result_dir, "CV_", fI, "/fit.RData"))
-  
-  ## Save predicted and observed CPUEs
-  obs_cpue <- with(data_geostat[PredTF_i, ], Catch_KG / AreaSwept_km2)
-  pred_cpue <- fit_CV$Report$D_i[PredTF_i]
-  
-  cv_performance <- list(cpues = data.frame(cv_fold = fI, 
-                                            obs_cpue, 
-                                            pred_cpue),
-                         prednll = fit_CV$Report$pred_jnll)
-  
-  save(cv_performance,
-       file = paste0(result_dir, "CV_", fI, 
-                     "/crossval_fit_performance.RData"))
-  
-  ## Copy other outputs to the CV-fold directory
-  file.copy(from = dir(temp_res, full.names = T), 
-            to = paste0(result_dir, "CV_", fI, "/"))
-  
-}
+# 
+# 
+# ##################################################
+# ####   10-fold Cross Validation
+# ##################################################
+# n_fold <- 10
+# for (fI in 1:n_fold) { 
+#   if (!dir.exists(paste0(result_dir, "CV_", fI))) {
+#     dir.create(paste0(result_dir, "CV_", fI))
+#     
+#     file.copy(from = paste0(result_dir, get_latest_version(), 
+#                             c(".cpp", ".dll", ".o")),
+#               to = paste0(result_dir, "CV_", fI, "/", 
+#                           get_latest_version(), 
+#                           c(".cpp", ".dll", ".o")))
+#     
+#   }
+# } 
+# 
+# # Loop through partitions, refitting each time with a different PredTF_i
+# for (fI in 1:n_fold) {
+#   PredTF_i <- ifelse( test = data_geostat$fold == fI, 
+#                       yes = TRUE, 
+#                       no = FALSE )
+#   
+#   fit_CV <- switch(paste0(depth_in_model),
+#                    "FALSE" = FishStatsUtils::fit_model( 
+#                      "settings" = settings,
+#                      "working_dir" = temp_res,
+#                      "Lat_i" = data_geostat[, "Lat"],
+#                      "Lon_i" = data_geostat[, "Lon"],
+#                      "t_i" = data_geostat[, "Year"],
+#                      "c_i" = as.numeric(data_geostat[, "spp"]) - 1,
+#                      "b_i" = data_geostat[, "Catch_KG"],
+#                      "a_i" = data_geostat[, "AreaSwept_km2"],
+#                      "getJointPrecision" = TRUE,
+#                      "newtonsteps" = 1,
+#                      "test_fit" = F,
+#                      "input_grid" = grid_goa,
+#                      "PredTF_i" = PredTF_i,
+#                      "Parameters" = fit$ParHat),
+#                    
+#                    "TRUE" = FishStatsUtils::fit_model( 
+#                      "settings" = settings,
+#                      "working_dir" = temp_res,
+#                      "Lat_i" = data_geostat[, "Lat"],
+#                      "Lon_i" = data_geostat[, "Lon"],
+#                      "t_i" = data_geostat[, "Year"],
+#                      "c_i" = as.numeric(data_geostat[, "spp"]) - 1,
+#                      "b_i" = data_geostat[, "Catch_KG"],
+#                      "a_i" = data_geostat[, "AreaSwept_km2"],
+#                      "getJointPrecision" = TRUE,
+#                      "newtonsteps" = 1,
+#                      "test_fit" = F,
+#                      "input_grid" = grid_goa[, c("Area_km2", "Lon", "Lat")],
+#                      "PredTF_i" = PredTF_i,
+#                      
+#                      ##Additional arguments for covariates
+#                      "X1_formula" =  "Catch_KG ~ LOG_DEPTH + LOG_DEPTH2",
+#                      "X2_formula" =  "Catch_KG ~ LOG_DEPTH + LOG_DEPTH2",
+#                      "covariate_data" = cbind(data_geostat[, c("Lat",
+#                                                                "Lon",
+#                                                                "LOG_DEPTH",
+#                                                                "LOG_DEPTH2",
+#                                                                "Catch_KG")],
+#                                               Year = NA),
+#                      "X_gtp" = X_gtp,
+#                      "Parameters" = fit$ParHat))
+#   
+#   ## Save fit
+#   save(list = "fit_CV",  
+#        file = paste0(result_dir, "CV_", fI, "/fit.RData"))
+#   
+#   ## Save predicted and observed CPUEs
+#   obs_cpue <- with(data_geostat[PredTF_i, ], Catch_KG / AreaSwept_km2)
+#   pred_cpue <- fit_CV$Report$D_i[PredTF_i]
+#   
+#   cv_performance <- list(cpues = data.frame(cv_fold = fI, 
+#                                             obs_cpue, 
+#                                             pred_cpue),
+#                          prednll = fit_CV$Report$pred_jnll)
+#   
+#   save(cv_performance,
+#        file = paste0(result_dir, "CV_", fI, 
+#                      "/crossval_fit_performance.RData"))
+#   
+#   ## Copy other outputs to the CV-fold directory
+#   file.copy(from = dir(temp_res, full.names = T), 
+#             to = paste0(result_dir, "CV_", fI, "/"))
+#   
+# }

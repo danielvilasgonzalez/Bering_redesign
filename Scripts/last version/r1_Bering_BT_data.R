@@ -59,7 +59,8 @@ spp<-c('Limanda aspera',
            'Lepidopsetta sp.',
            'Chionoecetes bairdi',
            'Sebastes alutus',
-           'Sebastes melanostictus')
+           'Sebastes melanostictus',
+           'Atheresthes evermanni')
 
 #get files from google drive and set up
 files<-googledrive::drive_find()
@@ -331,7 +332,8 @@ spp<-c('Limanda aspera',
        'Paralithodes camtschaticus',
        'Chionoecetes bairdi',
        'Sebastes alutus',
-       'Sebastes melanostictus')
+       'Sebastes melanostictus',
+       'Atheresthes evermanni')
 
 #remove Anoploma and Reinhardtius because habitat preference reasons
 #spp<-setdiff(spp, c('Anoplopoma fimbria','Reinhardtius hippoglossoides'))
@@ -357,7 +359,8 @@ spp1<-c('Yellowfin sole',
         'Red king crab',
         'Tanner crab',
         'Pacific ocean perch',
-        'Rougheye and blackspotted rockfish')
+        'Rougheye and blackspotted rockfish',
+        'Kamchatka flounder')
 
 #df sp scientific and common
 df_spp<-data.frame('spp'=spp,

@@ -29,8 +29,8 @@ pacman::p_load(pack_cran,character.only = TRUE)
 
 #setwd - depends on computer using
 #out_dir<-'C:/Users/Daniel.Vilas/Work/Adapting Monitoring to a Changing Seascape/' #NOAA laptop  
-#out_dir<-'/Users/daniel/Work/Adapting Monitoring to a Changing Seascape/' #mac
-out_dir<-'/Users/daniel/Work/VM' #VM
+out_dir<-'/Users/daniel/Work/Adapting Monitoring to a Changing Seascape/' #mac
+#out_dir<-'/Users/daniel/Work/VM' #VM
 setwd(out_dir)
 
 #range years of data
@@ -53,7 +53,8 @@ spp<-c('Limanda aspera',
            'Chionoecetes opilio',
            'Paralithodes platypus',
            'Paralithodes camtschaticus',
-            'Chionoecetes bairdi')
+            'Chionoecetes bairdi',
+           'Atheresthes evermanni')
 
 #get files from google drive and set up
 files<-googledrive::drive_find()

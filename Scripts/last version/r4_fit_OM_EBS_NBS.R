@@ -62,7 +62,8 @@ spp<-c('Limanda aspera',
        'Chionoecetes opilio',
        'Paralithodes platypus',
        'Paralithodes camtschaticus',
-       'Chionoecetes bairdi')
+       'Chionoecetes bairdi',
+       'Atheresthes evermanni')
 
 #folder region
 fol_region<-c('shelf EBS NBS VAST')
@@ -82,7 +83,7 @@ for (sp in spp) {
 #loop over species to fit models
 for (sp in spp) {
 
-  #sp<-spp[16]
+  sp<-spp[17]
 
 #print year to check progress
 cat(paste("\n","    ----- ", sp, " -----\n"))  
@@ -91,7 +92,7 @@ cat(paste("\n","    ----- ", sp, " -----\n"))
 df1<-readRDS(paste0('./data processed/species/',sp,'/data_geostat_temp.rds'))
 
 #df1[which(df1$year==2020),'bottom_temp_c']<-NA
-df2<-subset(df1,year %in% yrs)
+df2<-subset(df1,year %in% c(yrs,2020))
 
 #select rows and rename
 df3<-df2[,c("lat_start","lon_start","year",'scientific_name','weight_kg','effort','depth_m','LogDepth',"ScaleLogDepth",'Scalebottom_temp_c','bottom_temp_c','survey_name')]
@@ -102,7 +103,7 @@ df4<-subset(df3,Region %in% c("Eastern Bering Sea Crab/Groundfish Bottom Trawl S
                               "Northern Bering Sea Crab/Groundfish Survey - Eastern Bering Sea Shelf Survey Extension"))
 
 data_geostat<-df4[complete.cases(df4[,c('CPUE_kg')]),]
-
+data_geostat<-subset(data_geostat,Year %in% yrs)
 #covariate data - filter by year and complete cases for env variables
 #covariate_data<-subset(df2,Year>=yrs_region[1] & Year<=yrs_region[2])
 covariate_data<-df3[complete.cases(df3[,c('BotTemp')]),] #,'ScaleLogDepth'
