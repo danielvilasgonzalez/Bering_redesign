@@ -130,5 +130,7 @@ dev.off()
 
 # example simulation ----
 # note that you'll want to set predictions < 0 to 0
-sims <- simulate(m_lte2_prop)
-plot(df2$march_sea_ice, sims$sim_1)
+sims <- simulate(m_lte2_prop, nsim = 10)
+plot(m_lte2_prop$model$march_sea_ice, sims$sim_1)
+# compile multiple simulations into a dataframe
+cbind(m_lte2_prop$model$march_sea_ice, sims)
