@@ -7,6 +7,7 @@
 ##    
 ##    systematic / spatially balanced / random
 ##
+##    index_hist_crab_v2.RData - v2 is strata arranged
 ####################################################################
 ####################################################################
 
@@ -314,6 +315,42 @@ for (sim in 1:n_sim_hist) {
         #area by strata
         strata_areas <- baseline_strata$strata_areas
         sum(baseline_strata$strata_areas$Area_in_survey_km2)
+
+        
+        strata_area_scn<-data.frame(matrix(NA,nrow = 0,ncol=4))
+        colnames(strata_area_scn)<-c('Strata','area','pct','stock')  
+        
+        count<-0
+        
+        area_cell<-grid2
+        
+        for (stck in rownames(dfarea)) {
+          
+          count<-count+1
+          
+          #stck<-rownames(dfarea)[3]
+          
+          icol<-ifelse(stck %in% (rownames(dfarea)[1:4]),count+6,ncol(area_cell))
+          colnames(area_cell)[icol]
+          
+          #after clipping
+          area_cell1<-area_cell[which(area_cell[,icol]==TRUE),]
+          
+          #area by strata after clipping
+          strata_areas1 <- aggregate(Area_in_survey_km2 ~ Stratum, 
+                                     FUN = sum,
+                                     data = area_cell1)
+          
+          strata_areas1$pct<-strata_areas1$Area_in_survey_km2/sum(strata_areas1$Area_in_survey_km2)*100
+          names(strata_areas1)<-c('Strata','area','pct')
+          strata_areas1$stock<-stck
+          # dffill<-data.frame(matrix(NA,nrow=15-nrow(strata_areas1),ncol=3))
+          # names(dffill)<-c('Strata','area','pct')
+          # strata_areas1<-rbind(strata_areas1,dffill)
+          
+          strata_area_scn<-rbind(strata_area_scn,strata_areas1)
+          
+        }
         
         #strata data
         survey_detail <- data.frame("Stratum" = baseline_strata$strata_areas$X1, #strata
@@ -336,6 +373,41 @@ for (sim in 1:n_sim_hist) {
         strata_areas <- aggregate(Area_in_survey_km2 ~ X1, 
                                   FUN = sum,
                                   data = area_cell)
+        strata_areas$pct<-strata_areas$Area_in_survey_km2/sum(strata_areas$Area_in_survey_km2)*100
+        
+        strata_area_scn<-data.frame(matrix(NA,nrow = 0,ncol=4))
+        colnames(strata_area_scn)<-c('Strata','area','pct','stock')  
+        
+        count<-0
+        
+        for (stck in rownames(dfarea)) {
+          
+          count<-count+1
+          
+          #stck<-rownames(dfarea)[1]
+          
+          icol<-ifelse(stck %in% (rownames(dfarea)[1:4]),count+8,ncol(area_cell))
+          colnames(area_cell)[icol]
+          
+          #after clipping
+          area_cell1<-area_cell[which(area_cell[,icol]==TRUE),]
+          
+          #area by strata after clipping
+          strata_areas1 <- aggregate(Area_in_survey_km2 ~ X1, 
+                                     FUN = sum,
+                                     data = area_cell1)
+          
+          strata_areas1$pct<-strata_areas1$Area_in_survey_km2/sum(strata_areas1$Area_in_survey_km2)*100
+          names(strata_areas1)<-c('Strata','area','pct')
+          strata_areas1$stock<-stck
+          #dffill<-data.frame(matrix(NA,nrow=15-nrow(strata_areas1),ncol=3))
+          #names(dffill)<-c('Strata','area','pct')
+          #strata_areas1<-rbind(strata_areas1,dffill)
+          
+          strata_area_scn<-rbind(strata_area_scn,strata_areas1)
+    
+        }
+        
         
         #strata data
         survey_detail <- data.frame("Stratum" = all$samples_strata$strata, #strata
@@ -377,7 +449,7 @@ for (sim in 1:n_sim_hist) {
           #simulated densities of survey and year
           sim_dens2<-sim_dens1[,,y,sim]
           
-          scn_allocations_sur<-scn_allocations[scn_allocations[,'sur','sys']==n ,c('cell'),]
+          scn_allocations_sur<-scn_allocations[scn_allocations[,'sur','sys']==n ,c('cell','strata'),]
           #rownames(scn_allocations_sur)<-NULL
           
           #loop over station allocation approac
@@ -388,7 +460,7 @@ for (sim in 1:n_sim_hist) {
             #print process        
             cat(paste(" #############  ",samp,'- simdata',sim,'- survey',sur, '- year',y ,'- allocation',apr," #############\n"))
             
-            scn_allocations_sur1<-scn_allocations_sur[,apr]
+            scn_allocations_sur1<-scn_allocations_sur[,,apr]
             
             # #get densities based on station allocations
             # sim_survey<-data.frame(cbind(strata=scn_allocations[scn_allocations[,'sur',apr]==n,c('strata'),apr],
@@ -449,43 +521,47 @@ for (sim in 1:n_sim_hist) {
               
 
               #get densities based on station allocations
-              sim_survey_crabs<-data.frame(rbind(cbind(sim_dens2[intersect(scn_allocations_sur1,BB_RKC_cells),"Paralithodes camtschaticus"],'BB_RKC'),
-                                                 cbind(sim_dens2[intersect(scn_allocations_sur1,PBL_KC_cells),"Paralithodes platypus"],'PBL_BKC'),
-                                                 cbind(sim_dens2[intersect(scn_allocations_sur1,PBL_KC_cells),"Paralithodes camtschaticus"],'PBL_RKC'),
-                                                       cbind(sim_dens2[intersect(scn_allocations_sur1,STM_BKC_cells),"Paralithodes platypus"],'STM_BKC'),
-                                                             cbind(sim_dens2[intersect(scn_allocations_sur1,EBS_C_cells),"Chionoecetes opilio"],'SNW_CRB'),
-                                                                   cbind(sim_dens2[intersect(scn_allocations_sur1,EBS_C_cells),"Chionoecetes bairdi"],'TNR_CRB')),check.names = FALSE)
+              sim_survey_crabs<-data.frame(rbind(cbind(sim_dens2[intersect(scn_allocations_sur1[,'cell'],BB_RKC_cells),"Paralithodes camtschaticus"],scn_allocations_sur1[which(scn_allocations_sur1[,'cell'] %in%  intersect(scn_allocations_sur1[,'cell'],BB_RKC_cells)),],'BB_RKC'),
+                                                 cbind(sim_dens2[intersect(scn_allocations_sur1[,'cell'],PBL_KC_cells),"Paralithodes platypus"],scn_allocations_sur1[which(scn_allocations_sur1[,'cell'] %in%  intersect(scn_allocations_sur1[,'cell'],PBL_KC_cells)),],'PBL_BKC'),
+                                                 cbind(sim_dens2[intersect(scn_allocations_sur1[,'cell'],PBL_KC_cells),"Paralithodes camtschaticus"],scn_allocations_sur1[which(scn_allocations_sur1[,'cell'] %in%  intersect(scn_allocations_sur1[,'cell'],PBL_KC_cells)),],'PBL_RKC'),
+                                                       cbind(sim_dens2[intersect(scn_allocations_sur1[,'cell'],STM_BKC_cells),"Paralithodes platypus"],scn_allocations_sur1[which(scn_allocations_sur1[,'cell'] %in%  intersect(scn_allocations_sur1[,'cell'],STM_BKC_cells)),],'STM_BKC'),
+                                                             cbind(sim_dens2[intersect(scn_allocations_sur1[,'cell'],EBS_C_cells),"Chionoecetes opilio"],scn_allocations_sur1[which(scn_allocations_sur1[,'cell'] %in%  intersect(scn_allocations_sur1[,'cell'],EBS_C_cells)),],'SNW_CRB'),
+                                                                   cbind(sim_dens2[intersect(scn_allocations_sur1[,'cell'],EBS_C_cells),"Chionoecetes bairdi"],scn_allocations_sur1[which(scn_allocations_sur1[,'cell'] %in%  intersect(scn_allocations_sur1[,'cell'],EBS_C_cells)),],'TNR_CRB')),stringsAsFactors = FALSE)
               
-              names(sim_survey_crabs)<-c('value','stock')
+              names(sim_survey_crabs)<-c('dens','cell','Strata','stock')
+              sim_survey_crabs$dens<-as.numeric(sim_survey_crabs$dens)
+              summary(sim_survey_crabs)
+              #mean and variance of strata
+              sim_survey2<-aggregate(dens ~ stock + Strata,sim_survey_crabs,
+                                           FUN = function(x) c('mean' = mean(x,na.rm=T), 'length' = length(x),'var' = var(x,na.rm=T)))
+              #remove if 3 or less samples in the strata
+              sim_survey2<-sim_survey2[which(sim_survey2$dens[,'length']>=3),]
+              zzz<-data.frame('Strata'=sim_survey2$Strata,'stock'=sim_survey2$stock,'mean'=sim_survey2$dens[,c('mean')],'var'=sim_survey2$dens[,c('var')],'n_samples'=sim_survey2$dens[,c('length')]) #/length(yy$value)
               
-
               
-              #mean, sum and var by strata and year (variable)
-              sim_survey2<-aggregate(x=as.numeric(sim_survey_crabs$value),
-                                     by=list(sp=sim_survey_crabs$stock),
-                                     FUN = function(x) c('mean' = mean(x,na.rm=T), 'length' = length(x),'var' = var(x,na.rm=T) ))
-              zzz<-data.frame('sp'=sim_survey2$sp,'mean'=sim_survey2$x[,c('mean')],'var'=sim_survey2$x[,c('var')],'n_samples'=sim_survey2$x[,c('length')]) #/length(yy$value)
+              #setdiff(zzz1,zzz)
               
               #add index strata for sum to compute index (mean strata density * area of strata) kg!
-              zzz<-merge(zzz,dfarea,by='sp')
-              zzz$index_strata<-zzz$mean*zzz$area
+              zzz1<-merge(zzz,strata_area_scn,by=c('stock','Strata'))
+              zzz1$index_strata<-zzz1$mean*zzz1$area
               
               #add strata var 
-              zzz$strs_var<-zzz$var*(zzz$area^2)/zzz$n_samples #sum(survey_detail$Nh) 
+              zzz1$strs_var<-zzz1$var*(zzz1$area^2)/zzz1$n_samples #sum(survey_detail$Nh) 
+              
+              #sum of strata var and mean density across years (kg/km2)
+              zzzz1 <- aggregate(zzz1[,c('strs_var','index_strata')], by= list(zzz1$stock),FUN = sum)
+              
               
               #get CV across years
-              zzz$cv<- sqrt(zzz$strs_var) / zzz$index_strata
-              
-              # Convert 'column_to_sort' to a factor with the custom order
-              zzz$sp <- factor(zzz$sp, levels = crabs)
-              
-              # Sort the dataframe based on the 'column_to_sort' column with custom order
-              zzz <- zzz[order(zzz$sp), ]
-              
+              zzzz1$cv<- sqrt(zzzz1$strs_var) / zzzz1$index_strata
+
+              #mean CV
+              mean(zzzz1$cv,na.rm=TRUE)
+
               #get outputs
-              STRS_mean <- zzz$index_strata
-              STRS_var <- zzz$strs_var
-              CV <- sqrt(zzz$strs_var) / zzz$index_strata
+              STRS_mean <- zzzz1$index_strata
+              STRS_var <- zzzz1$strs_var
+              CV <- sqrt(STRS_var) / STRS_mean
               
             #store outputs
             index_hist[,'STRS_mean',paste0('y',y),apr,sur,samp]<-STRS_mean
@@ -496,7 +572,7 @@ for (sim in 1:n_sim_hist) {
         }
   }
   
-  save(index_hist, file = paste0('./output/ms_sim_survey_hist/sim',sim_fol,'/index_hist_crab.RData'))  
+  save(index_hist, file = paste0('./output/ms_sim_survey_hist/sim',sim_fol,'/index_hist_crab_v2.RData'))  
 
 }
 
@@ -565,6 +641,7 @@ for (sbt in df_sbt$sbt_n) {
     s<-match(samp,samp_df$samp_scn)
     
     #when base sampling other files
+    #when base sampling other files
     if (grepl('base',samp)) {
       
       #conditions on baseline scenarios
@@ -579,9 +656,47 @@ for (sbt in df_sbt$sbt_n) {
       #baseline_strata$locations2<-baseline_strata$locations2[order(baseline_strata$locations2$stratum),]
       names(baseline_strata$strata_areas)[1]<-'X1'
       names(baseline_strata$locations2)[ncol(baseline_strata$locations2)]<-'stratum'
+      baseline_strata$strata_areas$Area_in_survey_km2<-baseline_strata$strata_areas$Area_in_survey_km2
       
       #area by strata
       strata_areas <- baseline_strata$strata_areas
+      sum(baseline_strata$strata_areas$Area_in_survey_km2)
+      
+      
+      strata_area_scn<-data.frame(matrix(NA,nrow = 0,ncol=4))
+      colnames(strata_area_scn)<-c('Strata','area','pct','stock')  
+      
+      count<-0
+      
+      area_cell<-grid2
+      
+      for (stck in rownames(dfarea)) {
+        
+        count<-count+1
+        
+        #stck<-rownames(dfarea)[3]
+        
+        icol<-ifelse(stck %in% (rownames(dfarea)[1:4]),count+6,ncol(area_cell))
+        colnames(area_cell)[icol]
+        
+        #after clipping
+        area_cell1<-area_cell[which(area_cell[,icol]==TRUE),]
+        
+        #area by strata after clipping
+        strata_areas1 <- aggregate(Area_in_survey_km2 ~ Stratum, 
+                                   FUN = sum,
+                                   data = area_cell1)
+        
+        strata_areas1$pct<-strata_areas1$Area_in_survey_km2/sum(strata_areas1$Area_in_survey_km2)*100
+        names(strata_areas1)<-c('Strata','area','pct')
+        strata_areas1$stock<-stck
+        # dffill<-data.frame(matrix(NA,nrow=15-nrow(strata_areas1),ncol=3))
+        # names(dffill)<-c('Strata','area','pct')
+        # strata_areas1<-rbind(strata_areas1,dffill)
+        
+        strata_area_scn<-rbind(strata_area_scn,strata_areas1)
+        
+      }
       
       #strata data
       survey_detail <- data.frame("Stratum" = baseline_strata$strata_areas$X1, #strata
@@ -604,6 +719,41 @@ for (sbt in df_sbt$sbt_n) {
       strata_areas <- aggregate(Area_in_survey_km2 ~ X1, 
                                 FUN = sum,
                                 data = area_cell)
+      strata_areas$pct<-strata_areas$Area_in_survey_km2/sum(strata_areas$Area_in_survey_km2)*100
+      
+      strata_area_scn<-data.frame(matrix(NA,nrow = 0,ncol=4))
+      colnames(strata_area_scn)<-c('Strata','area','pct','stock')  
+      
+      count<-0
+      
+      for (stck in rownames(dfarea)) {
+        
+        count<-count+1
+        
+        #stck<-rownames(dfarea)[1]
+        
+        icol<-ifelse(stck %in% (rownames(dfarea)[1:4]),count+8,ncol(area_cell))
+        colnames(area_cell)[icol]
+        
+        #after clipping
+        area_cell1<-area_cell[which(area_cell[,icol]==TRUE),]
+        
+        #area by strata after clipping
+        strata_areas1 <- aggregate(Area_in_survey_km2 ~ X1, 
+                                   FUN = sum,
+                                   data = area_cell1)
+        
+        strata_areas1$pct<-strata_areas1$Area_in_survey_km2/sum(strata_areas1$Area_in_survey_km2)*100
+        names(strata_areas1)<-c('Strata','area','pct')
+        strata_areas1$stock<-stck
+        #dffill<-data.frame(matrix(NA,nrow=15-nrow(strata_areas1),ncol=3))
+        #names(dffill)<-c('Strata','area','pct')
+        #strata_areas1<-rbind(strata_areas1,dffill)
+        
+        strata_area_scn<-rbind(strata_area_scn,strata_areas1)
+        
+      }
+      
       
       #strata data
       survey_detail <- data.frame("Stratum" = all$samples_strata$strata, #strata
@@ -615,6 +765,7 @@ for (sbt in df_sbt$sbt_n) {
       survey_detail$wh <- with(survey_detail, nh/Nh)
       
     }   
+    
     
     sum(strata_areas$Area_in_survey_km2)
     
@@ -638,7 +789,7 @@ for (sbt in df_sbt$sbt_n) {
       #simulated densities of survey and year
       sim_dens2<-simdata[,,y,sim]
       
-      scn_allocations_sur<-scn_allocations[scn_allocations[,'sur','rand']==n ,c('cell'),]
+      scn_allocations_sur<-scn_allocations[scn_allocations[,'sur','rand']==n ,c('cell','strata'),]
       
       #loop over station allocation approac
       for (apr in c('sys','rand','sb')) {
@@ -648,7 +799,7 @@ for (sbt in df_sbt$sbt_n) {
         #print process        
         cat(paste(" #############  ",samp,'- simdata',sim,'- sbt',sbt,'- survey',sur, '- year',y ,'- allocation',apr," #############\n"))
         
-        scn_allocations_sur1<-scn_allocations_sur[,apr]
+        scn_allocations_sur1<-scn_allocations_sur[,,apr]
         
         # #get densities based on station allocations
         # sim_survey<-data.frame(cbind(strata=scn_allocations[scn_allocations[,'sur',apr]==n,c('strata'),apr],
@@ -694,45 +845,50 @@ for (sbt in df_sbt$sbt_n) {
         #CRABS
         ######
         
-        sim_survey_crabs<-data.frame(rbind(cbind(sim_dens2[intersect(scn_allocations_sur1,BB_RKC_cells),"Paralithodes camtschaticus"],'BB_RKC'),
-                                           cbind(sim_dens2[intersect(scn_allocations_sur1,PBL_KC_cells),"Paralithodes platypus"],'PBL_BKC'),
-                                           cbind(sim_dens2[intersect(scn_allocations_sur1,PBL_KC_cells),"Paralithodes camtschaticus"],'PBL_RKC'),
-                                           cbind(sim_dens2[intersect(scn_allocations_sur1,STM_BKC_cells),"Paralithodes platypus"],'STM_BKC'),
-                                           cbind(sim_dens2[intersect(scn_allocations_sur1,EBS_C_cells),"Chionoecetes opilio"],'SNW_CRB'),
-                                           cbind(sim_dens2[intersect(scn_allocations_sur1,EBS_C_cells),"Chionoecetes bairdi"],'TNR_CRB')),check.names = FALSE)
+        #get densities based on station allocations
+        sim_survey_crabs<-data.frame(rbind(cbind(sim_dens2[intersect(scn_allocations_sur1[,'cell'],BB_RKC_cells),"Paralithodes camtschaticus"],scn_allocations_sur1[which(scn_allocations_sur1[,'cell'] %in%  intersect(scn_allocations_sur1[,'cell'],BB_RKC_cells)),],'BB_RKC'),
+                                           cbind(sim_dens2[intersect(scn_allocations_sur1[,'cell'],PBL_KC_cells),"Paralithodes platypus"],scn_allocations_sur1[which(scn_allocations_sur1[,'cell'] %in%  intersect(scn_allocations_sur1[,'cell'],PBL_KC_cells)),],'PBL_BKC'),
+                                           cbind(sim_dens2[intersect(scn_allocations_sur1[,'cell'],PBL_KC_cells),"Paralithodes camtschaticus"],scn_allocations_sur1[which(scn_allocations_sur1[,'cell'] %in%  intersect(scn_allocations_sur1[,'cell'],PBL_KC_cells)),],'PBL_RKC'),
+                                           cbind(sim_dens2[intersect(scn_allocations_sur1[,'cell'],STM_BKC_cells),"Paralithodes platypus"],scn_allocations_sur1[which(scn_allocations_sur1[,'cell'] %in%  intersect(scn_allocations_sur1[,'cell'],STM_BKC_cells)),],'STM_BKC'),
+                                           cbind(sim_dens2[intersect(scn_allocations_sur1[,'cell'],EBS_C_cells),"Chionoecetes opilio"],scn_allocations_sur1[which(scn_allocations_sur1[,'cell'] %in%  intersect(scn_allocations_sur1[,'cell'],EBS_C_cells)),],'SNW_CRB'),
+                                           cbind(sim_dens2[intersect(scn_allocations_sur1[,'cell'],EBS_C_cells),"Chionoecetes bairdi"],scn_allocations_sur1[which(scn_allocations_sur1[,'cell'] %in%  intersect(scn_allocations_sur1[,'cell'],EBS_C_cells)),],'TNR_CRB')),stringsAsFactors = FALSE)
         
-        names(sim_survey_crabs)<-c('value','stock')
+        names(sim_survey_crabs)<-c('dens','cell','Strata','stock')
+        sim_survey_crabs$dens<-as.numeric(sim_survey_crabs$dens)
+        summary(sim_survey_crabs)
+        #mean and variance of strata
+        sim_survey2<-aggregate(dens ~ stock + Strata,sim_survey_crabs,
+                               FUN = function(x) c('mean' = mean(x,na.rm=T), 'length' = length(x),'var' = var(x,na.rm=T)))
+        #remove if 3 or less samples in the strata
+        sim_survey2<-sim_survey2[which(sim_survey2$dens[,'length']>=3),]
+        zzz<-data.frame('Strata'=sim_survey2$Strata,'stock'=sim_survey2$stock,'mean'=sim_survey2$dens[,c('mean')],'var'=sim_survey2$dens[,c('var')],'n_samples'=sim_survey2$dens[,c('length')]) #/length(yy$value)
         
         
-        
-        #mean, sum and var by strata and year (variable)
-        sim_survey2<-aggregate(x=as.numeric(sim_survey_crabs$value),
-                               by=list(sp=sim_survey_crabs$stock),
-                               FUN = function(x) c('mean' = mean(x,na.rm=T), 'length' = length(x),'var' = var(x,na.rm=T) ))
-        zzz<-data.frame('sp'=sim_survey2$sp,'mean'=sim_survey2$x[,c('mean')],'var'=sim_survey2$x[,c('var')],'n_samples'=sim_survey2$x[,c('length')]) #/length(yy$value)
+        #setdiff(zzz1,zzz)
         
         #add index strata for sum to compute index (mean strata density * area of strata) kg!
-        zzz<-merge(zzz,dfarea,by='sp')
-        zzz$index_strata<-zzz$mean*zzz$area
+        zzz1<-merge(zzz,strata_area_scn,by=c('stock','Strata'))
+        zzz1$index_strata<-zzz1$mean*zzz1$area
         
         #add strata var 
-        zzz$strs_var<-zzz$var*(zzz$area^2)/zzz$n_samples #sum(survey_detail$Nh) 
+        zzz1$strs_var<-zzz1$var*(zzz1$area^2)/zzz1$n_samples #sum(survey_detail$Nh) 
+        
+        #sum of strata var and mean density across years (kg/km2)
+        zzzz1 <- aggregate(zzz1[,c('strs_var','index_strata')], by= list(zzz1$stock),FUN = sum)
+        
         
         #get CV across years
-        zzz$cv<- sqrt(zzz$strs_var) / zzz$index_strata
+        zzzz1$cv<- sqrt(zzzz1$strs_var) / zzzz1$index_strata
         
-        # Convert 'column_to_sort' to a factor with the custom order
-        zzz$sp <- factor(zzz$sp, levels = crabs)
-        
-        # Sort the dataframe based on the 'column_to_sort' column with custom order
-        zzz <- zzz[order(zzz$sp), ]
+        #mean CV
+        mean(zzzz1$cv,na.rm=TRUE)
         
         #get outputs
-        STRS_mean <- zzz$index_strata
-        STRS_var <- zzz$strs_var
-        CV <- sqrt(zzz$strs_var) / zzz$index_strata
+        STRS_mean <- zzzz1$index_strata
+        STRS_var <- zzzz1$strs_var
+        CV <- sqrt(STRS_var) / STRS_mean
         
-        #store outputs
+         #store outputs
         index_proj[,'STRS_mean',paste0('y',y),apr,sur,samp]<-STRS_mean
         index_proj[,'STRS_var',paste0('y',y),apr,sur,samp]<-STRS_var
         index_proj[,'CV_sim',paste0('y',y),apr,sur,samp]<-CV
@@ -740,7 +896,7 @@ for (sbt in df_sbt$sbt_n) {
       }
      }
     }
-  save(index_proj, file = paste0('./output/ms_sim_survey_proj/sim',sim_fol,'/SBT',sbt,' index_proj_crab.RData'))  
+  save(index_proj, file = paste0('./output/ms_sim_survey_proj/sim',sim_fol,'/SBT',sbt,' index_proj_crab_v2.RData'))  
   
   } 
 }
