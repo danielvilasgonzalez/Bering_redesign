@@ -386,7 +386,7 @@ for (sim in 1:n_sim_hist) {
           
           #stck<-rownames(dfarea)[1]
           
-          icol<-ifelse(stck %in% (rownames(dfarea)[1:4]),count+8,ncol(area_cell))
+          icol<-ifelse(stck %in% (rownames(dfarea)[1:4]),count+7,ncol(area_cell))
           colnames(area_cell)[icol]
           
           #after clipping
@@ -634,7 +634,7 @@ for (sbt in df_sbt$sbt_n) {
   #loop over sampling design
   for (samp in samp_df$samp_scn)  {
     
-    #samp<-'scnbase'
+    samp<-'scnbase'
     #start_time_parallel <- Sys.time()
     
     #number of sampling design
@@ -674,7 +674,7 @@ for (sbt in df_sbt$sbt_n) {
         
         count<-count+1
         
-        #stck<-rownames(dfarea)[3]
+        #stck<-rownames(dfarea)[1]
         
         icol<-ifelse(stck %in% (rownames(dfarea)[1:4]),count+6,ncol(area_cell))
         colnames(area_cell)[icol]
@@ -732,7 +732,7 @@ for (sbt in df_sbt$sbt_n) {
         
         #stck<-rownames(dfarea)[1]
         
-        icol<-ifelse(stck %in% (rownames(dfarea)[1:4]),count+8,ncol(area_cell))
+        icol<-ifelse(stck %in% (rownames(dfarea)[1:4]),count+7,ncol(area_cell))
         colnames(area_cell)[icol]
         
         #after clipping
@@ -900,3 +900,4 @@ for (sbt in df_sbt$sbt_n) {
   
   } 
 }
+  
