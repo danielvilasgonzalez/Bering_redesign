@@ -39,22 +39,25 @@ end_y<-2022
 
 #selected species
 spp<-c('Limanda aspera',
-           'Gadus chalcogrammus',
-           'Gadus macrocephalus',
-           'Atheresthes stomias',
-           'Reinhardtius hippoglossoides',
-           'Lepidopsetta polyxystra',
-           'Hippoglossoides elassodon',
-           'Pleuronectes quadrituberculatus',
-           'Hippoglossoides robustus',
-           'Boreogadus saida',
-           'Eleginus gracilis',
-           'Anoplopoma fimbria',
-           'Chionoecetes opilio',
-           'Paralithodes platypus',
-           'Paralithodes camtschaticus',
-            'Chionoecetes bairdi',
-           'Atheresthes evermanni')
+       'Gadus chalcogrammus',
+       'Gadus macrocephalus',
+       'Atheresthes stomias',
+       'Reinhardtius hippoglossoides',
+       'Lepidopsetta polyxystra',
+       'Hippoglossoides elassodon',
+       'Pleuronectes quadrituberculatus',
+       'Hippoglossoides robustus',
+       'Boreogadus saida',
+       'Eleginus gracilis',
+       'Anoplopoma fimbria',
+       'Chionoecetes opilio',
+       'Paralithodes platypus',
+       'Paralithodes camtschaticus',
+       'Lepidopsetta sp.',
+       'Chionoecetes bairdi',
+       'Sebastes alutus',
+       'Sebastes melanostictus',
+       'Atheresthes evermanni')
 
 #get files from google drive and set up
 files<-googledrive::drive_find()
