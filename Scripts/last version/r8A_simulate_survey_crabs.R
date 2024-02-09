@@ -634,7 +634,7 @@ for (sbt in df_sbt$sbt_n) {
   #loop over sampling design
   for (samp in samp_df$samp_scn)  {
     
-    samp<-'scnbase'
+    #samp<-'scnbase'
     #start_time_parallel <- Sys.time()
     
     #number of sampling design
