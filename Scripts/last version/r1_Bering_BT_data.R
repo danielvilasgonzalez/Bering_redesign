@@ -234,6 +234,8 @@ spp<-spp[spp!='Lepidopsetta sp.']
 
 #save data_geostat file
 saveRDS(all1, paste0('./data processed/species/slope_shelf_EBS_NBS_data_geostat.rds'))
+all1<-readRDS(paste0('./data processed/species/slope_shelf_EBS_NBS_data_geostat.rds'))
+
 
 #loop over species to create data_geostat df
 for (sp in spp) {
