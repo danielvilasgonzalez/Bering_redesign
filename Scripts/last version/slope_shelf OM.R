@@ -133,7 +133,7 @@ df3<-df3[complete.cases(df3$CPUE_kg),]
 for (sp in spp) {
 
 #example
-sp<-spp[14]  
+#sp<-spp[14]  
   
 #filter by sp
 data_geostat<-subset(df3,Species==sp)
@@ -472,12 +472,14 @@ error = function(cond) {
 
 for (sp in spp) {
   
-  sp<-spp[19]
+  #sp<-spp[19]
   
   cat(paste0('#######################\n#',sp,'\n#######################\n'))
   
   #save fit
   load(paste(out_dir,fol_region,sp,'fit.RData',sep='/')) #paste(yrs_region,collapse = "")
+  
+  fit$parameter_estimates$SD$pdHess
   
   if (is.null(fit$parameter_estimates$Convergence_check)) {
     cat(paste0(fit$Report,'\n')) 
