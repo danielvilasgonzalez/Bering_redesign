@@ -230,35 +230,32 @@ panel_extent <- data.frame(x = c(-1716559.21, -77636.05), #x = c(-1326559.21, -8
                            y = c(483099.5, 2194909.7)) #y = c(533099.5, 1894909.7))
 
 #Alaska layer
-ebs_layers <- akgfmaps::get_base_layers(select.region = "ebs", set.crs = "+proj=longlat +datum=WGS84 +no_defs")
+#Alaska layer
+ebs_layers <- akgfmaps::get_base_layers(select.region = "ebs", set.crs = "EPSG:3338")
 ak_sppoly<-as(ebs_layers$akland, 'Spatial')
 
 
-
-gdb_layers$name
-
-gdb_table1
-
-
+p<-
 ggplot()+
-  geom_sf(data=ebs_layers$survey.strata,fill = NA)+ #gdb_table
-   geom_sf(data=gdb_table1,fill = 'green',alpha=0.1)+
-   geom_sf_text(data = gdb_table1, label=gdb_layers$name[1],color='green')+
-  # # geom_sf(data=gdb_table2,fill = 'red',alpha=0.1)+
-  # # geom_sf_text(data = gdb_table2, label=gdb_layers$name[2],color='red')+
-  # geom_sf(data=gdb_table3,fill = 'yellow',alpha=0.1)+
-  # geom_sf_text(data = gdb_table3, label=gdb_layers$name[3],color='yellow')+
-  # # geom_sf(data=gdb_table4,fill = 'blue',alpha=0.1)+
-  # # geom_sf_text(data = gdb_table4, label=gdb_layers$name[4],color='blue')+
-  # geom_sf(data=gdb_table5,fill = 'orange',alpha=0.1)+
-  # geom_sf_text(data = gdb_table5, label=gdb_layers$name[5],color='orange')+
-  #geom_sf(data=gdb_table6,fill = 'black',alpha=0.1)+
-  #geom_sf_text(data = gdb_table6, label=gdb_layers$name[6],color='black')+
-  #geom_polygon(data=ak_sppoly,aes(x=long,y=lat,group=group),fill = 'grey60')+
+  #geom_sf(data=ebs_layers$survey.strata,fill = NA)+ #gdb_table
+  geom_polygon(data=ak_sppoly,aes(x=long,y=lat,group=group),color='black',linewidth=0.2,fill = 'grey80')+
+  geom_sf(data=gdb_table1,fill = 'green',alpha=0.1)+
+  geom_sf_text(data = gdb_table1, label='Bristol\nBay',color='green',nudge_y = 20000,lineheight = 0.9)+
+  geom_sf(data=st_union(gdb_table2),fill = 'red',alpha=0.1)+
+  geom_sf_text(data = st_union(gdb_table2), label='Pribilof\nIslands',color='red',nudge_y = 70000,lineheight = 0.9)+
+  #geom_sf(data=st_union(gdb_table3),fill = 'yellow',alpha=0.1)+
+  #geom_sf_text(data = st_union(gdb_table3), label='Pribilof\nIslands',color='yellow',nudge_x = 60000,nudge_y = 50000,lineheight = 0.9)+
+  geom_sf(data=st_union(gdb_table4),fill = 'blue',alpha=0.1)+
+  geom_sf_text(data = st_union(gdb_table4), label='St. Matthew\nIsland',lineheight = 0.9,color='blue',nudge_x = 50000,nudge_y = -30000)+
+  #geom_sf(data=gdb_table5,fill = 'orange',alpha=0.1)+
+  #geom_sf_text(data = gdb_table5, label=gdb_layers$name[5],color='orange')+
+  geom_sf(data=st_union(gdb_table6),fill = 'black',alpha=0.1)+
+  geom_sf_text(data = st_union(gdb_table6), label='EBS',color='black',nudge_y = 90000)+
+  geom_polygon(data=ak_sppoly,aes(x=long,y=lat,group=group),fill = 'grey60')+
   scale_x_continuous(expand = c(0,0),position = 'bottom',
                      breaks = c(-175,-170,-165,-160,-155),sec.axis = dup_axis())+
-  #geom_polygon(data=NBS_sh,aes(x=long,y=lat,group=group),fill=NA,col='black')+
-  #geom_polygon(data=EBSshelf_sh,aes(x=long,y=lat,group=group),fill=NA,col='black')+
+  geom_polygon(data=NBS_sh,aes(x=long,y=lat,group=group),fill=NA,col='black')+
+  geom_polygon(data=EBSshelf_sh,aes(x=long,y=lat,group=group),fill=NA,col='black')+
   coord_sf(crs = '+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs',
            #xlim = c(panel_extent$x[1]+200000,panel_extent$x[2]),
            xlim = c(panel_extent$x[1]+200000,panel_extent$x[2]+100000),
@@ -275,6 +272,11 @@ ggplot()+
         axis.ticks.length = unit(-5,"points"))+
   scale_y_continuous(expand = c(0,0),position = 'right',sec.axis = dup_axis())#+
 
+
+#save plot
+ragg::agg_png(paste0('./figures/crabs_management units.png'), width = 7, height = 7, units = "in", res = 300)
+p
+dev.off()
 
 ########################
 # stratification crabs from LDF
