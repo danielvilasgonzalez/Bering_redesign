@@ -183,10 +183,70 @@ dir.create('./data processed/SBT projections/')
 #create folder
 dir.create('./figures/SBT/')
 
+#Alaska layer
+ebs_layers <- akgfmaps::get_base_layers(select.region = "ebs", set.crs = "EPSG:3338")
+ak_sppoly<-as(ebs_layers$akland, 'Spatial')
+
+# Define plot extent (through trial end error) units km
+panel_extent <- data.frame(x = c(-1516559.21, -77636.05), #x = c(-1326559.21, -87636.05),
+                           y = c(483099.5, 1894909.7)) #y = c(533099.5, 1894909.7))
+
 #loop over scenarios and projected years
 for (sbt in unique(df_sbt$sbt_n)) {
 
-  #sbt<-1
+  #sbt<-8
+  
+  plot_list<-list()
+  
+  colour_breaks <- c(1,1.5, 2,2.5, 9)
+  #colours <- c('darkblue',"lightblue", "grey90", "red",'darkred')
+  
+  #p<-
+    gplot(r2)+
+    geom_tile(aes(fill=value))+
+    geom_polygon(data=ak_sppoly,aes(x=long,y=lat,group=group),color='black',linewidth=0.2,fill = 'grey80')+
+    #geom_polygon(data=eez_sh33,aes(x=long,y=lat,group=group),fill=NA,color='grey40')+
+    scale_x_continuous(expand = c(0,0),position = 'bottom',
+                       breaks = c(-175,-170,-165,-160,-155),sec.axis = dup_axis())+
+    coord_sf(crs = '+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs',
+             xlim = panel_extent$x,
+             ylim = panel_extent$y,
+             #lim = c(panel_extent$x[1]+200000,panel_extent$x[2]),
+             #ylim = c(panel_extent$y[1],panel_extent$y[2]-200000),
+             label_axes = "-NE-")+
+      scale_fill_gradientn(
+        limits  = c(-1,15),
+        colours = colours[c(1, seq_along(colours), length(colours))],
+        values  = c(0, scales::rescale(colour_breaks, from = c(-1,15)), 1))+
+    # scale_fill_gradient2(low = 'blue',midpoint = 4,#c1f2fe',
+    #                      high = 'red',#'#007c9b',
+    #                      limits=c(-1,15),#oob = scales::squish,breaks=c(0,50,100,200),
+    #                      #labels=c('0','50','100',paste0('200 - ',round(maxValue(ak_bathy_4)))),
+    #                      na.value = 'white',
+    #                      name='SBT',
+    #                      guide = guide_colorbar(frame.colour = 'black',ticks.colour = 'black'))+
+    theme(aspect.ratio = 1,panel.grid.major = element_line(color = rgb(0, 0, 0,20, maxColorValue = 285), linetype = 'dashed', linewidth =  0.5),
+          panel.background = element_rect(fill = NA),panel.ontop = TRUE,text = element_text(size=10),
+          legend.background =  element_rect(fill = "transparent", colour = "transparent"),legend.key.height= unit(25, 'points'),
+          legend.key.width= unit(25, 'points'),axis.title = element_blank(),legend.position = 'none', #c(0.12,0.47)
+          panel.border = element_rect(fill = NA, colour = 'black'),legend.key = element_rect(color="black"),
+          axis.text = element_text(color='black'),legend.spacing.y = unit(10, 'points'),
+          axis.text.y.right = element_text(hjust= 0.1 ,margin = margin(0,7,0,-25, unit = 'points'),color='black'),
+          axis.text.x = element_text(vjust = 6, margin = margin(-7,0,7,0, unit = 'points'),color='black'),
+          axis.ticks.length = unit(-5,"points"),plot.title = element_text(hjust = 0.01, vjust = -7, size = 14),
+          plot.margin = margin(0.01,0.01,0.01,0.01))+
+    
+    labs(title = '2022')+
+    scale_y_continuous(expand = c(0,0),position = 'right',sec.axis = dup_axis())
+  
+  plot_list[[1]]<-p
+    
+  legend1 <- cowplot::get_legend( 
+    p + 
+      theme(legend.position = "bottom")+ guides(fill=guide_colorbar(title.position='top', title.hjust = 0.5,ticks.colour = 'black',frame.colour = 'black'))
+  ) 
+  
+  #plot(legend1)
   
   #create stack
   sbt_stack<-stack()
@@ -209,25 +269,82 @@ for (sbt in unique(df_sbt$sbt_n)) {
     
     #add layer to stack
     sbt_stack<-addLayer(sbt_stack,r3)
+    #r4<-as.data.frame(r3,xy=TRUE)
+    #colnames(r4)[3]<-'value'
+    #r4<-r4[complete.cases(r4$value),] 
+    
+    #ggplot()+
+      #geom_raster(data=r4,aes(x=x,y=y,fill=value))+
+    p<-
+    gplot(r3)+
+      geom_tile(aes(fill=value))+
+      geom_polygon(data=ak_sppoly,aes(x=long,y=lat,group=group),color='black',linewidth=0.2,fill = 'grey80')+
+      #geom_polygon(data=eez_sh33,aes(x=long,y=lat,group=group),fill=NA,color='grey40')+
+      scale_x_continuous(expand = c(0,0),position = 'bottom',
+                         breaks = c(-175,-170,-165,-160,-155),sec.axis = dup_axis())+
+      coord_sf(crs = '+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs',
+               xlim = panel_extent$x,
+               ylim = panel_extent$y,
+               #lim = c(panel_extent$x[1]+200000,panel_extent$x[2]),
+               #ylim = c(panel_extent$y[1],panel_extent$y[2]-200000),
+               label_axes = "-NE-")+
+      scale_fill_gradient2(low = 'blue',midpoint = 2,#c1f2fe',
+                           high = 'red',#'#007c9b',
+                           limits=c(-1,15),#oob = scales::squish,breaks=c(0,50,100,200),
+                           #labels=c('0','50','100',paste0('200 - ',round(maxValue(ak_bathy_4)))),
+                           na.value = 'white',
+                           name='SBT',
+                           guide = guide_colorbar(frame.colour = 'black',ticks.colour = 'black'))+
+      theme(aspect.ratio = 1,panel.grid.major = element_line(color = rgb(0, 0, 0,20, maxColorValue = 285), linetype = 'dashed', linewidth =  0.5),
+            panel.background = element_rect(fill = NA),panel.ontop = TRUE,text = element_text(size=10),
+            legend.background =  element_rect(fill = "transparent", colour = "transparent"),legend.key.height= unit(25, 'points'),
+            legend.key.width= unit(25, 'points'),axis.title = element_blank(),legend.position = 'none', #c(0.12,0.47)
+            panel.border = element_rect(fill = NA, colour = 'black'),legend.key = element_rect(color="black"),
+            axis.text = element_text(color='black'),legend.spacing.y = unit(10, 'points'),
+            plot.margin = margin(0.01,0.01,0.01,0.01), 
+            axis.text.y.right = element_text(hjust= 0.1 ,margin = margin(0,7,0,-25, unit = 'points'),color='black'),
+            axis.text.x = element_text(vjust = 6, margin = margin(-7,0,7,0, unit = 'points'),color='black'),
+            axis.ticks.length = unit(-5,"points"),plot.title = element_text(hjust = 0.01, vjust = -7, size = 14))+
+      labs(title = yrs[y])+
+      scale_y_continuous(expand = c(0,0),position = 'right',sec.axis = dup_axis())
+      
+    plot_list[[y+1]]<-p
+    
     
   }
 
+  
+  pgrid1<-cowplot::plot_grid(plotlist = plot_list, nrow = 1)
+  #pgrid2<-cowplot::plot_grid(plotlist = plot_list_n, nrow = 2)
+  title <- cowplot::ggdraw() + cowplot::draw_label(paste0(df_sbt[sbt,'Scenario'],' (SBT',sbt,')'), fontface='bold')
+  
+  #save plots
+  ragg::agg_png(paste0('./figures/sbt',sbt,'.png'), width = 20, height = 5, units = "in", res = 300)
+  print(cowplot::plot_grid(title,pgrid1, legend1, nrow = 3, rel_heights = c(.05,1, .3)))
+  dev.off()
+  
+  
+  
+  
   #sbt remove 2022
   sbt_stack<-sbt_stack[[paste0('y',2023:2027)]]
   
-  #save raster
-  writeRaster(sbt_stack, paste0('data processed/SBT projections/SBT_',sbt,'_',paste0(range(yrs)[1],'-',range(yrs)[2]),'.grd'),overwrite=TRUE)
   
-  #save plot
-  ragg::agg_png(paste0('./figures/SBT/SBT_',sbt,'.png'), width = 20, height = 4.6, units = "in", res = 300)
-  print(
-    levelplot(sbt_stack,
-              layout=c(6, 1),
-              col.regions=pal,
-              main=paste('Scenario',
-                         df_sbt[which(df_sbt$sbt_n==sbt),"Scenario"]),
-              contour=TRUE))
-  dev.off()
+  
+  
+  # #save raster
+  # writeRaster(sbt_stack, paste0('data processed/SBT projections/SBT_',sbt,'_',paste0(range(yrs)[1],'-',range(yrs)[2]),'.grd'),overwrite=TRUE)
+  # 
+  # #save plot
+  # ragg::agg_png(paste0('./figures/SBT/SBT_',sbt,'.png'), width = 20, height = 4.6, units = "in", res = 300)
+  # print(
+  #   levelplot(sbt_stack,
+  #             layout=c(6, 1),
+  #             col.regions=pal,
+  #             main=paste('Scenario',
+  #                        df_sbt[which(df_sbt$sbt_n==sbt),"Scenario"]),
+  #             contour=TRUE))
+  # dev.off()
 }
 
 #projection name
