@@ -63,6 +63,8 @@ spp<-c('Limanda aspera',
        'Paralithodes platypus',
        'Paralithodes camtschaticus',
        'Chionoecetes bairdi',
+       'Sebastes alutus',
+       #'Sebastes melanostictus',
        'Atheresthes evermanni')
 
 #folder region
@@ -83,7 +85,7 @@ for (sp in spp) {
 #loop over species to fit models
 for (sp in spp) {
 
-  sp<-spp[17]
+sp<-spp[18]
 
 #print year to check progress
 cat(paste("\n","    ----- ", sp, " -----\n"))  
@@ -104,6 +106,12 @@ df4<-subset(df3,Region %in% c("Eastern Bering Sea Crab/Groundfish Bottom Trawl S
 
 data_geostat<-df4[complete.cases(df4[,c('CPUE_kg')]),]
 data_geostat<-subset(data_geostat,Year %in% yrs)
+
+if (sp==spp[18]) {
+  data_geostat<-subset(data_geostat,Year %in% 1991:2022)
+}
+
+
 #covariate data - filter by year and complete cases for env variables
 #covariate_data<-subset(df2,Year>=yrs_region[1] & Year<=yrs_region[2])
 covariate_data<-df3[complete.cases(df3[,c('BotTemp')]),] #,'ScaleLogDepth'
@@ -136,6 +144,14 @@ pred_TF[1:nrow(data_geostat)] <- 0
 
 #save data
 saveRDS(data_geostat1,paste(out_dir,fol_region,sp,'data_geostat_temp.rds',sep='/'))
+
+# Calculate the percentage of zeros for each group
+percent_zeros <- data_geostat %>%
+  group_by(Year) %>%
+  summarize(percentage_zeros = mean(CPUE_kg == 0) * 100)
+
+# Print the results
+print(percent_zeros,n=100)
 
 #regions (predefined in VAST)
 region<-c("northern_bering_sea","eastern_bering_sea")
@@ -170,6 +186,7 @@ X2_formula<-X1_formula
 #predictor settings
 X2config_cp = X1config_cp
 
+
 #fit model #### ADD TryCatch{(),}
 fit <- tryCatch( {fit_model(settings=settings,
                             Lat_i=data_geostat1$Lat, 
@@ -202,3 +219,40 @@ save(list = "fit", file = paste(out_dir,fol_region,sp,'fit.RData',sep='/')) #pas
 #close process window
 gc()
 }
+
+ggplot()+
+  geom_point(data=subset(data_geostat1,CPUE_kg!=0),aes(x=Lon,y=Lat,size=CPUE_kg,fill=CPUE_kg),color='transparent',shape=21)+
+  facet_wrap(~Year)+
+  theme_bw()
+
+
+# check percent of zeros
+ggplot(data = data_geostat, aes(CPUE_kg)) + 
+  geom_histogram(bins =20,
+                 aes(y = after_stat(density))) +
+  facet_wrap(~Year) +
+  #scale_y_continuous(labels = scales::percent_format()) +
+  theme_bw()
+
+# Calculate the percentage of zeros for each group
+percent_zeros <- data_geostat %>%
+  group_by(Year) %>%
+  summarize(percentage_zeros = mean(CPUE_kg == 0) * 100)
+
+# Print the results
+print(percent_zeros)
+
+#add predictions
+data_geostat1$pred<-fit$Report$D_i
+names(data_geostat1)[ncol(data_geostat1)]<-'obs'
+
+#plot comparison pred/obs
+ggplot(data = data_geostat1, aes(x = obs)) +
+  geom_histogram(aes(color = "obs"), bins = 20, alpha = 0.5, fill='white',position = "identity") +
+  geom_histogram(data = data_geostat1, aes(x = pred, color = "pred"), bins = 20, alpha = 0.5,fill='white', position = "identity") +
+  scale_color_manual(values = c("obs" = "blue", "pred" = "red"),name='') +
+  labs(fill = "") +
+  facet_wrap(~Year,nrow = 1) +
+  theme_bw()
+
+
