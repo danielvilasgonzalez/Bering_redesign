@@ -287,8 +287,8 @@ load('./extrapolation grids/eastern_bering_sea_grid.rda')
 grid<-as.data.frame(rbind(data.frame(northern_bering_sea_grid,region='NBS'),data.frame(eastern_bering_sea_grid,region='EBS')))
 grid$cell<-1:nrow(grid)
 #add col and row number
-x1<-grid[,c('Lon','Lat','cell')]
-names(x1)<-c('x','y','z')
+x1<-grid[,c('Lon','Lat','cell','Area_in_survey_km2')]
+names(x1)<-c('x','y','z','area')
 coordinates(x1)=~x + y
 crs(x1)<-c(crs="+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
 x2<-spTransform(x1,'+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs')
@@ -301,8 +301,8 @@ lons<-data.frame(x=lon,col=1:length(lon))
 lats<-data.frame(y=lat,row=1:length(lat))
 x4<-merge(x3,lons,by='x',all.x=TRUE)
 x5<-merge(x4,lats,by='y',all.x=TRUE)
-colnames(x5)<-c('Lat','Lon','cell','optional','col','row')
-grid<-x5[,c('Lat','Lon','cell','col','row')]
+colnames(x5)<-c('Lat','Lon','cell','area','optional','col','row')
+grid<-x5[,c('Lat','Lon','cell','area','col','row')]
 
 ###################################
 # BASELINE/CURRENT SAMPLING DESIGN
@@ -326,6 +326,7 @@ samp_df$samp_scn<-paste0(paste0('scn',1:nrow(samp_df)))
 samp_df<-rbind(samp_df,c('baseline','current',520,15,'scnbase'),
                c('baseline w/o corner','current',494,15,'scnbase_bis'))
 
+samp_df$n<-1:nrow(samp_df)
 
 ###################################
 # Crab shapefiles
@@ -365,18 +366,15 @@ rem_cells<-D6[which(D6$include==FALSE),'cell']
 ok_cells<-D6[which(D6$include==1),'cell']
 
 plot_list<- list()
+raster_list<-list()
 
 samp_df<-samp_df[order(match(samp_df$samp_scn,c('scnbase','scnbase_bis','scn3','scn2','scn1'))),]
 
 for (samp in samp_df$samp_scn) {
   
+  #samp<-samp_df$samp_scn[2]
   
-  #samp<-samp_df$samp_scn[3]
-  
-
-    
   load(file = paste0("./output/survey_allocations_",samp,".RData")) #scn_allocations
-  #load(file = paste0("./output/ms_optim_allocations_scn1.RData")) #all
   #load(file = paste0("./output/survey_allocations_scn1.RData")) #scn_allocations
   
   #rename due to error
@@ -425,25 +423,34 @@ for (samp in samp_df$samp_scn) {
     #STRATIFICATION
     #load files for stratification (all) and example allocations
     load(file = paste0("./output/ms_optim_allocations_",samp,".RData")) #all
+    
     strata<-rbind(all$result_list$solution$indices,
                   data.frame(ID=rem_cells,X1=NA))
     colnames(strata)<-c('cell','Strata')
     
+    strata<-merge(strata,grid,by='cell')
+    
     #n cells by strata
     strata_sum<-aggregate(cell ~ Strata, data = strata, FUN = length)
+    strata_area<-aggregate(area ~ Strata, data = strata, FUN = sum)
     names(strata_sum)[2]<-'total_cell'
+    strata_agr<-cbind(strata_sum,'total_area'=strata_area[,'area'])
+    
     #merge
     strata<-merge(strata,all$samples_strata,by.x='Strata',by.y='strata')
-    strata<-merge(strata,strata_sum,by='Strata')
-    strata$prop<-strata$n_samples/strata$total_cell
+    strata<-merge(strata,strata_agr,by='Strata')
+    strata$samp_cell<-strata$n_samples/strata$total_cell
     dim(strata)
     
-    D8<-merge(D6,strata,by='cell')
+    D8<-merge(D6,strata,by=c('cell'))
     D8$Strata[is.na(D8$Strata)]<-99
+    D8$samp_area<-D8$n_samples/D8$total_area
+    D8<-D8[,c(1:40,43:50)]
+    names(D8)[c(2,3)]<-c('Lat','Lon')
   } else {
 
-      strata<-as.data.frame(baseline_strata$cell_strata)[,c('cell','Lat','Lon','Stratum')]
-      names(strata)[4]<-c('Strata')
+      strata<-as.data.frame(baseline_strata$cell_strata)[,c('cell','Lat','Lon','Stratum','Area_in_survey_km2')]
+      names(strata)[c(4,5)]<-c('Strata','area')
       #aggregate(strata$cell,by=list(strata$strata),FUN=length)
       D8<-strata
       
@@ -461,10 +468,17 @@ for (samp in samp_df$samp_scn) {
       #n cells by strata
       strata_sum<-aggregate(cell ~ Strata, data = D8, FUN = length)
       names(strata_sum)[2]<-'total_cell'
+      strata_agr<-cbind(strata_sum,'total_area'=strata_area[,'area'])
       
       #merge
-      D8<-merge(D8,strata_sum,by='Strata')
-      D8$prop<-D8$n_samples/D8$total_cell
+      D8<-merge(D8,strata_agr,by='Strata')
+      D8$samp_cell<-D8$n_samples/D8$total_cell
+      D8$samp_area<-D8$n_samples/D8$total_area
+      
+      
+      
+      
+      
       dim(strata)
       
       D8$Strata[is.na(D8$Strata)]<-99
@@ -489,7 +503,7 @@ for (samp in samp_df$samp_scn) {
   r1 <- raster(ext=extent(D8_1),ncol=xycells, nrow=xycells) #c(15800,15800) 7000
   crs(r1)<-CRS('+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs')
   #create raster
-  r2<-rasterize(D8_1, r1 ,field=c('Strata','n_samples','prop'))
+  r2<-rasterize(D8_1, r1 ,field=c('Strata','n_samples','samp_area','samp_cell'))
   crs(r2) <- CRS('+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs')
   #plot(r2)
   
@@ -501,29 +515,56 @@ for (samp in samp_df$samp_scn) {
   
   
   r3<-r3[complete.cases(r3$Strata),] 
-  r3$prop<-as.factor(r3$prop)
-  r3$n_samples<-as.factor(r3$n_samples)
+  #r3$prop<-as.factor(r3$prop)
+  #r3$n_samples<-as.factor(r3$n_samples)
   # Create a named vector for scale_colour_manual
-  pal <- wesanderson::wes_palette("Zissou1", length(sort(unique(r3$prop))), type = "continuous")
-  color_scale <- setNames(as.character(pal), sort(unique(r3$prop)))
+  pal <- wesanderson::wes_palette("Zissou1", 100, type = "continuous")
+  color_scale <- setNames(as.character(pal), sort(unique(r3$samp_area)))
   
   r5<-crop(r2,gdb_table3)
   plot(r5)
   
   r5<-as.data.frame(r5,xy=TRUE)
   r5<-r5[complete.cases(r5$Strata),] 
-  r5$prop<-as.factor(r5$prop)
-  r5$n_samples<-as.factor(r5$n_samples)
+  #r5$prop<-as.factor(r5$prop)
+  #r5$n_samples<-as.factor(r5$n_samples)
   
-  #base map
-  p<-
-  ggplot()+
-    geom_raster(data=r3,aes(x=x,y=y,fill=prop),alpha=0.8)+
+  raster_list[[paste0(samp,'raster')]]<-r3
+  raster_list[[paste0(samp,'polygon')]]<-r4
+  
+# }
+# 
+# max<-c()
+# min<-c()
+# 
+# for (samp in samp_df$samp_scn) {
+#   
+#   r<-raster_list[[paste0(samp,'raster')]]
+#   print(paste0(max(r$prop),min(r$prop)))
+#   min<-c(min,min(r$prop))
+#   max<-c(max,max(r$prop))
+#   
+# }
+# 
+imax<-max(r3$samp_area)
+imin<-min(r3$samp_area)
+# 
+# samp_df$n<-1:5
+# 
+# for (samp in samp_df$samp_scn) {
+
+  r3<-raster_list[[paste0(samp,'raster')]]
+  r4<-raster_list[[paste0(samp,'polygon')]]
+  
+  
+  #p<-
+    ggplot()+
+    geom_raster(data=r3,aes(x=x,y=y,fill=1000*samp_area))+
     geom_polygon(data=r4,aes(x=long,y=lat,group=group), colour=rgb(0, 0, 0, 0.4),alpha=0.2, fill=NA)+
     #geom_point(data=D8_2, aes(Lon, Lat, fill=Strata, group=NULL),size=2, stroke=0,shape=21)+
     #scale_fill_gradientn(colours=c("#ea5545", "#f46a9b", "#ef9b20", "#edbf33", "#ede15b", "#bdcf32", "#87bc45", "#27aeef", "#b33dc6"))+
-    scale_fill_manual(values = color_scale)+ 
-    #scale_fill_gradientn(colors=pal,values = sort(unique(r3$prop)))+ 
+    #scale_fill_manual(values = color_scale)+
+    scale_fill_gradientn(colors=pal,limits=c(0,imax)*1000)+ #,limits=c(imin,imax)
     scale_x_continuous(expand = c(0,0),position = 'bottom',
                        breaks = c(-175,-170,-165,-160,-155),sec.axis = dup_axis())+
     coord_sf(crs = '+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs',
@@ -537,103 +578,181 @@ for (samp in samp_df$samp_scn) {
           legend.position = 'none',
           #panel.border = element_rect(fill = NA, colour = 'grey'),
           legend.key = element_rect(color="black"),
-          legend.spacing.y = unit(8, 'points'),
+          #legend.spacing.y = unit(8, 'points'),
           axis.text=element_blank(),axis.ticks = element_blank(),
-          plot.margin = margin(10,10,10,10), 
+          plot.margin = margin(0.01,0.01,0.01,0.01),
           axis.ticks.length = unit(-5,"points"),plot.title = element_text(size=18,hjust = 0.5,vjust=-5, face="bold"))+
-    scale_y_continuous(expand = c(0,0),position = 'right',sec.axis = dup_axis())+
-    guides(fill = guide_legend(order=2,override.aes=list(shape = 22,size=8)),
-           color = guide_legend(order=1,override.aes=list(size=8)),
-           shape = guide_legend(order=1),override.aes=list(size=8))#+
-  #labs(title=paste0(gsub('_',' + ',samp_df[s,'strat_var'])),fill='')
+    scale_y_continuous(expand = c(0,0),position = 'right',sec.axis = dup_axis())#+
+    # guides(fill = guide_legend(order=2,override.aes=list(shape = 22,size=8)),
+    #        color = guide_legend(order=1,override.aes=list(size=8)),
+    #        shape = guide_legend(order=1),override.aes=list(size=8))#+
   
-  #legend_d<-
-    # ggplot()+
-    # geom_raster(data=r3,aes(x=x,y=y,fill=prop),alpha=0.8)+
-    # geom_polygon(data=r4,aes(x=long,y=lat,group=group), colour=rgb(0, 0, 0, 0.4),alpha=0.2, fill=NA)+
-    # #geom_point(data=D8_2, aes(Lon, Lat, fill=Strata, group=NULL),size=2, stroke=0,shape=21)+
-    # #scale_fill_gradientn(colours=c("#ea5545", "#f46a9b", "#ef9b20", "#edbf33", "#ede15b", "#bdcf32", "#87bc45", "#27aeef", "#b33dc6"))+
-    # scale_fill_manual(values = color_scale,breaks=unique(r3$prop)[c(1,15)])+ #,labels=c("Lower","Higher"),name='log(ss/ms samples)' 
-    # guides(fill=guide_colorsteps(title.position = 'top', title.hjust = 0.5,ticks.colour = NA,frame.colour = 'black'))+
-    # theme(legend.position = 'bottom')+
-    # labs(fill='')
+  print(p)
+
+  plot_list[[paste0(samp_df[which(samp_df$samp_scn==samp),'n'])]] <-p #+ geom_point(data=sys1,aes(x=Lon,y=Lat),size=1,shape=4,stroke=1,alpha=0.7) #+ theme(axis.title.x.top = element_text(size=18,vjust = 2),axis.title.y.left =  element_text(size=18)) +labs(x='optimized_depth+SBTvar',y=' ')
+
   
-  pcrab<-
-  ggplot()+
-    geom_raster(data=r5,aes(x=x,y=y,fill=n_samples),alpha=0.8)+
-    geom_polygon(data=r4,aes(x=long,y=lat,group=group), colour=rgb(0, 0, 0, 0.4),alpha=0.2, fill=NA)+
-    #geom_point(data=D8_2, aes(Lon, Lat, fill=Strata, group=NULL),size=2, stroke=0,shape=21)+
-    #scale_fill_gradientn(colours=c("#ea5545", "#f46a9b", "#ef9b20", "#edbf33", "#ede15b", "#bdcf32", "#87bc45", "#27aeef", "#b33dc6"))+
-    scale_fill_manual(values = color_scale)+ 
-    #scale_fill_gradientn(colors=pal,values = sort(unique(r3$prop)))+ 
-    scale_x_continuous(expand = c(0,0),position = 'bottom',
-                       breaks = c(-175,-170,-165,-160,-155),sec.axis = dup_axis())+
-    coord_sf(crs = '+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs',
-             xlim = c(-1372205, -224348.5),
-             ylim = c(547256.1, 1813031),
-             label_axes = "-NE-")+
-    theme(aspect.ratio = 1,panel.grid.major = element_blank(),plot.background = element_rect(color='black'),
-          panel.background = element_rect(fill = NA),panel.ontop = TRUE,
-          legend.background =  element_rect(fill = "transparent", colour = "transparent"),legend.key.height= unit(20, 'points'),
-          legend.key.width= unit(20, 'points'),axis.title = element_blank(),legend.position = 'none',
-          #panel.border = element_rect(fill = NA, colour = 'grey'),
-          legend.key = element_rect(color="black"),
-          legend.spacing.y = unit(8, 'points'),
-          axis.text=element_blank(),axis.ticks = element_blank(),
-          plot.margin = margin(10,10,10,10), 
-          axis.ticks.length = unit(-5,"points"),plot.title = element_text(size=18,hjust = 0.5,vjust=-5, face="bold"))+
-    scale_y_continuous(expand = c(0,0),position = 'right',sec.axis = dup_axis())+
-    guides(fill = guide_legend(order=2,override.aes=list(shape = 22,size=8)),
-           color = guide_legend(order=1,override.aes=list(size=8)),
-           shape = guide_legend(order=1),override.aes=list(size=8))#+
+  # if (samp == 'scnbase') {
+  #   #add points
+  #   plot_list[[paste0('sys_',samp)]] <-p + geom_point(data=sys1,aes(x=Lon,y=Lat),size=1,shape=4,stroke=1,alpha=0.7) #+ theme(axis.title.x.top = element_text(size=18,vjust = 2),axis.title.y.left =  element_text(size=18,vjust=3)) +labs(x='current',y='systematic')
+  #   plot_list[[paste0('spb_',samp)]] <- p + geom_point(data=sb,aes(x=Lon,y=Lat),size=1,shape=4,stroke=1,alpha=0.7)#+ theme(axis.title.x.top = element_text(size=18),axis.title.y.left =  element_text(size=18,vjust=3)) +labs(x=' ',y='spatially-balanced')
+  #   plot_list[[paste0('rand_',samp)]] <-p + geom_point(data=rand1,aes(x=Lon,y=Lat),size=1,shape=4,stroke=1,alpha=0.7)#+ theme(axis.title.x.top = element_text(size=18),axis.title.y.left =  element_text(size=18,vjust=3)) +labs(x=' ',y='random')
+  #   
+  # } else if (samp == 'scnbase_bis') {
+  #   #add points
+  #   plot_list[[paste0('sys_',samp)]] <-p + geom_point(data=sys1,aes(x=Lon,y=Lat),size=1,shape=4,stroke=1,alpha=0.7)# + theme(axis.title.x.top = element_text(size = 18,vjust = 2),axis.title.y.left =  element_text(size=18)) +labs(x='current_w/o corner',y=' ')
+  #   plot_list[[paste0('spb_',samp)]] <- p + geom_point(data=sb,aes(x=Lon,y=Lat),size=1,shape=4,stroke=1,alpha=0.7)#+ theme(axis.title.x.top = element_text(size = 18),axis.title.y.left =  element_text(size=18)) +labs(x=' ',y=' ')
+  #   plot_list[[paste0('rand_',samp)]] <-p + geom_point(data=rand1,aes(x=Lon,y=Lat),size=1,shape=4,stroke=1,alpha=0.7)#+ theme(axis.title.x.top = element_text(size = 18),axis.title.y.left =  element_text(size=18)) +labs(x=' ',y=' ')
+  # } else if (samp == 'scn3') {
+  #   #add points
+  #   plot_list[[paste0('sys_',samp)]] <-p + geom_point(data=sys1,aes(x=Lon,y=Lat),size=1,shape=4,stroke=1,alpha=0.7)# + theme(axis.title.x.top = element_text(size=18,vjust = 2),axis.title.y.left =  element_text(size=18)) +labs(x='optimized_depth',y=' ')
+  #   plot_list[[paste0('spb_',samp)]] <- p + geom_point(data=sb,aes(x=Lon,y=Lat),size=1,shape=4,stroke=1,alpha=0.7)#+ theme(axis.title.x.top = element_text(size=18),axis.title.y.left =  element_text(size=18)) +labs(x=' ',y=' ')
+  #   plot_list[[paste0('rand_',samp)]] <-p + geom_point(data=rand1,aes(x=Lon,y=Lat),size=1,shape=4,stroke=1,alpha=0.7)#+ theme(axis.title.x.top = element_text(size=18),axis.title.y.left =  element_text(size=18)) +labs(x=' ',y=' ')
+  # } else if (samp == 'scn2') {
+  #   #add points
+  #   plot_list[[paste0('sys_',samp)]] <-p + geom_point(data=sys1,aes(x=Lon,y=Lat),size=1,shape=4,stroke=1,alpha=0.7)# + theme(axis.title.x.top = element_text(size=18,vjust = 2),axis.title.y.left =  element_text(size=18)) +labs(x='optimized_SBTvar',y=' ')
+  #   plot_list[[paste0('spb_',samp)]] <- p + geom_point(data=sb,aes(x=Lon,y=Lat),size=1,shape=4,stroke=1,alpha=0.7)#+ theme(axis.title.x.top = element_text(size=18),axis.title.y.left =  element_text(size=18)) +labs(x=' ',y=' ')
+  #   plot_list[[paste0('rand_',samp)]] <-p + geom_point(data=rand1,aes(x=Lon,y=Lat),size=1,shape=4,stroke=1,alpha=0.7)#+ theme(axis.title.x.top = element_text(size=18),axis.title.y.left =  element_text(size=18)) +labs(x=' ',y=' ')
+  # } else if (samp == 'scn1') {
+  #   #add points
+  #   plot_list[[paste0('sys_',samp)]] <-p + geom_point(data=sys1,aes(x=Lon,y=Lat),size=1,shape=4,stroke=1,alpha=0.7)# + theme(axis.title.x.top = element_text(size=18,vjust = 2),axis.title.y.left =  element_text(size=18)) +labs(x='optimized_depth+SBTvar',y=' ')
+  #   plot_list[[paste0('spb_',samp)]] <- p + geom_point(data=sb,aes(x=Lon,y=Lat),size=1,shape=4,stroke=1,alpha=0.7)#+ theme(axis.title.x.top = element_text(size=18),axis.title.y.left =  element_text(size=18)) +labs(x=' ',y=' ')
+  #   plot_list[[paste0('rand_',samp)]] <-p + geom_point(data=rand1,aes(x=Lon,y=Lat),size=1,shape=4,stroke=1,alpha=0.7)#+ theme(axis.title.x.top = element_text(size=18),axis.title.y.left =  element_text(size=18)) +labs(x=' ',y=' ')
+  # }
+  # 
   
-  
-  plot_list[[paste0('sys_',samp)]] <-p + geom_point(data=sys1,aes(x=Lon,y=Lat),size=1,shape=4,stroke=1,alpha=0.7) #+ theme(axis.title.x.top = element_text(size=18,vjust = 2),axis.title.y.left =  element_text(size=18)) +labs(x='optimized_depth+SBTvar',y=' ')
-  plot_list[[paste0('spb_',samp)]] <- p + geom_point(data=sb,aes(x=Lon,y=Lat),size=1,shape=4,stroke=1,alpha=0.7)#+ theme(axis.title.x.top = element_text(size=18),axis.title.y.left =  element_text(size=18)) +labs(x=' ',y=' ')
-  plot_list[[paste0('rand_',samp)]] <-p + geom_point(data=rand1,aes(x=Lon,y=Lat),size=1,shape=4,stroke=1,alpha=0.7)#+ theme(axis.title.x.top = element_text(size=18),axis.title.y.left =  element_text(size=18)) +labs(x=' ',y=' ')
-  
+}
+
+  # #base map
+  # p<-
+  # ggplot()+
+  #   geom_raster(data=r3,aes(x=x,y=y,fill=prop),alpha=0.8)+
+  #   geom_polygon(data=r4,aes(x=long,y=lat,group=group), colour=rgb(0, 0, 0, 0.4),alpha=0.2, fill=NA)+
+  #   #geom_point(data=D8_2, aes(Lon, Lat, fill=Strata, group=NULL),size=2, stroke=0,shape=21)+
+  #   #scale_fill_gradientn(colours=c("#ea5545", "#f46a9b", "#ef9b20", "#edbf33", "#ede15b", "#bdcf32", "#87bc45", "#27aeef", "#b33dc6"))+
+  #   scale_fill_manual(values = color_scale)+ 
+  #   #scale_fill_gradientn(colors=pal,values = sort(unique(r3$prop)))+ 
+  #   scale_x_continuous(expand = c(0,0),position = 'bottom',
+  #                      breaks = c(-175,-170,-165,-160,-155),sec.axis = dup_axis())+
+  #   coord_sf(crs = '+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs',
+  #            xlim = c(-1372205, -224348.5),
+  #            ylim = c(547256.1, 1813031),
+  #            label_axes = "-NE-")+
+  #   theme(aspect.ratio = 1,panel.grid.major = element_blank(),plot.background = element_rect(color='black'),
+  #         panel.background = element_rect(fill = NA),panel.ontop = TRUE,
+  #         legend.background =  element_rect(fill = "transparent", colour = "transparent"),legend.key.height= unit(20, 'points'),
+  #         legend.key.width= unit(20, 'points'),axis.title = element_blank(),
+  #         legend.position = 'none',
+  #         #panel.border = element_rect(fill = NA, colour = 'grey'),
+  #         legend.key = element_rect(color="black"),
+  #         legend.spacing.y = unit(8, 'points'),
+  #         axis.text=element_blank(),axis.ticks = element_blank(),
+  #         plot.margin = margin(10,10,10,10), 
+  #         axis.ticks.length = unit(-5,"points"),plot.title = element_text(size=18,hjust = 0.5,vjust=-5, face="bold"))+
+  #   scale_y_continuous(expand = c(0,0),position = 'right',sec.axis = dup_axis())+
+  #   guides(fill = guide_legend(order=2,override.aes=list(shape = 22,size=8)),
+  #          color = guide_legend(order=1,override.aes=list(size=8)),
+  #          shape = guide_legend(order=1),override.aes=list(size=8))#+
+  # #labs(title=paste0(gsub('_',' + ',samp_df[s,'strat_var'])),fill='')
+  # 
+  # #legend_d<-
+  #   # ggplot()+
+  #   # geom_raster(data=r3,aes(x=x,y=y,fill=prop),alpha=0.8)+
+  #   # geom_polygon(data=r4,aes(x=long,y=lat,group=group), colour=rgb(0, 0, 0, 0.4),alpha=0.2, fill=NA)+
+  #   # #geom_point(data=D8_2, aes(Lon, Lat, fill=Strata, group=NULL),size=2, stroke=0,shape=21)+
+  #   # #scale_fill_gradientn(colours=c("#ea5545", "#f46a9b", "#ef9b20", "#edbf33", "#ede15b", "#bdcf32", "#87bc45", "#27aeef", "#b33dc6"))+
+  #   # scale_fill_manual(values = color_scale,breaks=unique(r3$prop)[c(1,15)])+ #,labels=c("Lower","Higher"),name='log(ss/ms samples)' 
+  #   # guides(fill=guide_colorsteps(title.position = 'top', title.hjust = 0.5,ticks.colour = NA,frame.colour = 'black'))+
+  #   # theme(legend.position = 'bottom')+
+  #   # labs(fill='')
+  # 
+  # pcrab<-
+  # ggplot()+
+  #   geom_raster(data=r5,aes(x=x,y=y,fill=n_samples),alpha=0.8)+
+  #   geom_polygon(data=r4,aes(x=long,y=lat,group=group), colour=rgb(0, 0, 0, 0.4),alpha=0.2, fill=NA)+
+  #   #geom_point(data=D8_2, aes(Lon, Lat, fill=Strata, group=NULL),size=2, stroke=0,shape=21)+
+  #   #scale_fill_gradientn(colours=c("#ea5545", "#f46a9b", "#ef9b20", "#edbf33", "#ede15b", "#bdcf32", "#87bc45", "#27aeef", "#b33dc6"))+
+  #   scale_fill_manual(values = color_scale)+ 
+  #   #scale_fill_gradientn(colors=pal,values = sort(unique(r3$prop)))+ 
+  #   scale_x_continuous(expand = c(0,0),position = 'bottom',
+  #                      breaks = c(-175,-170,-165,-160,-155),sec.axis = dup_axis())+
+  #   coord_sf(crs = '+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs',
+  #            xlim = c(-1372205, -224348.5),
+  #            ylim = c(547256.1, 1813031),
+  #            label_axes = "-NE-")+
+  #   theme(aspect.ratio = 1,panel.grid.major = element_blank(),plot.background = element_rect(color='black'),
+  #         panel.background = element_rect(fill = NA),panel.ontop = TRUE,
+  #         legend.background =  element_rect(fill = "transparent", colour = "transparent"),legend.key.height= unit(20, 'points'),
+  #         legend.key.width= unit(20, 'points'),axis.title = element_blank(),legend.position = 'none',
+  #         #panel.border = element_rect(fill = NA, colour = 'grey'),
+  #         legend.key = element_rect(color="black"),
+  #         legend.spacing.y = unit(8, 'points'),
+  #         axis.text=element_blank(),axis.ticks = element_blank(),
+  #         plot.margin = margin(10,10,10,10), 
+  #         axis.ticks.length = unit(-5,"points"),plot.title = element_text(size=18,hjust = 0.5,vjust=-5, face="bold"))+
+  #   scale_y_continuous(expand = c(0,0),position = 'right',sec.axis = dup_axis())+
+  #   guides(fill = guide_legend(order=2,override.aes=list(shape = 22,size=8)),
+  #          color = guide_legend(order=1,override.aes=list(size=8)),
+  #          shape = guide_legend(order=1),override.aes=list(size=8))#+
+  # 
+  # 
+  # plot_list[[paste0('sys_',samp)]] <-p + geom_point(data=sys1,aes(x=Lon,y=Lat),size=1,shape=4,stroke=1,alpha=0.7) #+ theme(axis.title.x.top = element_text(size=18,vjust = 2),axis.title.y.left =  element_text(size=18)) +labs(x='optimized_depth+SBTvar',y=' ')
+  # plot_list[[paste0('spb_',samp)]] <- p + geom_point(data=sb,aes(x=Lon,y=Lat),size=1,shape=4,stroke=1,alpha=0.7)#+ theme(axis.title.x.top = element_text(size=18),axis.title.y.left =  element_text(size=18)) +labs(x=' ',y=' ')
+  # plot_list[[paste0('rand_',samp)]] <-p + geom_point(data=rand1,aes(x=Lon,y=Lat),size=1,shape=4,stroke=1,alpha=0.7)#+ theme(axis.title.x.top = element_text(size=18),axis.title.y.left =  element_text(size=18)) +labs(x=' ',y=' ')
+  # 
+
   #samp<-samp_df$samp_scn[1]
   
   # if (samp == 'scnbase') {
   #   #add points
-  #   plot_list[[paste0('sys_',samp)]] <-p + geom_point(data=sys1,aes(x=Lon,y=Lat),size=1,shape=4,stroke=1,alpha=0.7) + theme(axis.title.x.top = element_text(size=18,vjust = 2),axis.title.y.left =  element_text(size=18,vjust=3)) +labs(x='current',y='systematic')
-  #   plot_list[[paste0('rand_',samp)]] <-p + geom_point(data=rand1,aes(x=Lon,y=Lat),size=1,shape=4,stroke=1,alpha=0.7)+ theme(axis.title.x.top = element_text(size=18),axis.title.y.left =  element_text(size=18,vjust=3)) +labs(x=' ',y='random')
-  #   plot_list[[paste0('spb_',samp)]] <- p + geom_point(data=sb,aes(x=Lon,y=Lat),size=1,shape=4,stroke=1,alpha=0.7)+ theme(axis.title.x.top = element_text(size=18),axis.title.y.left =  element_text(size=18,vjust=3)) +labs(x=' ',y='spatially-balanced')
-  # } else if (samp == 'scnbase_bis') {
+  #   plot_list[[paste0('sys_',samp)]] <-p + geom_point(data=sys1,aes(x=Lon,y=Lat),size=1,shape=4,stroke=1,alpha=0.7) #+ theme(axis.title.x.top = element_text(size=18,vjust = 2),axis.title.y.left =  element_text(size=18,vjust=3)) +labs(x='current',y='systematic')
+  #   plot_list[[paste0('spb_',samp)]] <- p + geom_point(data=sb,aes(x=Lon,y=Lat),size=1,shape=4,stroke=1,alpha=0.7)#+ theme(axis.title.x.top = element_text(size=18),axis.title.y.left =  element_text(size=18,vjust=3)) +labs(x=' ',y='spatially-balanced')
+  #   plot_list[[paste0('rand_',samp)]] <-p + geom_point(data=rand1,aes(x=Lon,y=Lat),size=1,shape=4,stroke=1,alpha=0.7)#+ theme(axis.title.x.top = element_text(size=18),axis.title.y.left =  element_text(size=18,vjust=3)) +labs(x=' ',y='random')
+  #   
+  #   } else if (samp == 'scnbase_bis') {
   #   #add points
-  #   plot_list[[paste0('sys_',samp)]] <-p + geom_point(data=sys1,aes(x=Lon,y=Lat),size=1,shape=4,stroke=1,alpha=0.7) + theme(axis.title.x.top = element_text(size = 18,vjust = 2),axis.title.y.left =  element_text(size=18)) +labs(x='current_w/o corner',y=' ')
-  #   plot_list[[paste0('rand_',samp)]] <-p + geom_point(data=rand1,aes(x=Lon,y=Lat),size=1,shape=4,stroke=1,alpha=0.7)+ theme(axis.title.x.top = element_text(size = 18),axis.title.y.left =  element_text(size=18)) +labs(x=' ',y=' ')
-  #   plot_list[[paste0('spb_',samp)]] <- p + geom_point(data=sb,aes(x=Lon,y=Lat),size=1,shape=4,stroke=1,alpha=0.7)+ theme(axis.title.x.top = element_text(size = 18),axis.title.y.left =  element_text(size=18)) +labs(x=' ',y=' ')
+  #   plot_list[[paste0('sys_',samp)]] <-p + geom_point(data=sys1,aes(x=Lon,y=Lat),size=1,shape=4,stroke=1,alpha=0.7)# + theme(axis.title.x.top = element_text(size = 18,vjust = 2),axis.title.y.left =  element_text(size=18)) +labs(x='current_w/o corner',y=' ')
+  #   plot_list[[paste0('spb_',samp)]] <- p + geom_point(data=sb,aes(x=Lon,y=Lat),size=1,shape=4,stroke=1,alpha=0.7)#+ theme(axis.title.x.top = element_text(size = 18),axis.title.y.left =  element_text(size=18)) +labs(x=' ',y=' ')
+  #   plot_list[[paste0('rand_',samp)]] <-p + geom_point(data=rand1,aes(x=Lon,y=Lat),size=1,shape=4,stroke=1,alpha=0.7)#+ theme(axis.title.x.top = element_text(size = 18),axis.title.y.left =  element_text(size=18)) +labs(x=' ',y=' ')
   # } else if (samp == 'scn3') {
   #   #add points
-  #   plot_list[[paste0('sys_',samp)]] <-p + geom_point(data=sys1,aes(x=Lon,y=Lat),size=1,shape=4,stroke=1,alpha=0.7) + theme(axis.title.x.top = element_text(size=18,vjust = 2),axis.title.y.left =  element_text(size=18)) +labs(x='optimized_depth',y=' ')
-  #   plot_list[[paste0('rand_',samp)]] <-p + geom_point(data=rand1,aes(x=Lon,y=Lat),size=1,shape=4,stroke=1,alpha=0.7)+ theme(axis.title.x.top = element_text(size=18),axis.title.y.left =  element_text(size=18)) +labs(x=' ',y=' ')
-  #   plot_list[[paste0('spb_',samp)]] <- p + geom_point(data=sb,aes(x=Lon,y=Lat),size=1,shape=4,stroke=1,alpha=0.7)+ theme(axis.title.x.top = element_text(size=18),axis.title.y.left =  element_text(size=18)) +labs(x=' ',y=' ')
+  #   plot_list[[paste0('sys_',samp)]] <-p + geom_point(data=sys1,aes(x=Lon,y=Lat),size=1,shape=4,stroke=1,alpha=0.7)# + theme(axis.title.x.top = element_text(size=18,vjust = 2),axis.title.y.left =  element_text(size=18)) +labs(x='optimized_depth',y=' ')
+  #   plot_list[[paste0('spb_',samp)]] <- p + geom_point(data=sb,aes(x=Lon,y=Lat),size=1,shape=4,stroke=1,alpha=0.7)#+ theme(axis.title.x.top = element_text(size=18),axis.title.y.left =  element_text(size=18)) +labs(x=' ',y=' ')
+  #   plot_list[[paste0('rand_',samp)]] <-p + geom_point(data=rand1,aes(x=Lon,y=Lat),size=1,shape=4,stroke=1,alpha=0.7)#+ theme(axis.title.x.top = element_text(size=18),axis.title.y.left =  element_text(size=18)) +labs(x=' ',y=' ')
   # } else if (samp == 'scn2') {
   #   #add points
-  #   plot_list[[paste0('sys_',samp)]] <-p + geom_point(data=sys1,aes(x=Lon,y=Lat),size=1,shape=4,stroke=1,alpha=0.7) + theme(axis.title.x.top = element_text(size=18,vjust = 2),axis.title.y.left =  element_text(size=18)) +labs(x='optimized_SBTvar',y=' ')
-  #   plot_list[[paste0('rand_',samp)]] <-p + geom_point(data=rand1,aes(x=Lon,y=Lat),size=1,shape=4,stroke=1,alpha=0.7)+ theme(axis.title.x.top = element_text(size=18),axis.title.y.left =  element_text(size=18)) +labs(x=' ',y=' ')
-  #   plot_list[[paste0('spb_',samp)]] <- p + geom_point(data=sb,aes(x=Lon,y=Lat),size=1,shape=4,stroke=1,alpha=0.7)+ theme(axis.title.x.top = element_text(size=18),axis.title.y.left =  element_text(size=18)) +labs(x=' ',y=' ')
+  #   plot_list[[paste0('sys_',samp)]] <-p + geom_point(data=sys1,aes(x=Lon,y=Lat),size=1,shape=4,stroke=1,alpha=0.7)# + theme(axis.title.x.top = element_text(size=18,vjust = 2),axis.title.y.left =  element_text(size=18)) +labs(x='optimized_SBTvar',y=' ')
+  #   plot_list[[paste0('spb_',samp)]] <- p + geom_point(data=sb,aes(x=Lon,y=Lat),size=1,shape=4,stroke=1,alpha=0.7)#+ theme(axis.title.x.top = element_text(size=18),axis.title.y.left =  element_text(size=18)) +labs(x=' ',y=' ')
+  #   plot_list[[paste0('rand_',samp)]] <-p + geom_point(data=rand1,aes(x=Lon,y=Lat),size=1,shape=4,stroke=1,alpha=0.7)#+ theme(axis.title.x.top = element_text(size=18),axis.title.y.left =  element_text(size=18)) +labs(x=' ',y=' ')
   # } else if (samp == 'scn1') {
   #   #add points
-  #   plot_list[[paste0('sys_',samp)]] <-p + geom_point(data=sys1,aes(x=Lon,y=Lat),size=1,shape=4,stroke=1,alpha=0.7) + theme(axis.title.x.top = element_text(size=18,vjust = 2),axis.title.y.left =  element_text(size=18)) +labs(x='optimized_depth+SBTvar',y=' ')
-  #   plot_list[[paste0('rand_',samp)]] <-p + geom_point(data=rand1,aes(x=Lon,y=Lat),size=1,shape=4,stroke=1,alpha=0.7)+ theme(axis.title.x.top = element_text(size=18),axis.title.y.left =  element_text(size=18)) +labs(x=' ',y=' ')
-  #   plot_list[[paste0('spb_',samp)]] <- p + geom_point(data=sb,aes(x=Lon,y=Lat),size=1,shape=4,stroke=1,alpha=0.7)+ theme(axis.title.x.top = element_text(size=18),axis.title.y.left =  element_text(size=18)) +labs(x=' ',y=' ')
+  #   plot_list[[paste0('sys_',samp)]] <-p + geom_point(data=sys1,aes(x=Lon,y=Lat),size=1,shape=4,stroke=1,alpha=0.7)# + theme(axis.title.x.top = element_text(size=18,vjust = 2),axis.title.y.left =  element_text(size=18)) +labs(x='optimized_depth+SBTvar',y=' ')
+  #   plot_list[[paste0('spb_',samp)]] <- p + geom_point(data=sb,aes(x=Lon,y=Lat),size=1,shape=4,stroke=1,alpha=0.7)#+ theme(axis.title.x.top = element_text(size=18),axis.title.y.left =  element_text(size=18)) +labs(x=' ',y=' ')
+  #   plot_list[[paste0('rand_',samp)]] <-p + geom_point(data=rand1,aes(x=Lon,y=Lat),size=1,shape=4,stroke=1,alpha=0.7)#+ theme(axis.title.x.top = element_text(size=18),axis.title.y.left =  element_text(size=18)) +labs(x=' ',y=' ')
   # }
 
  
-}
+#}
+
+legend1 <- cowplot::get_legend( 
+  plot_list[['1']] + 
+    theme(legend.position = "bottom",plot.background = element_blank(), panel.background = element_blank())+
+    scale_fill_gradientn(colors=pal,limits=c(imin,imax),
+                         breaks=range(imin,imax),labels=c("Low","High"),name='sampling effort (stations/area)')+
+    guides(fill=guide_colorbar(title.position = 'top', title.hjust = 0.5,ticks.colour = NA,frame.colour = 'black'))+
+    theme(legend.position = 'bottom')+
+    labs(fill='')
+) 
+
+pp<-cowplot::plot_grid(plotlist = plot_list,nrow = 1,ncol=5,byrow = FALSE)#+
+  #theme(panel.border = element_rect(fill = NA, colour = 'grey'))
+#theme(panel.border = element_rect(fill = NA, colour = 'grey')
+
+pp1<-cowplot::plot_grid(pp,legend1,nrow = 2,ncol=1,rel_heights = c(1,0.17))
 
 
 
-pp<-cowplot::plot_grid(plotlist = plot_list,nrow = 3,ncol=5,byrow = 'column')+
-  theme(panel.border = element_rect(fill = NA, colour = 'grey'))
-
-pp1<-cowplot::plot_grid(pp,legend2,nrow = 2,ncol=1,rel_heights = c(1,0.01))
-
-
-
-ragg::agg_png(paste0('./figures/stratification_maps.png'), width = 25, height = 15, units = "in", res = 300)
+ragg::agg_png(paste0('./figures/stratification_maps_legendscnlog.png'), width = 20, height = 12, units = "in", res = 300)
 print(pp)
 dev.off()
 
@@ -977,7 +1096,11 @@ cowplot::plot_grid(plot_list_nsamples[['baseline']],plot_list_nsamples[[3]],plot
   # Plot comparison sampling effort x strata for each species under singlesp or multisp allocation of samples
   ###################
   
-  for (s in 1:nrow(samp_df)) {
+  
+  df_spp$common<-spp1
+  df_spp<-df_spp[order(df_spp$common),]
+  
+  for (s in 3:nrow(samp_df)) {
     
     #s<-1
     samp<-samp_df[s,'samp_scn']
@@ -1024,7 +1147,7 @@ cowplot::plot_grid(plot_list_nsamples[['baseline']],plot_list_nsamples[[3]],plot
     plot_list_n<-list()
     plot_list_d<-list()
     
-    for (isp in spp) {
+    for (isp in df_spp$spp) {
       
       #isp<-spp[1]
       
@@ -1221,7 +1344,8 @@ cowplot::plot_grid(plot_list_nsamples[['baseline']],plot_list_nsamples[[3]],plot
   ###################
   plot_list_rf<-list()
   
-  for (isp in spp) {
+
+  for (isp in df_spp$spp) {
     
     #isp<-'Gadus macrocephalus'
     cat(paste(" #############  ",isp ," #############\n"))

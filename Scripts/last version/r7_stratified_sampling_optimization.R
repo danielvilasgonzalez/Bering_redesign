@@ -118,11 +118,12 @@ grid$cell<-1:nrow(grid)
 x1<-grid[,c('Lon','Lat','cell')]
 names(x1)<-c('x','y','z')
 coordinates(x1)=~x + y
-crs(x1)<-c(crs="+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
+#crs(x1)<-c(crs="+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
+proj4string(x1)<-CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
 x2<-spTransform(x1,'+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs')
 x3<-data.frame(x2)
-x3$x<-as.integer(x3$coords.x1)
-x3$y<-as.integer(x3$coords.x2)
+#x3$x<-as.integer(x3$coords.x1)
+#x3$y<-as.integer(x3$coords.x2)
 lon<-sort(unique(x3$x),decreasing = FALSE) #1556
 lat<-sort(unique(x3$y),decreasing = TRUE) #1507
 lons<-data.frame(x=lon,col=1:length(lon))
@@ -574,6 +575,8 @@ samp_df$samp_scn<-paste0(paste0('scn',1:nrow(samp_df)))
     
     #s<-1
     
+    cat(paste('##############################', s, 'of',nrow(samp_df)))
+    
     samp<-samp_df[s,'samp_scn']
     
     #load multispecies data
@@ -827,17 +830,54 @@ samp_df$samp_scn<-paste0(paste0('scn',1:nrow(samp_df)))
   #cvs1$samp<-factor(cvs1$samp,
   #               levels = c('scn3','scn2','scn1'))
   
+  #get estimated index SD for each survey across years, sampling scenario and approach
+  load('./output/estimated_index_hist.RData') #ind2
+  index_sd<-aggregate(index ~ spp + year + scn + approach + sim,ind2,FUN = function(x) c(sd = sd(x)))
+  index_sd[which(index_sd$approach=='sys' & index_sd$scn=='scnbase'),]
+  
+  #true cv
+  load('./output/true_ind_hist.RData') #ind2
+  
+  #true index reshape
+  true_ind2<-reshape2::melt(true_ind,id.vars='year')
+  names(true_ind2)[2]<-'spp'
+  
+  #merge sd and true index
+  df<-merge(index_sd,true_ind2,by=c('year','spp'))
+  df$cvtrue<-df$index/df$value
+  names(df)[2:3]<-c('sp','samp')
+  df<-merge(df,spp_name,by.x='sp',by.y='spp')
+  df1<-subset(df,samp %in% paste0('scn',1:3))
+  mean_cvtrue<-aggregate(cvtrue ~ sp + samp ,df,FUN = function(x) c(mean = mean(x)))
+  mean_cvtrue
   levels(cvs1$samp)
   
-  p1<-
+  head(mean_cvtrue)
+  names(mean_cvtrue)<-c('sp','samp','cvtrue')
+  head(cvs1)
+  
+  cvs2<-merge(cvs1,mean_cvtrue,by=c('sp','samp'))
+  
   ggplot()+
-    geom_linerange(data=cvs1,aes(xmin=ss,xmax=ms,x=ms,y=common,color=samp),linewidth=1,stat = "identity", position = position_dodge(width = 0.7))+ 
-    geom_point(data=cvs1,aes(x=ss,y=common,group=samp),shape=4,stat = "identity", position = position_dodge(width = 0.7),size=2)+
-    geom_point(data=cvs1,aes(x=ms,y=common,group=samp),shape=16,stat = "identity", position = position_dodge(width = 0.7),size=2)+
+    geom_boxplot(data=df,aes(x=cvtrue,y=common,group=interaction(samp,common)))#,group=samp),color='black',fill='white',stat = "identity", position = position_dodge(width = 0.7),size=2)
+    
+    
+  #p1<-
+  ggplot()+
+    #geom_boxplot(data=df1,aes(x=cvtrue,y=common,group=interaction(samp,common),color=samp),fill='white', position = position_dodge(width = 0.7),outlier.shape = NA)+
+    geom_linerange(data=cvs2,aes(xmin=ss,xmax=ms,x=ms,y=common,color=samp),linewidth=1,stat = "identity", position = position_dodge(width = 0.7))+ 
+    geom_point(data=cvs2,aes(x=ss,y=common,group=samp),shape=4,stat = "identity", position = position_dodge(width = 0.7),size=2)+
+    geom_point(data=cvs2,aes(x=ms,y=common,group=samp),shape=21,stat = "identity", color='black',fill='black',position = position_dodge(width = 0.7),size=2)+
+    #geom_point(data=cvs2,aes(x=cvtrue,y=common,group=samp),shape='*',color='black',stat = "identity", position = position_dodge(width = 0.7),size=7)+
+    geom_point(data=cvs2,aes(x=cvtrue,y=common,group=samp,fill=samp),shape=21,color='black',stat = "identity", position = position_dodge(width = 0.7),size=2)+
     scale_color_manual(values=c('scn1'='#4b7a99','scn2'='#679bc3','scn3'='#8db6c3'),
                       labels = c('opt depth','opt varSBT','opt depth + varSBT'),
                       limits=c('scn3','scn2','scn1'),
                       name='stratification')+
+    scale_fill_manual(values=c('scn1'='#4b7a99','scn2'='#679bc3','scn3'='#8db6c3'),
+                       labels = c('opt depth','opt varSBT','opt depth + varSBT'),
+                       limits=c('scn3','scn2','scn1'),
+                       name='stratification')+
     # scale_color_manual(values=c('scn1'='#4b7a99','scn2'='#679bc3','scn3'='#8db6c3'),
     #                   labels = c('opt depth','opt varSBT','opt depth + varSBT'),name='stratification')+
     theme_bw()+
