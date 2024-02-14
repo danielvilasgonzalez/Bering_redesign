@@ -237,11 +237,13 @@ names(ind2)<-c('spp','year','approach','sur','scn','index','sim')
 
 #list of files (100 files, one for each simulated data)
 files<-list.files('./output/ms_sim_survey_hist/',pattern = 'index_hist',recursive = TRUE,full.names = TRUE)
-
+files<-files[!grepl('*/index_hist_crab.RData$',files)]
+  
+  
 #loop over simulated data - files  
 for (sim in 1:100) {
     
-  #sim<-100
+  #sim<-1
   
   #print
   cat(paste0('##### ',' sim', sim))
@@ -322,6 +324,11 @@ for (c in crabs) {
 save(dens_index_hist_OM,file = paste0("./output/species/dens_index_hist_OM.RData"))  #dens_index_hist_OM, 
 #load(file = paste0("./output/species/dens_index_hist_OM.RData"))  #dens_index_hist_OM, 
 
+
+dens_index_hist_OM$TNR_CRB$index
+dens_index_hist_OM$SNW_CRB$index
+
+
 #df to store results
 true_ind<-data.frame(matrix(NA,nrow = length(yrs),ncol = length(c(spp,crabs))))
 rownames(true_ind)<-yrs
@@ -353,7 +360,7 @@ true_ind1$dummy<-'true index'
 
 #save true ind
 save(true_ind,file = paste0("./output/true_ind_hist.RData"))  
-#load(file = paste0("./output/true_ind_hist.RData"))  #true_ind
+load(file = paste0("./output/true_ind_hist.RData"))  #true_ind
 
 #to adjust y axis limits
 df$value<-df$index[,'q95']/1000
@@ -371,6 +378,15 @@ scientific_10 <- function(x) {
 
 #sort approach (station allocation)
 df$approach <- factor(df$approach, levels = c("sys", "sb", "rand"))
+
+head(df)
+
+unique(df$spp)
+df[which(df$spp=='SNW_CRB'),]
+#df[which(df$spp=='SNW_CRB'),'value']<-df[which(df$spp=='SNW_CRB'),'value']*1000
+unique(true_ind1$spp)
+#true_ind1[which(true_ind1$spp=='SNW_CRB'),'value']<-true_ind1[which(true_ind1$spp=='SNW_CRB'),'value']*100
+#true_ind1[which(true_ind1$spp=='STM_BKC'),'value']<-true_ind1[which(true_ind1$spp=='STM_BKC'),'value']*100
 
 #plot
 p<-
@@ -413,7 +429,7 @@ p<-
   facet_wrap(~common,scales='free_y',dir='h',nrow = 5)
 
 #save index plot
-ragg::agg_png(paste0('./figures/ms_hist_indices.png'), width = 14, height = 9, units = "in", res = 300)
+ragg::agg_png(paste0('./figures/ms_hist_indices_v2.png'), width = 14, height = 9, units = "in", res = 300)
 p
 dev.off()
  
@@ -583,7 +599,7 @@ p<-
   geom_blank(data=y_scale,aes(x=scn,y=scale,fill=scn,group =interaction(scn,apr)))
   
 #save plot
-ragg::agg_png(paste0('./figures/ms_hist_indices_cv_box.png'), width = 14, height = 8, units = "in", res = 300)
+ragg::agg_png(paste0('./figures/ms_hist_indices_cv_box_v2.png'), width = 14, height = 8, units = "in", res = 300)
 p
 dev.off()
 
@@ -632,7 +648,7 @@ p<-
 #expand_limits(y = 0)+
 #facet_wrap(~common,scales='free')
 
-ragg::agg_png(paste0('./figures/ms_hist_cv_timeseries.png'), width = 14, height = 9, units = "in", res = 300)
+ragg::agg_png(paste0('./figures/ms_hist_cv_timeseries_v2.png'), width = 14, height = 9, units = "in", res = 300)
 p
 dev.off()
 
@@ -675,7 +691,7 @@ p<-
   #geom_blank(data=y_scale,aes(x=scn,y=scale,fill=scn,group =interaction(scn,apr)))
 
   
-  ragg::agg_png(paste0('./figures/ms_hist_indices_cv_box_allspp.png'), width = 7, height = 6, units = "in", res = 300)
+  ragg::agg_png(paste0('./figures/ms_hist_indices_cv_box_allspp_v2.png'), width = 7, height = 6, units = "in", res = 300)
   p
   dev.off()
   
@@ -690,14 +706,17 @@ load(file = './output/estimated_cvsim_hist.RData') #cv2
 
 #year to character
 cv2$year<-as.character(cv2$year)
+summary(cv2)
 
 #rename
 names(cv2)[6]<-'cvsim'
 
 #get estimated index SD for each survey across years, sampling scenario and approach
 load('./output/estimated_index_hist.RData') #ind2
+summary(ind2)
 index_sd<-aggregate(index ~ spp + year + scn + approach + sim,ind2,FUN = function(x) c(sd = sd(x)))
-index_sd[which(index_sd$approach=='sys' & index_sd$scn=='scnbase'),]
+summary(index_sd)
+summary(index_sd[which(index_sd$approach=='sys' & index_sd$scn=='scnbase_bis'),])
 
 #get true ind
 load('./output/true_ind_hist.RData') #ind2
@@ -735,6 +754,7 @@ df2$rrmse<-df2$sqrtmean_sqdiffcv/df2$mean_cvsim
 #remove 3sd of rrmse
 df2<-df2[which(df2$rrmse <= mean(df2$rrmse)+3*sd(df2$rrmse)),]
 df3<-df2[which(df2$spp %in% df_spp1$spp),]
+df3[which(df3$approach=='sys' & df3$scn=='scnbase'),]
 
 #select species and sort 
 df3<-merge(df3,df_spp1,by='spp')
@@ -769,6 +789,23 @@ load(file = './output/rrmse_cv_hist.RData') #df3,
     expand_limits(y = 0)+
     geom_hline(yintercept=0.3,col='red')+
     facet_wrap(~spp,scales='free_y',dir='h',nrow = 5)
+  
+  df4<-subset(df3,spp='BB_RKC')
+  
+  
+  ggplot()+
+    geom_line(data=df4,aes(x=year,y=rrmse,color=scn,group =interaction(scn,approach,spp,sim),linetype=approach),alpha=1)+
+    scale_color_manual(values=c('scnbase'='#474554','scnbase_bis'='#878787','scn3'='#8db6c3','scn2'='#679bc3','scn1'='#4b7a99'),
+                       labels = c('existing','existing w/o corner' ,'opt depth','opt varSBT','opt depth + varSBT'),name='stratification')+
+    expand_limits(y = 0)+
+    geom_hline(yintercept=0.3,col='red')+
+    facet_wrap(~sim,scales='free_y',dir='h',nrow = 5)
+  
+  
+  
+  
+  
+  
   
   
   df3$common<-factor(df3$common,levels=c(df_spp1$common))
@@ -855,7 +892,137 @@ load(file = './output/rrmse_cv_hist.RData') #df3,
   ragg::agg_png(paste0('./figures/ms_hist_indices_rrmse_box_allsp.png'), width = 9, height = 8, units = "in", res = 300)
   p
   dev.off()
- 
+
+  ######################
+  # BIAS of CV
+  ######################
+  
+  #get the estimated CV time series for each replicate, sampling scenario and approach
+  load(file = './output/estimated_cvsim_hist.RData') #cv2
+  #cv2[approach=='sb' & scn=='scnbase' & spp=='Limanda aspera' & year=='2019' & sim=='1']
+  
+  #year to character
+  cv2$year<-as.character(cv2$year)
+  summary(cv2)
+  
+  #rename
+  names(cv2)[6]<-'cvsim'
+  
+  #get estimated index SD for each survey across years, sampling scenario and approach
+  load('./output/estimated_index_hist.RData') #ind2
+  summary(ind2)
+  index_sd<-aggregate(index ~ spp + year + scn + approach + sim,ind2,FUN = function(x) c(sd = sd(x)))
+  summary(index_sd)
+  summary(index_sd[which(index_sd$approach=='sys' & index_sd$scn=='scnbase_bis'),])
+  
+  #get true ind
+  load('./output/true_ind_hist.RData') #ind2
+  
+  #true index reshape
+  true_ind2<-reshape2::melt(true_ind,id.vars='year')
+  names(true_ind2)[2]<-'spp'
+  
+  #merge sd and true index
+  df<-merge(index_sd,true_ind2,by=c('year','spp'))
+  df$cvtrue<-df$index/df$value
+  names(df)[6:7]<-c('indsim','indtrue')
+  df[which(df$approach=='sys' & df$scn=='scnbase'),]
+  
+  #year to character
+  df$year<-as.character(df$year)
+  
+  #use datatable to fasten the process
+  data.table::setDT(df)
+  data.table::setDT(cv2)
+  #cv2<-data.table(cv2)
+  
+  dim(cv2)
+  df1<-merge(cv2,df,by=c('spp','scn','approach','sim','year'),all.x=TRUE,allow.cartesian=TRUE)
+  #dim(df)
+  dim(df1)
+  
+  df1$sqdiffcv<-(df1$cvsim-df1$cvtrue)^2
+  df1[which(df1$approach=='sys' & df1$scn=='scnbase'),]
+  
+  df2<-df1[, .(mean_sqdiffcv = mean(sqdiffcv,na.rm=FALSE),mean_cvsim=mean(cvsim,na.rm=FALSE),mean_cvtrue=mean(cvtrue,na.rm=FALSE)), by = .(spp,scn,approach,sim,year)]
+  df2$sqrtmean_sqdiffcv<-sqrt(df2$mean_sqdiffcv)
+  df2$rrmse<-df2$sqrtmean_sqdiffcv/df2$mean_cvsim
+  
+  #remove 3sd of rrmse
+  df2<-df2[which(df2$rrmse <= mean(df2$rrmse)+3*sd(df2$rrmse)),]
+  df3<-df2[which(df2$spp %in% df_spp1$spp),]
+  
+  #select species and sort 
+  df3<-merge(df3,df_spp1,by='spp')
+  df3$scn<-factor(df3$scn,levels=c('scnbase','scnbase_bis',paste0('scn',3:1)))
+  df3$approach<-factor(df3$approach,levels=c('sys','sb','rand'))
+  
+  save(df3,file = './output/rrmse_cv_hist.RData')
+  
+  y_scale<-aggregate(rrmse ~ spp+common+label, df3,max)
+  y_scale$scale<-y_scale$rrmse+y_scale$rrmse*0.2
+  y_scale$text<-y_scale$rrmse+y_scale$rrmse*0.15
+  y_scale$apr<-'sys'
+  y_scale$scn<-'scn1'
+  y_scale$year<-2022
+  
+  
+  
+  
+  
+  #get the estimated CV time series for each replicate, sampling scenario and approach
+  #load(file = './output/estimated_cvsim_hist.RData') #cv2
+  #true cv
+  load(file = './output/rrmse_cv_hist.RData') #df3
+  
+  df3$cvbias<-df3$mean_cvsim-df3$mean_cvtrue
+  df3$rbias<-100*(df3$cvbias/df3$mean_cvtrue)
+
+  y_scale<-aggregate(rbias ~ spp+common+label, df3,max)
+  y_scale$scale<-y_scale$rbias+y_scale$rbias*0.2
+  y_scale$text<-y_scale$rbias+y_scale$rbias*0.15
+  y_scale$apr<-'sys'
+  y_scale$scn<-'scn1'
+  y_scale$year<-2022
+  y_scale$common<-factor(y_scale$common,levels=c(df_spp1$common))
+  
+  #plot
+  #p<-
+    ggplot()+
+    geom_boxplot(data=df3,aes(x=scn,y=rbias,fill=scn,group =interaction(scn,approach,spp),linetype=approach),alpha=1,outlier.alpha = 0.3,outlier.size = 1.2,outlier.stroke = 0)+ #x=reorder(scn,value)
+    stat_summary(data=df3,aes(x=scn,y=rbias,fill=scn,group =interaction(scn,approach,spp),linetype=approach),alpha=1,position = position_dodge(),geom = "crossbar", fun = "median", linetype = "solid", width = .7,linewidth=0.3)+
+    scale_fill_manual(values=c('scnbase'='#474554','scnbase_bis'='#878787','scn3'='#8db6c3','scn2'='#679bc3','scn1'='#4b7a99'),
+                      labels = c('existing','existing w/o corner' ,'opt depth','opt varSBT','opt depth + varSBT'),name='stratification')+
+    scale_color_manual(values=c('scnbase'='#474554','scnbase_bis'='#878787','scn3'='#8db6c3','scn2'='#679bc3','scn1'='#4b7a99'),
+                       labels = c('existing','existing w/o corner' ,'opt depth','opt varSBT','opt depth + varSBT'),name='stratification')+
+    # scale_alpha_manual(values = c('scn1'=1,'scn2'=1,'scn3'=1,'scnbase'=0.8,'scnbase_bis'=1),
+    #                    labels = c('existing','existing w/o corner' ,'depth','var temp','depth + var temp'),name='stratification')+
+    theme_bw()+ 
+    scale_linetype_manual(values = c('sys'='solid',
+                                     'sb'='dashed',
+                                     'rand'='dotted'),
+                          label=c('systematic','balanced random','random'),
+                          name='station allocation')+
+    scale_shape_manual(values=c('true index'=21),name='')+
+    scale_y_continuous(labels=function(x) sprintf('%.2f',x),expand = c(NA,0.1),limits = c(0,NA))+ #expand = c(NA,0.1),limits = c(0,NA)
+    #                    limits =  c(0, max(df$index[,'mean']/1000) + mean(df$index[,'mean'])/10000))+
+    theme(panel.grid.minor = element_line(linetype=2,color='grey90',),#strip.background = element_rect(fill='white'),
+          legend.key.size = unit(12, 'points'),legend.direction = 'vertical',legend.text = element_text(size=9),axis.text.x = element_blank(), #legend.position=c(.85,.19)
+          legend.title = element_text(size=10),legend.spacing.x = unit(0.05, "cm"),legend.box.spacing =  unit(0.01, "cm"), #,strip.text = element_text(size=12)
+          strip.background = element_blank(),legend.background = element_blank(),legend.box = 'vertical',legend.position = 'right',#legend.justification = 'right',legend.position='bottom',#legend.position=c(.84,.05),
+          strip.text = element_blank(),axis.title.x = element_blank())+ #axis.text.x = element_text(angle=90,vjust=0.5),
+    expand_limits(y = 0)+
+    geom_text(data=y_scale,aes(label = common, y = text),x = Inf, vjust = 'inward', hjust = 1.1,size=4, lineheight = 0.8) + #,fontface='italic'
+    geom_text(data=df3,aes(label = paste0(label,'      ')),x = 'scnbase', y = Inf, vjust = 1.5,size=5) + #,fontface='italic'
+    geom_blank(data=y_scale,aes(x=scn,y=scale,fill=scn,group =interaction(scn,apr)))+
+    facet_wrap(~common,scales='free_y',dir='h',nrow = 5)+
+    expand_limits(y = 0)+
+    labs(y='RBIAS of CV',x='')+
+    guides(fill=guide_legend(ncol=1,order=1),color=guide_legend(ncol=1,order=1),linetype=guide_legend(ncol=1,order = 2))#+
+  
+  
+  
+   
 ######################
 # PROJECTED INDEX
 ######################
