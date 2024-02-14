@@ -289,7 +289,7 @@ for (sim in 1:n_sim_hist) {
   #loop over sampling design
     for (samp in samp_df$samp_scn)  {
       
-      #samp<-'scn1'
+      #samp<-'scnbase'
       #start_time_parallel <- Sys.time()
       
       #number of sampling design
@@ -312,13 +312,17 @@ for (sim in 1:n_sim_hist) {
         names(baseline_strata$locations2)[ncol(baseline_strata$locations2)]<-'stratum'
         baseline_strata$strata_areas$Area_in_survey_km2<-baseline_strata$strata_areas$Area_in_survey_km2
         
+        strata_cell<-aggregate(cell ~ Stratum, FUN=length,baseline_strata$cell_strata)
+        
+        
         #area by strata
         strata_areas <- baseline_strata$strata_areas
+        #strata_areas<-merge(strata_areas,strata_cell,by.x='X1',by.y='Stratum')
         sum(baseline_strata$strata_areas$Area_in_survey_km2)
 
         
-        strata_area_scn<-data.frame(matrix(NA,nrow = 0,ncol=4))
-        colnames(strata_area_scn)<-c('Strata','area','pct','stock')  
+        strata_area_scn<-data.frame(matrix(NA,nrow = 0,ncol=5))
+        colnames(strata_area_scn)<-c('Strata','n_cells','area','pct','stock')  
         
         count<-0
         
@@ -338,11 +342,11 @@ for (sim in 1:n_sim_hist) {
           
           #area by strata after clipping
           strata_areas1 <- aggregate(Area_in_survey_km2 ~ Stratum, 
-                                     FUN = sum,
+                                     FUN = function(x) c('sum' = sum(x,na.rm=T), 'length' = length(x)),
                                      data = area_cell1)
           
-          strata_areas1$pct<-strata_areas1$Area_in_survey_km2/sum(strata_areas1$Area_in_survey_km2)*100
-          names(strata_areas1)<-c('Strata','area','pct')
+          strata_areas1$pct<-strata_areas1$Area_in_survey_km2[,'sum']/sum(strata_areas1$Area_in_survey_km2)*100
+          strata_areas1<-data.frame('Strata'=strata_areas1$Stratum,'area'=strata_areas1$Area_in_survey_km2[,'sum'],'n_cells'=strata_areas1$Area_in_survey_km2[,'length'],'pct'=strata_areas1$pct)
           strata_areas1$stock<-stck
           # dffill<-data.frame(matrix(NA,nrow=15-nrow(strata_areas1),ncol=3))
           # names(dffill)<-c('Strata','area','pct')
@@ -352,14 +356,14 @@ for (sim in 1:n_sim_hist) {
           
         }
         
-        #strata data
-        survey_detail <- data.frame("Stratum" = baseline_strata$strata_areas$X1, #strata
-                                    'Nh' = baseline_strata$strata_areas$pct*53464, #number of cells
-                                    "nh" = data.frame(table(baseline_strata$locations2$stratum))[,c('Freq')]) #number of sample allocations
-        
-        #weight of strata for each
-        survey_detail$Wh <- survey_detail$Nh / sum(survey_detail$Nh)
-        survey_detail$wh <- with(survey_detail, nh/Nh)
+        # #strata data
+        # survey_detail <- data.frame("Stratum" = baseline_strata$strata_areas$X1, #strata
+        #                             'Nh' = baseline_strata$strata_areas$pct*53464, #number of cells
+        #                             "nh" = data.frame(table(baseline_strata$locations2$stratum))[,c('Freq')]) #number of sample allocations
+        # 
+        # #weight of strata for each
+        # survey_detail$Wh <- survey_detail$Nh / sum(survey_detail$Nh)
+        # survey_detail$wh <- with(survey_detail, nh/Nh)
         
       } else {
         
@@ -375,10 +379,12 @@ for (sim in 1:n_sim_hist) {
                                   data = area_cell)
         strata_areas$pct<-strata_areas$Area_in_survey_km2/sum(strata_areas$Area_in_survey_km2)*100
         
-        strata_area_scn<-data.frame(matrix(NA,nrow = 0,ncol=4))
-        colnames(strata_area_scn)<-c('Strata','area','pct','stock')  
+        strata_area_scn<-data.frame(matrix(NA,nrow = 0,ncol=5))
+        colnames(strata_area_scn)<-c('Strata','area','n_cells','pct','stock')  
         
         count<-0
+        # nam<-data.frame(matrix(NA,0,2))
+        # names(nam)<-c('stck','area')
         
         for (stck in rownames(dfarea)) {
           
@@ -394,11 +400,11 @@ for (sim in 1:n_sim_hist) {
           
           #area by strata after clipping
           strata_areas1 <- aggregate(Area_in_survey_km2 ~ X1, 
-                                     FUN = sum,
+                                     FUN = function(x) c('sum' = sum(x,na.rm=T), 'length' = length(x)),
                                      data = area_cell1)
           
-          strata_areas1$pct<-strata_areas1$Area_in_survey_km2/sum(strata_areas1$Area_in_survey_km2)*100
-          names(strata_areas1)<-c('Strata','area','pct')
+          strata_areas1$pct<-strata_areas1$Area_in_survey_km2[,'sum']/sum(strata_areas1$Area_in_survey_km2)*100
+          strata_areas1<-data.frame('Strata'=strata_areas1$X1,'area'=strata_areas1$Area_in_survey_km2[,'sum'],'n_cells'=strata_areas1$Area_in_survey_km2[,'length'],'pct'=strata_areas1$pct)
           strata_areas1$stock<-stck
           #dffill<-data.frame(matrix(NA,nrow=15-nrow(strata_areas1),ncol=3))
           #names(dffill)<-c('Strata','area','pct')
@@ -406,17 +412,22 @@ for (sim in 1:n_sim_hist) {
           
           strata_area_scn<-rbind(strata_area_scn,strata_areas1)
     
+          # nam<-rbind(nam,c(stck,colnames(area_cell)[icol]))
+          
         }
         
         
-        #strata data
-        survey_detail <- data.frame("Stratum" = all$samples_strata$strata, #strata
-                                    'Nh' = as.integer(table(all$result_list$solution$indices$X1)), #number of cells
-                                    "nh" = all$samples_strata$n_samples) #number of sample allocations
-        
-        #weight of strata for each
-        survey_detail$Wh <- survey_detail$Nh / sum(survey_detail$Nh)
-        survey_detail$wh <- with(survey_detail, nh/Nh)
+        # #strata data
+        # survey_detail <- data.frame("Stratum" = all$samples_strata$strata, #strata
+        #                             'Nh' = as.integer(table(all$result_list$solution$indices$X1)), #number of cells
+        #                             "nh" = all$samples_strata$n_samples) #number of sample allocations
+        # 
+        # survey_det
+        # 
+        # 
+        # #weight of strata for each
+        # survey_detail$Wh <- survey_detail$Nh / sum(survey_detail$Nh)
+        # survey_detail$wh <- with(survey_detail, nh/Nh)
         
       }   
       
@@ -536,8 +547,8 @@ for (sim in 1:n_sim_hist) {
                                            FUN = function(x) c('mean' = mean(x,na.rm=T), 'length' = length(x),'var' = var(x,na.rm=T)))
               #remove if 3 or less samples in the strata
               sim_survey2<-sim_survey2[which(sim_survey2$dens[,'length']>=3),]
-              zzz<-data.frame('Strata'=sim_survey2$Strata,'stock'=sim_survey2$stock,'mean'=sim_survey2$dens[,c('mean')],'var'=sim_survey2$dens[,c('var')],'n_samples'=sim_survey2$dens[,c('length')]) #/length(yy$value)
-              
+              zzz<-data.frame('Strata'=sim_survey2$Strata,'stock'=sim_survey2$stock,'mean'=sim_survey2$dens[,c('mean')],'var'=sim_survey2$dens[,c('var')],'n_samples'=sim_survey2$dens[,'length']) #/length(yy$value)
+              #merge()
               
               #setdiff(zzz1,zzz)
               
@@ -558,6 +569,8 @@ for (sim in 1:n_sim_hist) {
               #mean CV
               mean(zzzz1$cv,na.rm=TRUE)
 
+              zzzz1<-zzzz1[order(dimnames(index_hist)[[1]]), ]
+              
               #get outputs
               STRS_mean <- zzzz1$index_strata
               STRS_var <- zzzz1$strs_var
@@ -663,8 +676,8 @@ for (sbt in df_sbt$sbt_n) {
       sum(baseline_strata$strata_areas$Area_in_survey_km2)
       
       
-      strata_area_scn<-data.frame(matrix(NA,nrow = 0,ncol=4))
-      colnames(strata_area_scn)<-c('Strata','area','pct','stock')  
+      strata_area_scn<-data.frame(matrix(NA,nrow = 0,ncol=5))
+      colnames(strata_area_scn)<-c('Strata','area','n_cells','pct','stock')  
       
       count<-0
       
@@ -674,7 +687,7 @@ for (sbt in df_sbt$sbt_n) {
         
         count<-count+1
         
-        #stck<-rownames(dfarea)[1]
+        #stck<-rownames(dfarea)[3]
         
         icol<-ifelse(stck %in% (rownames(dfarea)[1:4]),count+6,ncol(area_cell))
         colnames(area_cell)[icol]
@@ -684,11 +697,11 @@ for (sbt in df_sbt$sbt_n) {
         
         #area by strata after clipping
         strata_areas1 <- aggregate(Area_in_survey_km2 ~ Stratum, 
-                                   FUN = sum,
+                                   FUN = function(x) c('sum' = sum(x,na.rm=T), 'length' = length(x)),
                                    data = area_cell1)
         
-        strata_areas1$pct<-strata_areas1$Area_in_survey_km2/sum(strata_areas1$Area_in_survey_km2)*100
-        names(strata_areas1)<-c('Strata','area','pct')
+        strata_areas1$pct<-strata_areas1$Area_in_survey_km2[,'sum']/sum(strata_areas1$Area_in_survey_km2)*100
+        strata_areas1<-data.frame('Strata'=strata_areas1$Stratum,'area'=strata_areas1$Area_in_survey_km2[,'sum'],'n_cells'=strata_areas1$Area_in_survey_km2[,'length'],'pct'=strata_areas1$pct)
         strata_areas1$stock<-stck
         # dffill<-data.frame(matrix(NA,nrow=15-nrow(strata_areas1),ncol=3))
         # names(dffill)<-c('Strata','area','pct')
@@ -696,16 +709,17 @@ for (sbt in df_sbt$sbt_n) {
         
         strata_area_scn<-rbind(strata_area_scn,strata_areas1)
         
+        
       }
       
-      #strata data
-      survey_detail <- data.frame("Stratum" = baseline_strata$strata_areas$X1, #strata
-                                  'Nh' = baseline_strata$strata_areas$pct*53464, #number of cells
-                                  "nh" = data.frame(table(baseline_strata$locations2$stratum))[,c('Freq')]) #number of sample allocations
-      
-      #weight of strata for each
-      survey_detail$Wh <- survey_detail$Nh / sum(survey_detail$Nh)
-      survey_detail$wh <- with(survey_detail, nh/Nh)
+      # #strata data
+      # survey_detail <- data.frame("Stratum" = baseline_strata$strata_areas$X1, #strata
+      #                             'Nh' = baseline_strata$strata_areas$pct*53464, #number of cells
+      #                             "nh" = data.frame(table(baseline_strata$locations2$stratum))[,c('Freq')]) #number of sample allocations
+      # 
+      # #weight of strata for each
+      # survey_detail$Wh <- survey_detail$Nh / sum(survey_detail$Nh)
+      # survey_detail$wh <- with(survey_detail, nh/Nh)
       
     } else {
       
@@ -721,8 +735,8 @@ for (sbt in df_sbt$sbt_n) {
                                 data = area_cell)
       strata_areas$pct<-strata_areas$Area_in_survey_km2/sum(strata_areas$Area_in_survey_km2)*100
       
-      strata_area_scn<-data.frame(matrix(NA,nrow = 0,ncol=4))
-      colnames(strata_area_scn)<-c('Strata','area','pct','stock')  
+      strata_area_scn<-data.frame(matrix(NA,nrow = 0,ncol=5))
+      colnames(strata_area_scn)<-c('Strata','area','n_cells','pct','stock')  
       
       count<-0
       
@@ -740,11 +754,11 @@ for (sbt in df_sbt$sbt_n) {
         
         #area by strata after clipping
         strata_areas1 <- aggregate(Area_in_survey_km2 ~ X1, 
-                                   FUN = sum,
+                                   FUN = function(x) c('sum' = sum(x,na.rm=T), 'length' = length(x)),
                                    data = area_cell1)
         
-        strata_areas1$pct<-strata_areas1$Area_in_survey_km2/sum(strata_areas1$Area_in_survey_km2)*100
-        names(strata_areas1)<-c('Strata','area','pct')
+        strata_areas1$pct<-strata_areas1$Area_in_survey_km2[,'sum']/sum(strata_areas1$Area_in_survey_km2)*100
+        strata_areas1<-data.frame('Strata'=strata_areas1$X1,'area'=strata_areas1$Area_in_survey_km2[,'sum'],'n_cells'=strata_areas1$Area_in_survey_km2[,'length'],'pct'=strata_areas1$pct)
         strata_areas1$stock<-stck
         #dffill<-data.frame(matrix(NA,nrow=15-nrow(strata_areas1),ncol=3))
         #names(dffill)<-c('Strata','area','pct')
@@ -752,17 +766,19 @@ for (sbt in df_sbt$sbt_n) {
         
         strata_area_scn<-rbind(strata_area_scn,strata_areas1)
         
+        # nam<-rbind(nam,c(stck,colnames(area_cell)[icol]))
+        
       }
       
       
-      #strata data
-      survey_detail <- data.frame("Stratum" = all$samples_strata$strata, #strata
-                                  'Nh' = as.integer(table(all$result_list$solution$indices$X1)), #number of cells
-                                  "nh" = all$samples_strata$n_samples) #number of sample allocations
-      
-      #weight of strata for each
-      survey_detail$Wh <- survey_detail$Nh / sum(survey_detail$Nh)
-      survey_detail$wh <- with(survey_detail, nh/Nh)
+      # #strata data
+      #zzz survey_detail <- data.frame("Stratum" = all$samples_strata$strata, #strata
+      #                             'Nh' = as.integer(table(all$result_list$solution$indices$X1)), #number of cells
+      #                             "nh" = all$samples_strata$n_samples) #number of sample allocations
+      # 
+      # #weight of strata for each
+      # survey_detail$Wh <- survey_detail$Nh / sum(survey_detail$Nh)
+      # survey_detail$wh <- with(survey_detail, nh/Nh)
       
     }   
     
@@ -816,7 +832,7 @@ for (sbt in df_sbt$sbt_n) {
         # zzz<-data.frame('strata'=sim_survey2$strata,'sp'=sim_survey2$sp,'mean'=sim_survey2$x[,c('mean')],'var'=sim_survey2$x[,c('var')]) #/length(yy$value)
         # zzzz<-merge(zzz,strata_areas,by.x='strata',by.y='X1',all.x=TRUE)
         # zzzz<-merge(zzzz,survey_detail,by.x='strata',by.y='Stratum',all.x=TRUE)
-        # 
+        # zzaa
         # #add index strata for sum to compute index (mean strata density * area of strata) kg!
         # zzzz$index_strata<-zzzz$mean*zzzz$Area_in_survey_km2
         # 
@@ -861,8 +877,8 @@ for (sbt in df_sbt$sbt_n) {
                                FUN = function(x) c('mean' = mean(x,na.rm=T), 'length' = length(x),'var' = var(x,na.rm=T)))
         #remove if 3 or less samples in the strata
         sim_survey2<-sim_survey2[which(sim_survey2$dens[,'length']>=3),]
-        zzz<-data.frame('Strata'=sim_survey2$Strata,'stock'=sim_survey2$stock,'mean'=sim_survey2$dens[,c('mean')],'var'=sim_survey2$dens[,c('var')],'n_samples'=sim_survey2$dens[,c('length')]) #/length(yy$value)
-        
+        zzz<-data.frame('Strata'=sim_survey2$Strata,'stock'=sim_survey2$stock,'mean'=sim_survey2$dens[,c('mean')],'var'=sim_survey2$dens[,c('var')],'n_samples'=sim_survey2$dens[,'length']) #/length(yy$value)
+        #merge()
         
         #setdiff(zzz1,zzz)
         
@@ -873,12 +889,15 @@ for (sbt in df_sbt$sbt_n) {
         #add strata var 
         zzz1$strs_var<-zzz1$var*(zzz1$area^2)/zzz1$n_samples #sum(survey_detail$Nh) 
         
+        
         #sum of strata var and mean density across years (kg/km2)
         zzzz1 <- aggregate(zzz1[,c('strs_var','index_strata')], by= list(zzz1$stock),FUN = sum)
         
         
         #get CV across years
         zzzz1$cv<- sqrt(zzzz1$strs_var) / zzzz1$index_strata
+        
+        zzzz1<-zzzz1[order(dimnames(index_proj)[[1]]), ]
         
         #mean CV
         mean(zzzz1$cv,na.rm=TRUE)
