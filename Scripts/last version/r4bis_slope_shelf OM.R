@@ -130,10 +130,38 @@ df3<-subset(df2,Region %in%  c('slope'))
 yrs_region<-unique(df3$Year)
 df3<-df3[complete.cases(df3$CPUE_kg),]
 
-for (sp in spp) {
+
+#selected species
+spp<-c(#'Limanda aspera',
+       'Gadus chalcogrammus',
+       'Gadus macrocephalus',
+       'Atheresthes stomias',
+       'Reinhardtius hippoglossoides',
+       #'Lepidopsetta polyxystra',
+       'Hippoglossoides elassodon',
+       #'Pleuronectes quadrituberculatus',
+       #'Hippoglossoides robustus',
+       #'Boreogadus saida',
+       #'Eleginus gracilis',
+       'Anoplopoma fimbria',
+       'Chionoecetes opilio',
+       #'Paralithodes platypus',
+       #'Paralithodes camtschaticus',
+       'Chionoecetes bairdi',
+       'Sebastes alutus',
+       #'Sebastes melanostictus',
+       'Atheresthes evermanni')
+
+#array to store simulated densities/CPUE
+sim_hist_dens_spp<-array(NA,
+                         dim=c(nrow(bering_sea_slope_grid),length(unique(data_geostat1$Year)),n_sim_hist,length(spp)),
+                         dimnames=list(1:nrow(bering_sea_slope_grid),unique(data_geostat1$Year),1:n_sim_hist,spp))
+
+
+for (sp in spp[5:10]) {
 
 #example
-sp<-spp[2]  
+#sp<-spp[1]  
   
 #filter by sp
 data_geostat<-subset(df3,Species==sp)
@@ -173,6 +201,8 @@ grids<-data.frame(Lat=grid_ebs$Lat,
                     #BotTemp=grid_ebs$Temp,
                     Region=grid_ebs$region,
                     stringsAsFactors = T)
+
+grids<-subset(grids,Year %in% unique(data_geostat$Year))
 
 #ha to km2 ------ so kg/km2
 data_geostat$Effort<-data_geostat$Effort/100
@@ -394,13 +424,26 @@ fit <- tryCatch( {fit_model(settings=settings,
                    return(NULL)
                  })
 
+  n_sim_hist<-100
 
-  if (class(fit)=='list') {
+  
+  
+  #array to store simulated densities/CPUE
+  sim_dens<-array(NA,
+                  dim=c(nrow(bering_sea_slope_grid),length(unique(data_geostat1$Year)),n_sim_hist),
+                  dimnames=list(1:nrow(bering_sea_slope_grid),unique(data_geostat1$Year),1:n_sim_hist))
+  
+  #create folder simulation data
+  dir.create(paste0('./output/species/',sp,'/simulated historical data slope/'))
+
+
+  if (class(fit)=='fit_model') {
+    
     
 
     for (isim in 1:n_sim_hist) { #simulations
       
-      isim<-1
+      #isim<-1
       
       #print simulation to check progress
       cat(paste(" #############   Species", sp, match(sp,spp), 'out of',length(spp),  "  #############\n",
@@ -413,16 +456,68 @@ fit <- tryCatch( {fit_model(settings=settings,
       
       #select simulated data that belong to grid points
       sim_bio <-matrix(data = Sim1$b_i[pred_TF == 1], #kg
-                       nrow = nrow(grid),
-                       ncol = length(unique(yrs)))
+                       nrow = nrow(bering_sea_slope_grid),
+                       ncol = length(unique(unique(data_geostat1$Year))))
       
       
       #biomass (kg) to CPUE (kg/km2)
-      sim_dens[,,isim]<-sim_bio/grid$Area_in_survey_km2
+      sim_dens[,,isim]<-sim_bio/bering_sea_slope_grid$Area_in_survey_km2
       
     }
   }
 
+  dir.create(paste0("./output/species/",sp))
+  dir.create(paste0("./output/species/",sp,'/simulated historical data/'))
+  #save data
+  save(sim_dens, file = paste0("./output/species/",sp,'/simulated historical data/sim_dens_slope.RData'))
+  
+  #store
+  sim_hist_dens_spp[,,,sp]<-sim_dens
+}
+
+#save 100 simulated historical densities for all species
+#save(sim_hist_dens_spp, file = paste0("./output/species/sim_hist_dens_spp.RData"))
+#save true densities and index for all species
+#save(dens_index_hist_OM, file = paste0("./output/species/dens_index_hist_OM.RData"))
+
+######################
+# RESHAPE SIMULATED HISTORICAL DATA
+######################
+
+# Initializing parallel backend
+cl <- makeCluster(detectCores()-1)  # Using all available cores
+registerDoParallel(cl)
+
+n_sim<-100
+
+#array to store simulated densities/CPUE
+sim_dens1 <- array(NA,
+                   dim = c(nrow(bering_sea_slope_grid), length(spp), length(unique(data_geostat1$Year)), n_sim),
+                   dimnames = list(1:nrow(bering_sea_slope_grid), spp, unique(data_geostat1$Year), 1:n_sim))
+
+#parallel loop over spp
+foreach(sp = spp) %do% {
+  
+  #sp<-spp[1]
+  
+  #load data
+  load(paste0('./output/species/', sp, '/simulated historical data/sim_dens_slope.RData'))
+  
+  #parallel loop over years and simulations
+  foreach(y = yrs) %:%
+    foreach(sim = 1:n_sim) %do% {
+      #y<-'1982';sim<-'1'
+      
+      #store results
+      sim_dens1[, sp, as.character(y), as.character(sim)] <- sim_dens[, as.character(y), as.character(sim)]
+    }
+}
+
+# Stopping the parallel backend
+stopCluster(cl)
+
+#store HIST simulated data
+save(sim_dens1, file = paste0('./output/species/ms_sim_dens_slope.RData'))  
 
 
 
