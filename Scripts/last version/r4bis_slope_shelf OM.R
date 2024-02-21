@@ -10,7 +10,7 @@ rm(list = ls(all.names = TRUE))
 gc() 
 
 #libraries from cran to call or install/load
-pack_cran<-c("splines",'ggplot2','dplyr')
+pack_cran<-c("splines",'ggplot2','dplyr','doParallel')
 
 #install pacman to use p_load function - call library and if not installed, then install
 if (!('pacman' %in% installed.packages())) {
@@ -152,13 +152,18 @@ spp<-c(#'Limanda aspera',
        #'Sebastes melanostictus',
        'Atheresthes evermanni')
 
+
+
+n_sim_hist<-100
+
+
 #array to store simulated densities/CPUE
 sim_hist_dens_spp<-array(NA,
-                         dim=c(nrow(bering_sea_slope_grid),length(unique(data_geostat1$Year)),n_sim_hist,length(spp)),
-                         dimnames=list(1:nrow(bering_sea_slope_grid),unique(data_geostat1$Year),1:n_sim_hist,spp))
+                         dim=c(nrow(bering_sea_slope_grid),length(yrs_region),n_sim_hist,length(spp)),
+                         dimnames=list(1:nrow(bering_sea_slope_grid),unique(yrs_region),1:n_sim_hist,spp))
 
 
-for (sp in spp[5:10]) {
+for (sp in spp) {
 
 #example
 #sp<-spp[1]  
@@ -230,8 +235,7 @@ pred_TF[1:nrow(data_geostat)] <- 0
 dir.create(paste(out_dir,fol_region,sp,sep='/'),
            showWarnings = FALSE)
 #save data
-saveRDS(data_geostat1,paste(out_dir,fol_region,sp,'data_geostat_temp.rds',sep='/'))
-
+save(data_geostat1, file = paste(out_dir,fol_region,sp,'data_geostat_temp.RData',sep='/'))
 ##################
 #explore data
 
@@ -424,7 +428,6 @@ fit <- tryCatch( {fit_model(settings=settings,
                    return(NULL)
                  })
 
-  n_sim_hist<-100
 
   
   
@@ -439,7 +442,7 @@ fit <- tryCatch( {fit_model(settings=settings,
 
   if (class(fit)=='fit_model') {
     
-    
+    save(list = 'fit',file=paste(out_dir,fol_region,sp,'fit.RData',sep = '/'))
 
     for (isim in 1:n_sim_hist) { #simulations
       
@@ -519,210 +522,3 @@ stopCluster(cl)
 #store HIST simulated data
 save(sim_dens1, file = paste0('./output/species/ms_sim_dens_slope.RData'))  
 
-
-
-
-
-#add predictions
-data_geostat1$pred<-fit$Report$D_i
-names(data_geostat1)[5]<-'obs'
-
-#plot comparison pred/obs
-ggplot(data = data_geostat1, aes(x = obs)) +
-  geom_histogram(aes(color = "obs"), bins = 20, alpha = 0.5, fill='white',position = "identity") +
-  geom_histogram(data = data_geostat1, aes(x = pred, color = "pred"), bins = 20, alpha = 0.5,fill='white', position = "identity") +
-  scale_color_manual(values = c("obs" = "blue", "pred" = "red"),name='') +
-  labs(fill = "") +
-  facet_wrap(~Year,nrow = 1) +
-  theme_bw()
-
-
-#fit$catchability_data
-
-#plot_results(fit,plot_set = 1)
-
-# #change lower
-# fit$tmb_list$Lower
-# 
-# Lower = fit$tmb_list$Lower
-# Lower["logkappa1"]<--10
-# 
-# fit <- tryCatch( {fit_model(settings=settings,
-#                             Lat_i=data_geostat1$Lat, 
-#                             Lon_i=data_geostat1$Lon,
-#                             t_i=data_geostat1$Year,
-#                             b_i=data_geostat1$CPUE_kg,
-#                             c_iz = as.numeric(factor(data_geostat1$Species))-1,
-#                             a_i=data_geostat1$Effort,
-#                             input_grid=grids,
-#                             getJointPrecision = TRUE,
-#                             test_fit=FALSE,
-#                             lower=Lower,
-#                             create_strata_per_region = TRUE,  
-#                             covariate_data = covariate_data[,c('Year',"Lat","Lon","ScaleLogDepth","Depth","CPUE_kg")], 
-#                             X1_formula =  X1_formula,
-#                             X2_formula = X2_formula, 
-#                             #newtonsteps = 3,
-#                             #PredTF_i = pred_TF,
-#                             #X_gtp = X_gtp,
-#                             working_dir = paste(out_dir,fol_region,sp,'/',sep='/'))},
-#                  error = function(cond) {
-#                    message("Did not converge. Here's the original error message:")
-#                    message(cond)
-#                    cat(paste(" ERROR MODEL IS NOT CONVERGING "))  
-#                    # Choose a return value in case of error
-#                    return(NULL)
-#                  })
-
-
-tryCatch({
-#check_fit(fit$parameter_estimates)
-plot(fit,working_dir = paste(out_dir,fol_region,sp,'/',sep='/'))},
-error = function(cond) {
-  message("Did not converge. Here's the original error message:")
-  message(cond)
-  #cat(paste(" ERROR MODEL IS NOT CONVERGING "))  
-  # Choose a return value in case of error
-  return(NULL)
-})
-
-#save fit
-save(list = "fit", file = paste(out_dir,fol_region,sp,'fit.RData',sep='/')) #paste(yrs_region,collapse = "")
-
-tryCatch({
-cat(paste('#######################',fit$parameter_estimates$Convergence_check,'for',sp,'#######################'))},
-error = function(cond) {
-  message("Did not converge. Here's the original error message:")
-  message(cond)
-  #cat(paste(" ERROR MODEL IS NOT CONVERGING "))  
-  # Choose a return value in case of error
-  return(NULL)
-})
-
-
-}
-
-for (sp in spp) {
-  
-  #sp<-spp[19]
-  
-  cat(paste0('#######################\n#',sp,'\n#######################\n'))
-  
-  #save fit
-  load(paste(out_dir,fol_region,sp,'fit.RData',sep='/')) #paste(yrs_region,collapse = "")
-  
-  fit$parameter_estimates$SD$pdHess
-  
-  if (is.null(fit$parameter_estimates$Convergence_check)) {
-    cat(paste0(fit$Report,'\n')) 
-  } else  {
-    
-    tryCatch({
-      cat(paste(fit$parameter_estimates$Convergence_check,'\n'))},
-      error = function(cond) {
-        message("Did not converge. Here's the original error message:")
-        #message(cond)
-        #cat(paste(" ERROR MODEL IS NOT CONVERGING "))  
-        # Choose a return value in case of error
-        return(NULL)
-      })
-    
-  }
-  
-}
-
-
-
-
-
-# 
-# 
-# ##################################################
-# ####   10-fold Cross Validation
-# ##################################################
-# n_fold <- 10
-# for (fI in 1:n_fold) { 
-#   if (!dir.exists(paste0(result_dir, "CV_", fI))) {
-#     dir.create(paste0(result_dir, "CV_", fI))
-#     
-#     file.copy(from = paste0(result_dir, get_latest_version(), 
-#                             c(".cpp", ".dll", ".o")),
-#               to = paste0(result_dir, "CV_", fI, "/", 
-#                           get_latest_version(), 
-#                           c(".cpp", ".dll", ".o")))
-#     
-#   }
-# } 
-# 
-# # Loop through partitions, refitting each time with a different PredTF_i
-# for (fI in 1:n_fold) {
-#   PredTF_i <- ifelse( test = data_geostat$fold == fI, 
-#                       yes = TRUE, 
-#                       no = FALSE )
-#   
-#   fit_CV <- switch(paste0(depth_in_model),
-#                    "FALSE" = FishStatsUtils::fit_model( 
-#                      "settings" = settings,
-#                      "working_dir" = temp_res,
-#                      "Lat_i" = data_geostat[, "Lat"],
-#                      "Lon_i" = data_geostat[, "Lon"],
-#                      "t_i" = data_geostat[, "Year"],
-#                      "c_i" = as.numeric(data_geostat[, "spp"]) - 1,
-#                      "b_i" = data_geostat[, "Catch_KG"],
-#                      "a_i" = data_geostat[, "AreaSwept_km2"],
-#                      "getJointPrecision" = TRUE,
-#                      "newtonsteps" = 1,
-#                      "test_fit" = F,
-#                      "input_grid" = grid_goa,
-#                      "PredTF_i" = PredTF_i,
-#                      "Parameters" = fit$ParHat),
-#                    
-#                    "TRUE" = FishStatsUtils::fit_model( 
-#                      "settings" = settings,
-#                      "working_dir" = temp_res,
-#                      "Lat_i" = data_geostat[, "Lat"],
-#                      "Lon_i" = data_geostat[, "Lon"],
-#                      "t_i" = data_geostat[, "Year"],
-#                      "c_i" = as.numeric(data_geostat[, "spp"]) - 1,
-#                      "b_i" = data_geostat[, "Catch_KG"],
-#                      "a_i" = data_geostat[, "AreaSwept_km2"],
-#                      "getJointPrecision" = TRUE,
-#                      "newtonsteps" = 1,
-#                      "test_fit" = F,
-#                      "input_grid" = grid_goa[, c("Area_km2", "Lon", "Lat")],
-#                      "PredTF_i" = PredTF_i,
-#                      
-#                      ##Additional arguments for covariates
-#                      "X1_formula" =  "Catch_KG ~ LOG_DEPTH + LOG_DEPTH2",
-#                      "X2_formula" =  "Catch_KG ~ LOG_DEPTH + LOG_DEPTH2",
-#                      "covariate_data" = cbind(data_geostat[, c("Lat",
-#                                                                "Lon",
-#                                                                "LOG_DEPTH",
-#                                                                "LOG_DEPTH2",
-#                                                                "Catch_KG")],
-#                                               Year = NA),
-#                      "X_gtp" = X_gtp,
-#                      "Parameters" = fit$ParHat))
-#   
-#   ## Save fit
-#   save(list = "fit_CV",  
-#        file = paste0(result_dir, "CV_", fI, "/fit.RData"))
-#   
-#   ## Save predicted and observed CPUEs
-#   obs_cpue <- with(data_geostat[PredTF_i, ], Catch_KG / AreaSwept_km2)
-#   pred_cpue <- fit_CV$Report$D_i[PredTF_i]
-#   
-#   cv_performance <- list(cpues = data.frame(cv_fold = fI, 
-#                                             obs_cpue, 
-#                                             pred_cpue),
-#                          prednll = fit_CV$Report$pred_jnll)
-#   
-#   save(cv_performance,
-#        file = paste0(result_dir, "CV_", fI, 
-#                      "/crossval_fit_performance.RData"))
-#   
-#   ## Copy other outputs to the CV-fold directory
-#   file.copy(from = dir(temp_res, full.names = T), 
-#             to = paste0(result_dir, "CV_", fI, "/"))
-#   
-# }
