@@ -2,8 +2,10 @@
 ####################################################################
 ##    
 ##    fit single sp VAST model for the EBS shelf and NBS using temp (SBT, BotTemp) with cubic effect 
-##    Daniel Vilas (danielvilasgonzalez@gmail.com/dvilasg@uw.edu)
-##    evaluate parameters : https://github.com/James-Thorson-NOAA/VAST/blob/main/R/make_parameters.R
+##    Daniel Vilas (danielvilasgonzalez@gmail.com/dvilasg@uw.edu/daniel.vilas@noaa.gov)
+##    Lewis Barnett, Zack Oyafuso, Megsie Siple
+##
+##    *evaluate parameters : https://github.com/James-Thorson-NOAA/VAST/blob/main/R/make_parameters.R
 ##    https://rdrr.io/github/James-Thorson/VAST/man/check_fit.html
 ##
 ####################################################################
@@ -85,7 +87,7 @@ for (sp in spp) {
 #loop over species to fit models
 for (sp in spp) {
 
-sp<-spp[18]
+#sp<-spp[18]
 
 #print year to check progress
 cat(paste("\n","    ----- ", sp, " -----\n"))  
@@ -107,10 +109,10 @@ df4<-subset(df3,Region %in% c("Eastern Bering Sea Crab/Groundfish Bottom Trawl S
 data_geostat<-df4[complete.cases(df4[,c('CPUE_kg')]),]
 data_geostat<-subset(data_geostat,Year %in% yrs)
 
-if (sp==spp[18]) {
+#if kamtchatka arrowtooth flounder only use data from 1991 because of missidentification issue
+if (sp=='Atheresthes evermanni') {
   data_geostat<-subset(data_geostat,Year %in% 1991:2022)
 }
-
 
 #covariate data - filter by year and complete cases for env variables
 #covariate_data<-subset(df2,Year>=yrs_region[1] & Year<=yrs_region[2])
@@ -146,12 +148,11 @@ pred_TF[1:nrow(data_geostat)] <- 0
 saveRDS(data_geostat1,paste(out_dir,fol_region,sp,'data_geostat_temp.rds',sep='/'))
 
 # Calculate the percentage of zeros for each group
-percent_zeros <- data_geostat %>%
-  group_by(Year) %>%
-  summarize(percentage_zeros = mean(CPUE_kg == 0) * 100)
-
-# Print the results
-print(percent_zeros,n=100)
+print(
+  percent_zeros <- data_geostat %>%
+    group_by(Year) %>%
+    summarize(percentage_zeros = mean(CPUE_kg == 0) * 100)
+)
 
 #regions (predefined in VAST)
 region<-c("northern_bering_sea","eastern_bering_sea")
@@ -186,7 +187,6 @@ X2_formula<-X1_formula
 #predictor settings
 X2config_cp = X1config_cp
 
-
 #fit model #### ADD TryCatch{(),}
 fit <- tryCatch( {fit_model(settings=settings,
                             Lat_i=data_geostat1$Lat, 
@@ -216,43 +216,24 @@ fit <- tryCatch( {fit_model(settings=settings,
 #save fit
 save(list = "fit", file = paste(out_dir,fol_region,sp,'fit.RData',sep='/')) #paste(yrs_region,collapse = "")
 
-#close process window
-gc()
+#check obs vs pred
+if (!is.null(fit)) {
+  #add predictions
+  data_geostat1$pred<-fit$Report$D_i
+  names(data_geostat1)[ncol(data_geostat1)]<-'obs'
+  
+  print(
+    #plot comparison pred/obs
+    ggplot(data = data_geostat1, aes(x = obs)) +
+      geom_histogram(aes(color = "obs"), bins = 20, alpha = 0.5, fill='white',position = "identity") +
+      geom_histogram(data = data_geostat1, aes(x = pred, color = "pred"), bins = 20, alpha = 0.5,fill='white', position = "identity") +
+      scale_color_manual(values = c("obs" = "blue", "pred" = "red"),name='') +
+      labs(fill = "") +
+      facet_wrap(~Year,nrow = 1) +
+      theme_bw()
+  )
 }
 
-ggplot()+
-  geom_point(data=subset(data_geostat1,CPUE_kg!=0),aes(x=Lon,y=Lat,size=CPUE_kg,fill=CPUE_kg),color='transparent',shape=21)+
-  facet_wrap(~Year)+
-  theme_bw()
-
-
-# check percent of zeros
-ggplot(data = data_geostat, aes(CPUE_kg)) + 
-  geom_histogram(bins =20,
-                 aes(y = after_stat(density))) +
-  facet_wrap(~Year) +
-  #scale_y_continuous(labels = scales::percent_format()) +
-  theme_bw()
-
-# Calculate the percentage of zeros for each group
-percent_zeros <- data_geostat %>%
-  group_by(Year) %>%
-  summarize(percentage_zeros = mean(CPUE_kg == 0) * 100)
-
-# Print the results
-print(percent_zeros)
-
-#add predictions
-data_geostat1$pred<-fit$Report$D_i
-names(data_geostat1)[ncol(data_geostat1)]<-'obs'
-
-#plot comparison pred/obs
-ggplot(data = data_geostat1, aes(x = obs)) +
-  geom_histogram(aes(color = "obs"), bins = 20, alpha = 0.5, fill='white',position = "identity") +
-  geom_histogram(data = data_geostat1, aes(x = pred, color = "pred"), bins = 20, alpha = 0.5,fill='white', position = "identity") +
-  scale_color_manual(values = c("obs" = "blue", "pred" = "red"),name='') +
-  labs(fill = "") +
-  facet_wrap(~Year,nrow = 1) +
-  theme_bw()
-
-
+#remove memory
+gc()
+}

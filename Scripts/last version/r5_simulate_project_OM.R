@@ -1,7 +1,11 @@
 ####################################################################
 ####################################################################
 ##    
-##    simulate data from OM for historical and projected years
+##    Simulate data from OM for historical and projected years
+##    Reshape output
+##    Daniel Vilas (danielvilasgonzalez@gmail.com/dvilasg@uw.edu/daniel.vilas@noaa.gov)
+##    Lewis Barnett, Zack Oyafuso, Megsie Siple
+##
 ##    danielvilasgonzalez@gmail.com/dvilasg@uw.edu
 ##
 ####################################################################
@@ -58,9 +62,6 @@ spp<-c('Limanda aspera',
 #remove Anoploma and Reinhardtius because habitat preference reasons
 spp<-setdiff(spp, c('Anoplopoma fimbria','Reinhardtius hippoglossoides'))
 
-#remove two species because of habitat preferece reasons
-#all1<-all1[all1$scientific_name %in% spp,]
-
 #common names
 spp1<-c('Yellowfin sole',
         'Alaska pollock',
@@ -96,29 +97,29 @@ n_proj<-5
 project_yrs<-((yrs[length(yrs)])+1):(yrs[length(yrs)]+n_proj)
 
 ###################################
-# download model from google drive
+# Download OMs from Drive
 ###################################
 
-# #get files from google drive and set up
-# files<-googledrive::drive_find()
-# 1 #for dvilasg@uw.edu
-# 
-# #get id shared folder from google drive
-# id.bering.folder<-files[which(files$name=='Bering redesign RWP project'),'id']
-# #list of files and folder
-# files.1<-googledrive::drive_ls(id.bering.folder$id)
-# id.data<-files.1[which(files.1$name=='manuscripts'),'id']
-# files.2<-googledrive::drive_ls(id.data$id)
-# id.data<-files.2[which(files.2$name=='static survey'),'id']
-# files.3<-googledrive::drive_ls(id.data$id)
-# id.data<-files.3[which(files.3$name=='OM EBS+NBS'),'id']
-# files.4<-googledrive::drive_ls(id.data$id)
-# 
-# #get list of fit data
-# dir.create(paste0('./shelf EBS NBS VAST/'))
+#get files from google drive and set up
+files<-googledrive::drive_find()
+2 #for dvilasg@uw.edu
+
+#get id shared folder from google drive
+id.bering.folder<-files[which(files$name=='Bering redesign RWP project'),'id']
+#list of files and folder
+files.1<-googledrive::drive_ls(id.bering.folder$id)
+id.data<-files.1[which(files.1$name=='manuscripts'),'id']
+files.2<-googledrive::drive_ls(id.data$id)
+id.data<-files.2[which(files.2$name=='static survey'),'id']
+files.3<-googledrive::drive_ls(id.data$id)
+id.data<-files.3[which(files.3$name=='OM EBS+NBS'),'id']
+files.4<-googledrive::drive_ls(id.data$id)
+
+#get list of fit data
+dir.create(paste0('./shelf EBS NBS VAST/'))
 
 ###################################
-# GRID NBS AND EBS
+# Grid EBS+NBS
 ###################################
 
 #load grid of NBS and EBS
@@ -183,7 +184,7 @@ sim_proj_dens_spp<-array(NA,
                          dimnames=list(1:nrow(grid),project_yrs,1,1:nrow(df_sbt),spp))
 
 ######################
-# SIMULATE HISTORICAL DATA
+# Simulate historical data
 ######################
 
 #loop over spp
@@ -326,7 +327,7 @@ for (sp in spp) {
 #save(dens_index_hist_OM, file = paste0("./output/species/dens_index_hist_OM.RData")) 
 
 ######################
-# RESHAPE SIMULATED HISTORICAL DATA
+# Reshape simulated historical data
 ######################
 
 # Initializing parallel backend
@@ -364,7 +365,7 @@ save(sim_dens1, file = paste0('./output/species/ms_sim_dens.RData'))
 
 
 ######################
-# SIMULATE PROJECTED DATA 
+# Simulate projected data
 ######################
 
 #get raster stack
@@ -493,7 +494,7 @@ for (sp in spp) {
 }
 
 ######################
-# RESHAPE SIMULATED PROJECTED DATA
+# Reshape simulated projected data
 ######################
 
 #loop over 8 temperature scenarios
@@ -545,6 +546,5 @@ for (sbt in unique(df_sbt$sbt_n)) {
   #store PROJ simulated data
   save(simdata, file = paste0("./output/species/SBT",sbt," ms_sim_proj_dens.RData"))  
   save(proj_ind, file = paste0("./output/species/SBT",sbt," ms_sim_proj_ind.RData"))  
-  
   
 }

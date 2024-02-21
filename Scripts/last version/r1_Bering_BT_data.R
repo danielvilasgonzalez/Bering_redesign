@@ -1,12 +1,13 @@
 ####################################################################
 ####################################################################
 ##
-##    get raw bottom trawl (BT) data from the EBS and NBS 
-##    (shelf Eastern Bering Sea, slope Eastern Bering Sea, northern Bering Sea)
-##    add sp names
-##    include depth from GEBCO
-##    create data_geostat file to fit OM VAST
-##    Daniel Vilas (danielvilasgonzalez@gmail.com/dvilasg@uw.edu)
+##    Script #1 
+##    Get raw data from bottom trawl survey EBS, NBS and slope
+##    Plot sea bottom temperature time series in the regions
+##    Create data_geostat file to fit OM VAST 
+##    *sea botton temperature is appended in the next script (#3)
+##    Daniel Vilas (danielvilasgonzalez@gmail.com/dvilasg@uw.edu/daniel.vilas@noaa.gov)
+##    Lewis Barnett, Zack Oyafuso, Megsie Siple
 ##
 ####################################################################
 ####################################################################
@@ -100,7 +101,7 @@ googledrive::drive_download(file=files.2$id[5],
                             overwrite = TRUE)
 
 #####################################
-# HAUL DATA
+# Haul data
 #####################################
 
 #create directory
@@ -128,7 +129,7 @@ haul<-readRDS(paste0('./data raw/',file$name))
 dim(haul);length(unique(haul$hauljoin))
 
 #####################################
-# CATCH DATA
+# Catch data
 #####################################
 
 #get cpue file
@@ -178,7 +179,7 @@ catch1<-rbind(catch1,catch3)
 length(unique(catch1$scientific_name))==length(spp)
 
 #####################################
-# MERGE CATCH and HAUL DATA 
+# Merge catch and haul dataframes
 #####################################
 #if there are 19 selected spp and 16693 hauls in slope EBS, shelf EBS and NBS
 #then 19*16693=317167 rows for the dataframe
@@ -204,7 +205,7 @@ head(all1)
 summary(all1)
 
 #####################################
-# CREATE DATA_GEOSTAT FILE
+# Create data_geostat file that fit OM
 #####################################
 
 #create folder
@@ -234,8 +235,6 @@ spp<-spp[spp!='Lepidopsetta sp.']
 
 #save data_geostat file
 saveRDS(all1, paste0('./data processed/species/slope_shelf_EBS_NBS_data_geostat.rds'))
-all1<-readRDS(paste0('./data processed/species/slope_shelf_EBS_NBS_data_geostat.rds'))
-
 
 #loop over species to create data_geostat df
 for (sp in spp) {
@@ -262,9 +261,10 @@ for (sp in spp) {
 }
 
 #####################################
-# PLOT 
+# Plot SBT distribution
 #####################################
 
+#get haul year
 haul$year<-year(as.POSIXlt(haul$date, format="%d/%m/%Y"))
 
 #mean SBT by year
@@ -305,17 +305,14 @@ print(
     facet_wrap(~year,nrow = 3)+
     labs(x='°C',y='',color='SBT')+
     theme_bw())
-#}
 
 
 
-#####################################
-# PLOT SPECIES ESTIMATES PER YEAR AND REGION
-#####################################
 
-head(all1)
+################################################################
+# Plot species abundance over time in the EBS, NBS and slope
+#################################################################
 
-#add common name
 #selected species
 spp<-c('Limanda aspera',
        'Gadus chalcogrammus',
@@ -378,33 +375,7 @@ all2$scientific_name2<-gsub(' ','_',all2$scientific_name)
 #merge lepidosettas
 all1$scientific_name[all1$scientific_name == 'Lepidopsetta sp.'] <- 'Lepidopsetta polyxystra'
 
-#plot CPUE
-p<-
-ggplot()+
-  geom_boxplot(data=all2,aes(x=year,y=cpue_kgha,group=interaction(year,survey_name),color=survey_name),alpha=0.7)+
-  facet_wrap(~sp,scales = 'free_y',nrow=5)+
-  #add_fishape(data=all2,aes(option = scientific_name2))+
-  scale_color_manual(values=c("Northern Bering Sea Crab/Groundfish Survey - Eastern Bering Sea Shelf Survey Extension"="#4682B4",
-                              "Eastern Bering Sea Crab/Groundfish Bottom Trawl Survey"="#B4464B",
-                              "Eastern Bering Sea Slope Bottom Trawl Survey"="#B4AF46"),
-                     labels = c('EBS shelf','EBS slope','NBS'),name='survey')+
-  scale_x_continuous(breaks = c(1985,1990,1995,2000,2005,2010,2015,2020),
-                     minor_breaks = setdiff(1982:2022,c(1982,1985,1990,1995,2000,2005,2010,2015,2020,2022)))+
-  scale_y_continuous(limits = c(0,NA),labels = scales::comma)+
-  theme_bw()+
-  labs(y='CPUE',x='')+
-  theme(panel.grid.minor = element_line(linetype=2,color='grey90'),strip.background = element_rect(fill='white'),
-        legend.position=c(.80,.08),legend.key.size = unit(20, 'points'),legend.text = element_text(size=10),
-        legend.title = element_text(size=14),strip.text = element_text(size=12))+ #axis.text.x = element_text(angle=90,vjust=0.5),
-  expand_limits(y = 0)
-
-#save plot
-ragg::agg_png(paste0('./figures/CPUE_survey_year.png'), width = 13, height = 10, units = "in", res = 300)
-p
-dev.off()
-
-
-#plot CPUE in log+1
+#plot CPUE in log+1 for better visualization
 p<-
   ggplot()+
   geom_boxplot(data=all2,aes(x=year,y=log(cpue_kgha+1),group=interaction(year,survey_name),color=survey_name),alpha=0.7,position = position_dodge2(preserve = "single"))+
@@ -428,96 +399,3 @@ p<-
 ragg::agg_png(paste0('./figures/CPUE_survey_year.png'), width = 13, height = 10, units = "in", res = 300)
 p
 dev.off()
-
-#################################################
-# CREATE DATA SAMPLING SCENARIO BASELINE
-#################################################
-
-#load grid of NBS and EBS
-load('./extrapolation grids/northern_bering_sea_grid.rda')
-load('./extrapolation grids/eastern_bering_sea_grid.rda')
-grid<-as.data.frame(rbind(data.frame(northern_bering_sea_grid,region='NBS'),data.frame(eastern_bering_sea_grid,region='EBS')))
-grid$cell<-1:nrow(grid)
-#df to spatialpoint df
-coordinates(grid) <- ~ Lon + Lat
-crs(grid)<-c(crs='+proj=longlat +ellps=WGS84 +towgs84=0,0,0,0,0,0,0 +no_defs')
-#reproject coordinates for plotting purposes
-D2_1<-grid
-D2_2<-data.frame(D2_1)
-#x and y cells
-xycells<-as.integer(sqrt(dim(D2_1)[1]))
-# create a template raster
-r1 <- raster(ext=extent(D2_1),ncol=xycells, nrow=xycells) #c(15800,15800) 7000
-#create raster
-r2<-rasterize(D2_1, r1 ,field='cell')
-#plot(r2)
-
-#EBS and NBS layer
-ebs_layers <- akgfmaps::get_base_layers(select.region = "ebs", set.crs = "EPSG:3338")
-
-#baseline strata areas
-strata_areas<-as.data.frame(ebs_layers$survey.strata)
-sum(strata_areas$F_AREA)
-sum(strata_areas$Precise_Ar/1000000)
-
-#dataframe stratum and area
-strata_areas <- data.frame('Stratum'=strata_areas$Stratum,'Area_in_survey_km2'=strata_areas$Precise_Ar/1000000)
-sum(strata_areas$Area_in_survey_km2)
-
-#strata polygon
-strata_pol<-as(ebs_layers$survey.strata, 'Spatial')
-proj4string(strata_pol) <- CRS('+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs') 
-strata_pol<-spTransform(strata_pol,CRSobj = CRS("+proj=longlat +ellps=WGS84 +towgs84=0,0,0,0,0,0,0 +no_defs "))
-
-#locations
-x<-ebs_layers$survey.grid
-st<-x$STATIONID
-xx<-st_geometry(x)
-xxx<-st_centroid(xx)
-#plot(xxx);class(xxx)
-coords <- st_coordinates(xxx)
-lat <- coords[, 2]
-lon <- coords[, 1]
-# plot(lon,lat)
-# text(lon, lat, st, pos = 3)
-baseline<-data.frame('Lat'=lat,'Lon'=lon,'stationid'=st)
-#corner stations
-corner<- c('GF','HG','IH','QP','JI','ON','PO')
-st.corner<-paste(corner,collapse = '|')
-baseline$corner<-ifelse(grepl(st.corner,baseline$stationid),TRUE,FALSE)
-#locations of stations
-locations <- as.data.frame(baseline)
-st<-baseline
-coordinates(st)<- ~ Lon + Lat
-proj4string(st) <- CRS('+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs') 
-st<-spTransform(st,CRSobj = CRS('+proj=longlat +ellps=WGS84 +towgs84=0,0,0,0,0,0,0 +no_defs'))
-#cell
-locations$cell<-extract(r2,st)
-st1<-as.data.frame(st)[,c("coords.x1","coords.x2")]#[,c("Lon","Lat")]
-names(st1)<-c('x','y')
-xy<-st1
-sampled = apply(X = xy, MARGIN = 1, FUN = function(xy) r2@data@values[which.min(replace(distanceFromPoints(r2,xy), is.na(r2), NA))])
-locations$cell<-sampled
-locations$Stratum<-over(st,strata_pol)[,'Stratum']
-
-#number of samples per strata for random sampling
-y<-aggregate(locations$cell,by=list(locations$Stratum),length)
-yc<-aggregate(subset(locations,corner!=TRUE)[,'cell'],by=list(subset(locations,corner!=TRUE)[,'Stratum']),length)
-n_samples<-data.frame('stratum'=yc$Group.1,'scnbase'=y$x,'scnbase_bis'=yc$x)
-
-# grid1<-grid
-# coordinates(grid1)<- ~ Lon + Lat
-# crs(grid1)<-'+proj=aea +lat_0=50 +lon_0=-154 +lat_1=55 +lat_2=65 +x_0=0 +y_0=0 +datum=NAD83 +units=m +no_defs'
-# 
-# xx<- as(x, 'Spatial')
-# #grid over polygon to get samples grid which current baseline strata
-# cell_strata<-data.frame(as.data.frame(grid1,'stratum'=over(grid1,xx)[,'Stratum']))
-
-#list baseline strata
-baseline_strata<-list(strata_areas=strata_areas,locations=locations,n_samples=n_samples,cell_strata=as.data.frame(grid))
-
-#create directory
-dir.create('./output/',showWarnings = FALSE)
-#save data
-save(baseline_strata,file='./output/baseline_strata.RData')
-

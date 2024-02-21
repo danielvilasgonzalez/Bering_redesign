@@ -1,13 +1,14 @@
 ####################################################################
 ####################################################################
 ##
-##    extract sea bottom temperature (SBT) from netcdf of Bering 10K ROMS
-##    netcdf downloaded from https://data.pmel.noaa.gov/aclim/thredds/
-##    incorporate Temp (SBT) to Bering Sea grid
-##    incorporate Temp (SBT) to data_geostat file from Bering Sea 
+##    Extract sea bottom temperature (SBT) from netcdf of Bering 10K ROMS
+##    Netcdf downloaded from https://data.pmel.noaa.gov/aclim/thredds/
+##    Incorporate Temp (SBT) to Bering Sea grid
+##    Incorporate Temp (SBT) to data_geostat file from Bering Sea 
 ##    (shelf Eastern Bering Sea, slope Eastern Bering Sea, northern Bering Sea)
-##    save data_geostat_temp file to fit VAST
-##    Daniel Vilas (danielvilasgonzalez@gmail.com/dvilasg@uw.edu)
+##    Save data_geostat_temp file to fit VAST
+##    Daniel Vilas (danielvilasgonzalez@gmail.com/dvilasg@uw.edu/daniel.vilas@noaa.gov)
+##    Lewis Barnett, Zack Oyafuso, Megsie Siple
 ##
 ####################################################################
 ####################################################################
@@ -61,7 +62,7 @@ spp<-c('Limanda aspera',
 
 #get files from google drive and set up
 files<-googledrive::drive_find()
-32 #for dvilasg@uw.edu
+3 #for dvilasg@uw.edu
 
 #get id shared folder from google drive
 id.bering.folder<-files[which(files$name=='Bering redesign RWP project'),'id']
@@ -72,7 +73,7 @@ id.data<-files.1[which(files.1$name=='data raw'),'id']
 files.2<-googledrive::drive_ls(id.data$id)
 
 #####################################
-# GET STATIONS (HAUL)
+# Get haul (sampling stations)
 #####################################
 
 #create directory
@@ -96,7 +97,7 @@ haul$month<-month(as.POSIXlt(haul$date, format="%d/%m/%Y"))
 haul$year<-year(as.POSIXlt(haul$date, format="%d/%m/%Y"))
 
 #####################################
-# BERING SEA GRIDS 
+# Bering Sea grid
 #####################################
 
 #https://github.com/James-Thorson-NOAA/FishStatsUtils/tree/main/data
@@ -108,6 +109,7 @@ dim(northern_bering_sea_grid)
 load('./extrapolation grids/bering_sea_slope_grid.rda')
 dim(bering_sea_slope_grid)
 
+#convert to dataframe and add region
 eastern_bering_sea_grid<-as.data.frame(eastern_bering_sea_grid)
 eastern_bering_sea_grid$region<-'EBSshelf'
 northern_bering_sea_grid<-as.data.frame(northern_bering_sea_grid)
@@ -116,12 +118,13 @@ bering_sea_slope_grid<-as.data.frame(bering_sea_slope_grid)
 bering_sea_slope_grid$Stratum<-'NA'
 bering_sea_slope_grid$region<-'EBSslope'
 
+#rbind regions
 grid.ebs<-rbind(northern_bering_sea_grid,
                eastern_bering_sea_grid,
                bering_sea_slope_grid[,c("Lat","Lon","Area_in_survey_km2",'Stratum',"region")])
 
 #####################################
-# ADD DEPTH from GEBCO (just in case)
+# Add GEBCO depth (downloaded on August 2022)
 #####################################
 
 #create directory
@@ -139,23 +142,19 @@ googledrive::drive_download(file=id.data$id,
                             path = paste0('./bathymetry/',id.data$name),
                             overwrite = TRUE)
 
-#read raster
+#read raster GEBCO data
 r<-raster('./bathymetry/gebco_2022_n70.0_s50.0_w-180.0_e-155.0.asc')
 
-#extract depth values for each station of grid
+#extract depth values for each station of grid - using GEBCO data
 rr<-extract(r, SpatialPoints(cbind(grid.ebs$Lon,grid.ebs$Lat)))
 grid.ebs$DepthGEBCO<--rr
-grid.ebs$depth_m <- ifelse(is.na(grid.ebs$Depth), grid.ebs$DepthGEBCO, grid.ebs$Depth)
-
-# #same but last version of the grid
-# coordinates(EBSgrid)<- ~Lon+Lat
-# proj4string(EBSgrid)<-crs('+proj=longlat +datum=WGS84 +no_defs ')
-# EBSgrid$Depth<--raster::extract(r,EBSgrid)
+grid.ebs$depth_m <-grid.ebs$DepthGEBCO
+summary(grid.ebs)
 EBSgrid<-grid.ebs
   
-#####################################
-# LOOP OVER YEARS for the last version grid
-#####################################
+##########################################################################
+# Loop over years to get the temperature for each year in each sampling station (from ROMS)
+##########################################################################
 
 #create directory
 dir.create('./bering 10k roms/',showWarnings = FALSE)
@@ -178,12 +177,6 @@ grid.ebs_year<-data.frame(matrix(nrow = 0,
 colnames(grid.ebs_year)<-c(colnames(EBSgrid),
                            'Temp',
                            'Year')
-
-# #create df to store results
-# st_year<-data.frame(matrix(nrow = 0,
-#                            ncol = ncol(haul)+1))
-# colnames(st_year)<-c(colnames(haul),
-#                      'Temp')
 
 #loop over years to incorporate values into the Bering Sea grid
 for (y in 1982:2024) {
@@ -243,9 +236,6 @@ for (y in 1982:2024) {
   #46956 cells
   #259 time steps
   
-  #get variables
-  #names(nc$var)
-  
   #get latitude
   lats <- ncvar_get(nc,"lat_rho")
   
@@ -287,10 +277,6 @@ for (y in 1982:2024) {
   #create spatial object from df
   coordinates(df_nc3) <- ~ Lon + Lat
   
-  ########################################
-  # for GRID duplicate (EBSgrid is the last version and grid.ebs is the old)
-  ########################################
-  
   #create spatial object from grid
   spg <- EBSgrid
   coordinates(spg) <- ~ Lon + Lat
@@ -307,48 +293,6 @@ for (y in 1982:2024) {
   #incorporate SBT
   grid.ebs_year<-rbind(grid.ebs_year,as.data.frame(EBSgrid))
   
-  #   ########################################
-  #   # for STATIONS
-  #   ########################################
-  #   
-  #   #create spatial object from grid
-  #   haul1<-subset(haul,year==y)
-  #   
-  #   if (nrow(haul1)==0) {
-  #     
-  #     haul2<-data.frame(matrix(nrow = nrow(grid.ebs),ncol = ncol(haul1)))
-  #     colnames(haul2)<-colnames(haul1)
-  #     haul2$survey_name<-grid.ebs$STRATA
-  #     haul2$depth_m<-grid.ebs$depth_m
-  #     haul2$lat_end<-grid.ebs$Lat
-  #     haul2$lon_end<-grid.ebs$Lon
-  #     haul2$lat_start<-grid.ebs$Lat
-  #     haul2$lon_start<-grid.ebs$Lon
-  #     haul2$year<-grid.ebs$Year
-  #     haul2$Temp<-grid.ebs$Temp
-  #     
-  #     #incorporate df with SBT
-  #     st_year<-rbind(st_year,haul2)
-  #     
-  #   } else {
-  #     
-  #     spg <- haul1
-  #     coordinates(spg) <- ~ lon_start + lat_start
-  #     
-  #     #get the nearests points from one df to other df
-  #     nn<-get.knnx(coordinates(df_nc3),coordinates(spg),1)
-  #     nc_index<-nn$nn.index[,1]
-  #     
-  #     #get SBT
-  #     temps<-as.data.frame(df_nc3)$temp[nc_index]
-  #     haul1$Temp<-temps
-  #     
-  #     #incorporate df with SBT
-  #     st_year<-rbind(st_year,haul1)}
-  #   
-  #   #close netcdf file
-  #   nc_close(nc)
-  #   
 }
 
 #save grid Bering Sea with SBT and depth as dataframe
