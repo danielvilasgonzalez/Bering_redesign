@@ -33,8 +33,8 @@ pacman::p_load(pack_cran,character.only = TRUE)
 
 #setwd - depends on computer using
 #out_dir<-'C:/Users/Daniel.Vilas/Work/Adapting Monitoring to a Changing Seascape/' #NOAA laptop  
-#out_dir<-'/Users/daniel/Work/Adapting Monitoring to a Changing Seascape/' #mac
-out_dir<-'/Users/daniel/Work/VM' #VM
+out_dir<-'/Users/daniel/Work/Adapting Monitoring to a Changing Seascape/' #mac
+#out_dir<-'/Users/daniel/Work/VM' #VM
 setwd(out_dir)
 
 #version VAST (cpp)
@@ -57,32 +57,10 @@ spp<-c('Limanda aspera',
        'Chionoecetes opilio',
        'Paralithodes platypus',
        'Paralithodes camtschaticus',
-       'Chionoecetes bairdi')
-
-#remove Anoploma and Reinhardtius because habitat preference reasons
-spp<-setdiff(spp, c('Anoplopoma fimbria','Reinhardtius hippoglossoides'))
-
-#common names
-spp1<-c('Yellowfin sole',
-        'Alaska pollock',
-        'Pacific cod',
-        'Arrowtooth flounder',
-        #'Greenland turbot',
-        'Northern rock sole',
-        'Flathead sole',
-        'Alaska plaice',
-        'Bering flounder',
-        'Arctic cod',
-        'Saffon cod',
-        #'Sablefish',
-        'Snow crab',
-        'Blue king crab',
-        'Red king crab',
-        'Tanner crab')
-
-#df sp scientific and common
-df_spp<-data.frame('spp'=spp,
-                   'common'=spp1)
+       'Chionoecetes bairdi',
+       'Sebastes alutus',
+       #'Sebastes melanostictus',
+       'Atheresthes evermanni')
 
 ###################################
 # LOAD GRID EBS (remember to keep the same order as in fit_model if multiple grids)
@@ -144,12 +122,31 @@ for (sp in spp) {
   #create folder optimization data
   dir.create(paste0('./output/species/',sp,'/optimization data/'))
   
+  if (sp=='Sebastes alutus') {
+    
+    D1<-grid.ebs_year
+    D1$Biomass<-0
+    D1$Density<-0
+    D1$Biomass_sq<-(D1$Biomass)^2
+    D1$Density_sq<-(D1$Density)^2
+    
+    #only one species
+    tdf<-temp_dens_vals[,,sp]<-0
+    true_index[,,sp]<-0
+    #list OM true CPUE and true index
+    CPUE_index<-list('CPUE'=D1,
+                     'true_index'=true_index[,,sp])
+    
+  } else {
+
+  
   ###################################
   # LOAD FIT OBJECTS (fit<-from VAST::fit_model()) and pr_list<-VAST::project_model()
   ###################################
   
   #fit file
   ff<-list.files(paste0('./shelf EBS NBS VAST/',sp,'/'),'fit',recursive=TRUE)
+
   
   #load fit file
   load(paste0('./shelf EBS NBS VAST/',sp,'/',ff)) #fit
@@ -158,14 +155,20 @@ for (sp in spp) {
   # ARRANGE PREDICTED DENSITIES FROM OM
   #################################################
   
+  if (sp %in% c('Atheresthes stomias','Atheresthes evermanni')){
+    yrs<-c(1991:2019,2021:2022)
+  } else{
+  yrs<-c(1982:2019,2021:2022)
+  }
+  
   #get predicted densities for sp
-  temp_dens_vals[,,sp] <- unlist(fit$Report$D_gct[, 1, as.character(yrs)]) #[kg/km2]
+  temp_dens_vals[,as.character(yrs),sp] <- unlist(fit$Report$D_gct[, 1, as.character(yrs)]) #[kg/km2]
   
   #density_input<-temp_dens_vals
   D_gt<-unlist(fit$Report$D_gct[, 1, as.character(yrs)])
   
   #get true index for NBS_EBS, NBS and EBS
-  true_index[,,sp]<-fit$Report$Index_ctl[1, , ]
+  true_index[paste0(yrs),,sp]<-fit$Report$Index_ctl[1,paste0(yrs),1:3 ]
   
   #dataframe of cells with predictions
   D_gt<-data.frame('cell'=c(1:fit$spatial_list$n_g),D_gt)
@@ -206,6 +209,10 @@ for (sp in spp) {
   D1$Density_sq<-(D1$Density)^2
   #subset by year (maybe to change to get for the forecasted ones)
   
+  if (sp %in% c('Atheresthes stomias','Atheresthes evermanni')){
+    D1<-subset(D1,Year %in% c(1991:2022))
+  }
+  
   #static sampling so, we want to aggregate annual predictions: mean density, mean temp, and temp var
   D2<-aggregate(cbind(Temp,Density) ~ Lat+Lon+cell+Depth, data = D1, FUN = mean, na.rm = TRUE)
   D3<-aggregate(cbind(Temp,Density) ~ Lat+Lon+cell+Depth, data = D1, FUN = var, na.rm = TRUE)
@@ -240,6 +247,8 @@ for (sp in spp) {
   CPUE_index<-list('CPUE'=D1,
                    'true_index'=true_index[,,sp])
   
+  }
+  
   #save results list
   save(D6,file=paste0('./output/species/',sp,'/optimization data/optimization_static_data.RData'))
   
@@ -260,10 +269,19 @@ for (sp in spp) {
     df<-D6[,c("Lat","Lon","cell","Depth","meanTemp","varTemp","sumDensity_sq","sumDensity","include","meanTempF","LonE")]  
   }
   
-  load(paste0('./output/species/',sp,'/optimization data/optimization_static_data.RData'))
-  dens<-data.frame(D6$sumDensity,D6$sumDensity_sq)
-  names(dens)<-c(paste0(sp,'_sumDensity'),paste0(sp,'_sumDensity_sq'))
-  df<-cbind(df,dens)
+  if (sp=='Sebastes alutus'){
+    load(paste0('./output/species/',sp,'/optimization data/optimization_static_data.RData'))
+    dens<-data.frame(rep(0,ncells),rep(0,ncells))
+    names(dens)<-c(paste0(sp,'_sumDensity'),paste0(sp,'_sumDensity_sq'))
+    df<-cbind(df,dens)
+    
+  } else {
+  
+    load(paste0('./output/species/',sp,'/optimization data/optimization_static_data.RData'))
+    dens<-data.frame(D6$sumDensity,D6$sumDensity_sq)
+    names(dens)<-c(paste0(sp,'_sumDensity'),paste0(sp,'_sumDensity_sq'))
+    df<-cbind(df,dens)
+  }
 }
 
 save(df,file=paste0('./output/multisp_optimization_static_data.RData'))
