@@ -61,7 +61,11 @@ spp<-c('Limanda aspera',
            'Chionoecetes bairdi',
            'Sebastes alutus',
            'Sebastes melanostictus',
-           'Atheresthes evermanni')
+           'Atheresthes evermanni',
+           'Sebastes borealis',
+           'Sebastolobus alascanus',
+           'Glyptocephalus zachirus',
+           'Bathyraja aleutica')
 
 #get files from google drive and set up
 files<-googledrive::drive_find()
@@ -157,6 +161,22 @@ catch$scientific_name[catch$common_name == 'rougheye and blackspotted rockfish u
 #most northern rock sole was missidentified before 1996
 unique(catch$common_name)[grepl('rock sole',unique(catch$common_name))]
 subset(catch, common_name=='rock sole unid.')
+
+#check other spp
+# shortraker rockfish
+# blackspotted and rougheye rockfish
+# other rockfish (mostly shortspine thornyhead on slope)
+# other flatfish (almost all rex sole, but Dover and deepsea sole are present here in low numbers)
+# other skates (represent with Aleutian skate for a single species, as it is the most abundant and commonly observed in the 2016 survey; if necessary, could consider a combo of Aleutian/Bering/Commander: Bering is much less common but more shallow, Commander are less common and deeper)
+unique(catch$common_name)[grep('shortraker',unique(catch$common_name))] #shortraker rockfish - #Sebastes borealis
+#catch[which(catch$common_name=='shortraker rockfish'),]
+unique(catch$common_name)[grep('shortspine',unique(catch$common_name))] #shortspine thornyhead - #Sebastolobus alascanus
+#catch[which(catch$common_name=='shortspine thornyhead'),]
+unique(catch$common_name)[grep('sole',unique(catch$common_name))] #rex sole - #Glyptocephalus zachirus
+#catch[which(catch$common_name=='rex sole'),]
+unique(catch$common_name)[grep('Aleutian skate',unique(catch$common_name))] #Aleutian skate - #"Bathyraja aleutica"
+catch[which(catch$common_name=='Aleutian skate'),]
+sort(unique(catch$common_name))
 
 #filter by species
 catch1<-subset(catch,scientific_name %in% spp)
@@ -277,13 +297,14 @@ for (i in 2:nrow(yearagg.df)) {
 }
 
 #plot 1
-print(
+#print(
+p<-
   ggplot() +
     geom_line(data=yearagg.df, aes(x=year, y=bottom_temp_c),linetype='dashed')+
     geom_point(data=yearagg.df, aes(x=year, y=bottom_temp_c,color=bottom_temp_c),size=2)+
     geom_bar(data=yearagg.df, aes(x=year, y=TempAnomaly,fill=TempAnomaly),color='black',stat="identity",position = position_dodge(0.9))+
     scale_colour_gradient2(low = 'darkblue',high='darkred',midpoint = 2.5)+
-    scale_fill_gradient2(low = 'darkblue',high='darkred',midpoint = 0)+
+    scale_fill_gradient2(low = 'darkblue',high='darkred',midpoint = 0,breaks=c(-2,-1,0,1,2),limits=c(NA,2))+
     #xlab(label = 1982:2022)+
     scale_x_continuous(breaks=c(1982:2022),expand = c(0,0.1))+
     theme_bw()+
@@ -291,8 +312,13 @@ print(
     guides(fill=guide_legend(order = 2),color=guide_legend(order = 1))+
     theme(panel.grid.minor.x = element_blank(),legend.spacing  = unit(1,'cm'),
           panel.grid.minor.y = element_line(linetype=2,color='grey90'),axis.text.x = element_text(angle=90,vjust=0.5))
-)
+#)
 
+  #save plot
+  ragg::agg_png(paste0('./figures/SBT anomaly.png'), width = 13, height = 5, units = "in", res = 300)
+  p
+  dev.off()
+  
 #plot 2
 print(
   ggplot() +
@@ -329,10 +355,15 @@ spp<-c('Limanda aspera',
        'Chionoecetes opilio',
        'Paralithodes platypus',
        'Paralithodes camtschaticus',
+       #'Lepidopsetta sp.',
        'Chionoecetes bairdi',
        'Sebastes alutus',
        'Sebastes melanostictus',
-       'Atheresthes evermanni')
+       'Atheresthes evermanni',
+       'Sebastes borealis',
+       'Sebastolobus alascanus',
+       'Glyptocephalus zachirus',
+       'Bathyraja aleutica')
 
 #remove Anoploma and Reinhardtius because habitat preference reasons
 #spp<-setdiff(spp, c('Anoplopoma fimbria','Reinhardtius hippoglossoides'))
@@ -351,7 +382,7 @@ spp1<-c('Yellowfin sole',
         'Alaska plaice',
         'Bering flounder',
         'Arctic cod',
-        'Saffon cod',
+        'Saffron cod',
         'Sablefish',
         'Snow crab',
         'Blue king crab',
@@ -359,7 +390,11 @@ spp1<-c('Yellowfin sole',
         'Tanner crab',
         'Pacific ocean perch',
         'Rougheye and blackspotted rockfish',
-        'Kamchatka flounder')
+        'Kamchatka flounder',
+        'Shortraker rockfish',
+        'Shortspine thornyhead',
+        'Rex sole',
+        'Aleutian skate')
 
 #df sp scientific and common
 df_spp<-data.frame('spp'=spp,
@@ -396,6 +431,6 @@ p<-
   expand_limits(y = 0)
 
 #save plot
-ragg::agg_png(paste0('./figures/CPUE_survey_year.png'), width = 13, height = 10, units = "in", res = 300)
+ragg::agg_png(paste0('./figures/CPUE_survey_year_v2.png'), width = 15, height = 14, units = "in", res = 300)
 p
 dev.off()
