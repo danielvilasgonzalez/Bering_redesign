@@ -441,13 +441,15 @@ ggplot()+
            #xlim = c(panel_extent$x[1]+200000,panel_extent$x[2]),
            xlim = c(panel_extent$x[1]+200000,panel_extent$x[2]+100000),
            ylim = c(panel_extent$y[1]-100000,panel_extent$y[2]-200000),
-           label_axes = "-NE-")
+           label_axes = "-NE
+           
+           -")
 
 
 
 
 all1<-readRDS(paste0('./data processed/species/slope_shelf_EBS_NBS_data_geostat.rds'))
-all2<-subset(all1,survey_name=='Eastern Bering Sea Slope Bottom Trawl Survey')
+all2<-subset(all1,survey_name=='Eastern Bering Sea Slope Bottom Trawl Survey' & depth_m<=400)
 all3<-all2[,c("hauljoin","year","lat_start","lon_start")]
 dim(unique(all3));dim(all3)
 all4<-unique(all3)
@@ -462,7 +464,7 @@ all4<-spTransform(all4,'+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0
 #all4<-data.frame(all4)
 
 #over(all4,xx1)
-
+summary(all2)
 all4$strata<-as.vector(over(all4,xx1))$STRATUM
 names(all4)
 all5<-data.frame(all4)
@@ -474,7 +476,7 @@ yy2<-aggregate(hauljoin ~  year,all5,FUN=length)
 mean(yy2$hauljoin)
 
 slop_area<-as(slope$survey.area, 'Spatial')
-yy<-slop_area['Shape_Area']
+dyy<-slop_area['Shape_Area']
 plot(slop_area)
 
 
