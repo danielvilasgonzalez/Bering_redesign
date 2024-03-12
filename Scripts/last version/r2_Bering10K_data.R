@@ -54,11 +54,43 @@ spp<-c('Limanda aspera',
        'Chionoecetes opilio',
        'Paralithodes platypus',
        'Paralithodes camtschaticus',
-       'Lepidopsetta sp.',
+       #'Lepidopsetta sp.',
        'Chionoecetes bairdi',
        'Sebastes alutus',
        'Sebastes melanostictus',
-       'Atheresthes evermanni')
+       'Atheresthes evermanni',
+       'Sebastes borealis',
+       'Sebastolobus alascanus',
+       'Glyptocephalus zachirus',
+       'Bathyraja aleutica')
+
+#remove Anoploma and Reinhardtius because habitat preference reasons
+#spp<-setdiff(spp, c('Anoplopoma fimbria','Reinhardtius hippoglossoides'))
+
+#common names
+spp1<-c('Yellowfin sole',
+        'Alaska pollock',
+        'Pacific cod',
+        'Arrowtooth flounder',
+        'Greenland turbot',
+        'Northern rock sole',
+        'Flathead sole',
+        'Alaska plaice',
+        'Bering flounder',
+        'Arctic cod',
+        'Saffron cod',
+        'Sablefish',
+        'Snow crab',
+        'Blue king crab',
+        'Red king crab',
+        'Tanner crab',
+        'Pacific ocean perch',
+        'Rougheye and blackspotted rockfish',
+        'Kamchatka flounder',
+        'Shortraker rockfish',
+        'Shortspine thornyhead',
+        'Rex sole',
+        'Aleutian skate')
 
 #get files from google drive and set up
 files<-googledrive::drive_find()

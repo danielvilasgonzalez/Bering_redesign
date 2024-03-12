@@ -61,10 +61,15 @@ spp<-c('Limanda aspera',
        'Chionoecetes opilio',
        'Paralithodes platypus',
        'Paralithodes camtschaticus',
+       #'Lepidopsetta sp.',
        'Chionoecetes bairdi',
        'Sebastes alutus',
        'Sebastes melanostictus',
-       'Atheresthes evermanni')
+       'Atheresthes evermanni',
+       'Sebastes borealis',
+       'Sebastolobus alascanus',
+       'Glyptocephalus zachirus',
+       'Bathyraja aleutica')
  
 splist<-list() 
  
@@ -149,8 +154,12 @@ spp<-c(#'Limanda aspera',
        #'Paralithodes camtschaticus',
        'Chionoecetes bairdi',
        'Sebastes alutus',
-       #'Sebastes melanostictus',
-       'Atheresthes evermanni')
+       'Sebastes melanostictus',
+       'Atheresthes evermanni',
+       'Sebastes borealis',
+       'Sebastolobus alascanus',
+       'Glyptocephalus zachirus',
+       'Bathyraja aleutica')
 
 
 
@@ -158,12 +167,12 @@ n_sim_hist<-100
 
 
 #array to store simulated densities/CPUE
-sim_hist_dens_spp<-array(NA,
-                         dim=c(nrow(bering_sea_slope_grid),length(yrs_region),n_sim_hist,length(spp)),
-                         dimnames=list(1:nrow(bering_sea_slope_grid),unique(yrs_region),1:n_sim_hist,spp))
+# sim_hist_dens_spp<-array(NA,
+#                          dim=c(nrow(bering_sea_slope_grid),length(yrs_region),n_sim_hist,length(spp)),
+#                          dimnames=list(1:nrow(bering_sea_slope_grid),unique(yrs_region),1:n_sim_hist,spp))
 
 
-for (sp in spp) {
+for (sp in spp[c(10,12:15)]) {
 
 #example
 #sp<-spp[1]  
@@ -475,7 +484,7 @@ fit <- tryCatch( {fit_model(settings=settings,
   save(sim_dens, file = paste0("./output/species/",sp,'/simulated historical data/sim_dens_slope.RData'))
   
   #store
-  sim_hist_dens_spp[,,,sp]<-sim_dens
+  #sim_hist_dens_spp[,,,sp]<-sim_dens
 }
 
 #save 100 simulated historical densities for all species
