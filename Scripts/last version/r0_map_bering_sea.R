@@ -4,6 +4,7 @@
 ##    Script #0
 ##    Create a Bering Sea maps
 ##    Sampling approach maps
+##    Baseline strata
 ##    Daniel Vilas (danielvilasgonzalez@gmail.com/dvilasg@uw.edu/daniel.vilas@noaa.gov)
 ##    Lewis Barnett, Zack Oyafuso, Megsie Siple
 ##    
@@ -323,10 +324,11 @@ seg2<-as.data.frame(seg1)
 zoomin<-
     ggplot()+
     geom_raster(data=ak_bathy_5,aes(x=x,y=y,fill=ak_bathy_NAD83))+
-    geom_sf(data=ebs_layers$survey.strata,fill=NA,color='grey40')+
+    geom_sf(data=ebs_layers$survey.strata,fill=NA,color='grey30')+
     geom_segment(aes(x = seg2[1,'x'], y = seg2[1,'y'], xend = seg2[2,'x'], yend = seg2[2,'y']), colour = "black")+
     geom_segment(aes(x = seg2[3,'x'], y = seg2[3,'y'], xend = seg2[4,'x'], yend = seg2[4,'y']), colour = "black")+
     geom_point(data=pts,aes(x=Lon,y=Lat),shape=4,size=1)+
+    geom_point(data=subset(pts,corner==TRUE),aes(x=Lon,y=Lat),shape=4,size=1,color='red')+
     geom_polygon(data=ak_sppoly,aes(x=long,y=lat,group=group),color='black',linewidth=0.2,fill = 'grey80')+
     #geom_polygon(data=eez_sh33,aes(x=long,y=lat,group=group),fill=NA,color='grey40')+
     scale_x_continuous(expand = c(0,0),position = 'bottom',
@@ -343,7 +345,7 @@ zoomin<-
     scale_fill_gradient2(low = '#B2EBF2','grey90',#'#c1f2fe',
                         high = '#006064',#'#007c9b',
                        limits=c(0,200),oob = scales::squish,breaks=c(0,50,100,200),
-                       labels=c('0','50','100',paste0('200 - ',round(maxValue(ak_bathy_4)))),
+                       labels=c('0','50','100',paste0('200')), #round(maxValue(ak_bathy_4))
                         na.value = 'white',
                         name='depth (m)',
                         guide = guide_colorbar(frame.colour = 'black',ticks.colour = 'black'))+
@@ -405,7 +407,7 @@ zoomout<-
 
 #save plot
 dir.create('./figures/')
-ragg::agg_png(paste0('./figures/map_bering4.png'), width = 7, height = 7, units = "in", res = 300)
+ragg::agg_png(paste0('./figures/map_bering5.png'), width = 7, height = 7, units = "in", res = 300)
 grid.newpage()
 vp_b <- viewport(width = 1, height = 1, x = 0.5, y = 0.5)  # the larger map
 vp_a <- viewport(width = 0.4, height = 0.3, x = 0.219, y = 0.846)  # the inset in upper left
