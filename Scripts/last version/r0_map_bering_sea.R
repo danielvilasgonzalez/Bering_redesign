@@ -2,11 +2,11 @@
 ####################################################################
 ##
 ##    Script #0
-##    Create a Bering Sea maps
-##    Sampling approach maps
-##    Baseline strata
+##    Plot biomass by species, year and region
+##    Figure 1
+##    Baseline strata - existing sampling design
 ##    Daniel Vilas (danielvilasgonzalez@gmail.com/dvilasg@uw.edu/daniel.vilas@noaa.gov)
-##    Lewis Barnett, Zack Oyafuso, Megsie Siple
+##    Lewis Barnett, Stan Kotwicki, Zack Oyafuso, Megsie Siple, Leah Zacher, Lukas Defilippo, Andre Punt
 ##    
 ####################################################################
 ####################################################################
@@ -21,7 +21,7 @@ rm(list = ls(all.names = TRUE))
 gc() 
 
 #libraries from cran to call or install/load
-pack_cran<-c('ggspatial','raster','rasterVis','rgeos','scales','rnaturalearth','grid','ggplot2','lubridate')
+pack_cran<-c('cowplot','ggspatial','raster','rasterVis','rgeos','scales','rnaturalearth','grid','ggplot2','lubridate','ragg','rgdal')
 
 #install pacman to use p_load function - call library and if not installed, then install
 if (!('pacman' %in% installed.packages())) {
@@ -111,7 +111,7 @@ bs_sh1<-raster::union(EBSshelf_sh,NBS_sh)
 bs_sh<-raster::union(bs_sh1,EBSslope_sh)
 
 #####################################
-# Depth raster (from gebco)
+# Depth raster (from gebco) - downloaded in december 2022
 #####################################
 
 #create directory
@@ -265,21 +265,19 @@ ggplot()+
 #load baseline strata
 load('./output/baseline_strata.RData')
 
+#corner stations
 baseline_strata$locations[grep('GF|HG|JI|IH|ON|QP|PO',baseline_strata$locations$stationid),]
 baseline_strata$locations$corner<-ifelse(grepl('GF|HG|JI|IH|ON|QP|PO',baseline_strata$locations$stationid),'TRUE','FALSE')
 #tapply(baseline_strata$locations$stratum, baseline_strata$locations$corner, function(x) {length(x[!is.na(x)])})
 #aggregate(baseline_strata$locations, by=list(baseline_strata$locations$stratum, baseline_strata$locations$corner), FUN=length)
 
+#sort
 baseline_strata$locations<-baseline_strata$locations[order(baseline_strata$locations$cell),]
 baseline_strata$locations$difference <- c( NA, diff( baseline_strata$locations$cell ) )
 mean(baseline_strata$locations$difference,na.rm=TRUE)/2 #so 50
 
 #baseline_strata
 pts<-baseline_strata$locations
-#coordinates(pts)<-~longitude + latitude
-#proj4string(pts) <- CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0") 
-#pts<-spTransform(pts,CRSobj = CRS('+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs'))
-#pts<-as.data.frame(pts)
 
 #####################################
 # EBS+NBS grid 
@@ -314,7 +312,7 @@ grid1<-as.data.frame(grid)
 ######################################################
 
 #segment for pointing islands in the zoomin plot
-seg<-data.frame('x'=c(-170,-169,-172.9,-176.7,-179,-168.9),'y'=c(56.8,55,60.5,62.3, 62.1,54.4))
+seg<-data.frame('x'=c(-170,-169,-172.9,-176.7,-179,-168.9,-170.9,-169,-169.5),'y'=c(56.8,55,60.5,62.3, 62.1,54.4,63.5,67,67.5))
 coordinates(seg)<- ~x + y
 proj4string(seg) <- CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0") 
 seg1<-spTransform(seg,CRSobj = CRS('+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs'))
@@ -323,24 +321,22 @@ seg2<-as.data.frame(seg1)
 #zoomin plot
 zoomin<-
     ggplot()+
-    geom_raster(data=ak_bathy_5,aes(x=x,y=y,fill=ak_bathy_NAD83))+
     geom_sf(data=ebs_layers$survey.strata,fill=NA,color='grey30')+
+    geom_polygon(data=ak_sppoly,aes(x=long,y=lat,group=group),color='black',linewidth=0.2,fill = 'grey80')+
     geom_segment(aes(x = seg2[1,'x'], y = seg2[1,'y'], xend = seg2[2,'x'], yend = seg2[2,'y']), colour = "black")+
     geom_segment(aes(x = seg2[3,'x'], y = seg2[3,'y'], xend = seg2[4,'x'], yend = seg2[4,'y']), colour = "black")+
+    geom_segment(aes(x = seg2[7,'x'], y = seg2[7,'y'], xend = seg2[8,'x'], yend = seg2[8,'y']), colour = "black")+
     geom_point(data=pts,aes(x=Lon,y=Lat),shape=4,size=1)+
     geom_point(data=subset(pts,corner==TRUE),aes(x=Lon,y=Lat),shape=4,size=1,color='red')+
-    geom_polygon(data=ak_sppoly,aes(x=long,y=lat,group=group),color='black',linewidth=0.2,fill = 'grey80')+
     #geom_polygon(data=eez_sh33,aes(x=long,y=lat,group=group),fill=NA,color='grey40')+
     scale_x_continuous(expand = c(0,0),position = 'bottom',
-                       breaks = c(-175,-170,-165,-160,-155),sec.axis = dup_axis())+
+                       breaks = c(-180,-175,-170,-165,-160,-155),sec.axis = dup_axis())+
     geom_polygon(data=NBS_sh,aes(x=long,y=lat,group=group),fill=NA,col='black')+
     geom_polygon(data=EBSshelf_sh,aes(x=long,y=lat,group=group),fill=NA,col='black')+
     #geom_polygon(data=EBSslope_sh,aes(x=long,y=lat,group=group),fill=NA,col='black')+
     coord_sf(crs = '+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs',
              xlim = panel_extent$x,
              ylim = panel_extent$y,
-             #lim = c(panel_extent$x[1]+200000,panel_extent$x[2]),
-             #ylim = c(panel_extent$y[1],panel_extent$y[2]-200000),
              label_axes = "-NE-")+
     scale_fill_gradient2(low = '#B2EBF2','grey90',#'#c1f2fe',
                         high = '#006064',#'#007c9b',
@@ -350,7 +346,7 @@ zoomin<-
                         name='depth (m)',
                         guide = guide_colorbar(frame.colour = 'black',ticks.colour = 'black'))+
     theme(aspect.ratio = 1,panel.grid.major = element_line(color = rgb(0, 0, 0,20, maxColorValue = 285), linetype = 'dashed', linewidth =  0.5),
-          panel.background = element_rect(fill = NA),panel.ontop = TRUE,text = element_text(size=10),
+          panel.background = element_rect(fill = NA),panel.ontop = TRUE,text = element_text(size=12),
           legend.background =  element_rect(fill = "transparent", colour = "transparent"),legend.key.height= unit(25, 'points'),
           legend.key.width= unit(25, 'points'),axis.title = element_blank(),legend.position = c(0.12,0.47), #c(0.12,0.47)
           panel.border = element_rect(fill = NA, colour = 'black'),legend.key = element_rect(color="black"),
@@ -364,6 +360,7 @@ zoomin<-
     annotate("text", x = -816559, y = 1024909, label = "EBS",size=7)+
     annotate("text", x = seg2[5,'x'], y = seg2[5,'y'], label = "St. Matthew\nIsland",size=5,lineheight = 0.9)+
     annotate("text", x = seg2[6,'x'], y = seg2[6,'y'], label = "Pribilof\nIslands",size=5,lineheight = 0.9)+
+    annotate("text", x = seg2[9,'x'], y = seg2[9,'y'], label = "St. Lawrence\nIsland",size=5,lineheight = 0.9)+
     annotation_scale(location='tr')+
     scale_y_continuous(expand = c(0,0),position = 'right',sec.axis = dup_axis())+
     annotate("text", x = -1376559, y = 744900, label = "italic('Bering Sea')",parse=TRUE,size=9)
@@ -407,35 +404,139 @@ zoomout<-
 
 #save plot
 dir.create('./figures/')
-ragg::agg_png(paste0('./figures/map_bering5.png'), width = 7, height = 7, units = "in", res = 300)
+agg_png(paste0('./figures/map_bering6.png'), width = 7, height = 7, units = "in", res = 300)
 grid.newpage()
 vp_b <- viewport(width = 1, height = 1, x = 0.5, y = 0.5)  # the larger map
-vp_a <- viewport(width = 0.4, height = 0.3, x = 0.219, y = 0.846)  # the inset in upper left
+vp_a <- viewport(width = 0.4, height = 0.3, x = 0.217, y = 0.846)  # the inset in upper left
 print(zoomin , vp = vp_b)
 print(zoomout , vp = vp_a)
+dev.off()
+
+#depth miniplot
+pd<-
+ggplot()+
+  geom_raster(data=ak_bathy_5,aes(x=x,y=y,fill=ak_bathy_NAD83))+
+  geom_polygon(data=ak_sppoly,aes(x=long,y=lat,group=group),color='black',linewidth=0.2,fill = 'grey80')+
+  scale_x_continuous(expand = c(0,0),position = 'bottom',
+                     breaks = c(-180,-175,-170,-165,-160,-155),sec.axis = dup_axis())+
+  geom_polygon(data=NBS_sh,aes(x=long,y=lat,group=group),linewidth=0.3,fill=NA,col='black')+
+  geom_polygon(data=EBSshelf_sh,aes(x=long,y=lat,group=group),linewidth=0.3,fill=NA,col='black')+
+  coord_sf(crs = '+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs',
+           xlim = panel_extent$x,
+           ylim = c(panel_extent$y[1],panel_extent$y[2]-300000),
+           label_axes = "-NE-")+
+  scale_fill_gradient2(high = '#1ABC9C',#'#007c9b',
+                       limits=c(0,200),oob = scales::squish,breaks=c(0,50,100,200),
+                       labels=c('0','50','100',paste0('200')), #round(maxValue(ak_bathy_4))
+                       na.value = 'white',
+                       name='depth (m)',
+                       guide = guide_colorbar(frame.colour = 'black',ticks.colour = 'black'))+
+  theme(aspect.ratio = 1,panel.grid.major = element_line(color = rgb(0, 0, 0,20, maxColorValue = 285), linetype = 'dashed', linewidth =  0.5),
+        panel.background = element_rect(fill = NA),panel.ontop = TRUE,text = element_text(size=12),
+        legend.background =  element_rect(fill = "transparent", colour = "transparent"),legend.key.height= unit(20, 'points'),
+        legend.key.width= unit(15, 'points'),axis.title = element_blank(),legend.position = c(0.13,0.55), #c(0.12,0.47)
+        panel.border = element_rect(fill = NA, colour = 'black'),legend.key = element_rect(color="black"),
+        axis.text = element_text(color='black'),legend.spacing.y = unit(10, 'points'),
+        axis.text.y.right = element_text(hjust= 0.1 ,margin = margin(0,0,0,-28, unit = 'points'),color='black'),
+        axis.text.x = element_text(vjust = 6, margin = margin(-4,0,0,0, unit = 'points'),color='black'),
+        axis.ticks.length = unit(-5,"points"))+
+  scale_y_continuous(expand = c(0,0),position = 'right',sec.axis = dup_axis(),breaks = c(65,60,55))#+
+
+
+#load optim file (in script #6 to get meanTemp and varSBT)
+load('./output/multisp_optimization_static_data_ebsnbs.RData')
+head(df)
+coordinates(df) <- ~ Lon + Lat
+proj4string(df)<-CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
+#proj4string(strata_pol) <- CRS('+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs') 
+df1<-spTransform(df,CRSobj = CRS('+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs'))
+df1<-as.data.frame(df1,xy=TRUE)
+
+#varSBT miniplot
+pv<-
+ggplot()+
+  geom_point(data=df1,aes(x=Lon,y=Lat,color=varTemp),size=0.3)+
+  geom_polygon(data=ak_sppoly,aes(x=long,y=lat,group=group),color='black',linewidth=0.2,fill = 'grey80')+
+  scale_x_continuous(expand = c(0,0),position = 'bottom',
+                     breaks = c(-180,-175,-170,-165,-160,-155),sec.axis = dup_axis())+
+  geom_polygon(data=NBS_sh,aes(x=long,y=lat,group=group),linewidth=0.3,fill=NA,col='black')+
+  geom_polygon(data=EBSshelf_sh,aes(x=long,y=lat,group=group),linewidth=0.3,fill=NA,col='black')+
+  coord_sf(crs = '+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs',
+           xlim = panel_extent$x,
+           ylim = c(panel_extent$y[1],panel_extent$y[2]-300000),
+           label_axes = "-NE-")+
+  scale_color_gradient2(high = '#3498DB',#'#007c9b',
+                       name='varSBT (°C)',
+                       guide = guide_colorbar(frame.colour = 'black',ticks.colour = 'black'))+
+  theme(aspect.ratio = 1,panel.grid.major = element_line(color = rgb(0, 0, 0,20, maxColorValue = 285), linetype = 'dashed', linewidth =  0.5),
+        panel.background = element_rect(fill = NA),panel.ontop = TRUE,text = element_text(size=12),
+        legend.background =  element_rect(fill = "transparent", colour = "transparent"),legend.key.height= unit(20, 'points'),
+        legend.key.width= unit(15, 'points'),axis.title = element_blank(),legend.position = c(0.16,0.55), #c(0.12,0.47)
+        panel.border = element_rect(fill = NA, colour = 'black'),legend.key = element_rect(color="black"),
+        axis.text = element_text(color='black'),legend.spacing.y = unit(10, 'points'),
+        axis.text.y.right = element_text(hjust= 0.1 ,margin = margin(0,0,0,-28, unit = 'points'),color='black'),
+        axis.text.x = element_text(vjust = 6, margin = margin(-4,0,0,0, unit = 'points'),color='black'),
+        axis.ticks.length = unit(-5,"points"))+
+  scale_y_continuous(expand = c(0,0),position = 'right',sec.axis = dup_axis(),breaks = c(65,60,55))#+
+
+#meanTemp miniplot
+pt<-
+  ggplot()+
+  geom_point(data=df1,aes(x=Lon,y=Lat,color=meanTemp),size=0.3)+
+  geom_polygon(data=ak_sppoly,aes(x=long,y=lat,group=group),color='black',linewidth=0.2,fill = 'grey80')+
+  scale_x_continuous(expand = c(0,0),position = 'bottom',
+                     breaks = c(-180,-175,-170,-165,-160,-155),sec.axis = dup_axis())+
+  geom_polygon(data=NBS_sh,aes(x=long,y=lat,group=group),linewidth=0.3,fill=NA,col='black')+
+  geom_polygon(data=EBSshelf_sh,aes(x=long,y=lat,group=group),linewidth=0.3,fill=NA,col='black')+
+  coord_sf(crs = '+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs',
+           xlim = panel_extent$x,
+           ylim = c(panel_extent$y[1],panel_extent$y[2]-300000),
+           label_axes = "-NE-")+
+  scale_color_gradient2(low = 'grey90',#'#c1f2fe',
+    high = '#556111',#'#007c9b',
+    name='SBT (°C)',
+    guide = guide_colorbar(frame.colour = 'black',ticks.colour = 'black'))+
+  theme(aspect.ratio = 1,panel.grid.major = element_line(color = rgb(0, 0, 0,20, maxColorValue = 285), linetype = 'dashed', linewidth =  0.5),
+        panel.background = element_rect(fill = NA),panel.ontop = TRUE,text = element_text(size=12),
+        legend.background =  element_rect(fill = "transparent", colour = "transparent"),legend.key.height= unit(20, 'points'),
+        legend.key.width= unit(15, 'points'),axis.title = element_blank(),legend.position = c(0.16,0.55), #c(0.12,0.47)
+        panel.border = element_rect(fill = NA, colour = 'black'),legend.key = element_rect(color="black"),
+        axis.text = element_text(color='black'),legend.spacing.y = unit(10, 'points'),
+        axis.text.y.right = element_text(hjust= 0.1 ,margin = margin(0,0,0,-28, unit = 'points'),color='black'),
+        axis.text.x = element_text(vjust = 6, margin = margin(-4,0,0,0, unit = 'points'),color='black'),
+        axis.ticks.length = unit(-5,"points"))+
+  scale_y_continuous(expand = c(0,0),position = 'right',sec.axis = dup_axis(),breaks = c(65,60,55))#+
+
+#combine two plots
+pp<-plot_grid(pd,pv,ncol=1)
+
+#save env plot
+agg_png(paste0('./figures/env_map.png'), width = 4, height = 7, units = "in", res = 300)
+print(pp)
 dev.off()
 
 #####################################
 # Slope strata
 #####################################
 
+#get slope data
 slope<-akgfmaps::get_base_layers(select.region = 'ebs.slope', set.crs = "EPSG:3338")
 slop_sppoly<-as(slope$survey.strata, 'Spatial')
-
 
 #strata for depth and subarea, since we are only using 200-400 and 6 subareas
 plot(slop_sppoly['STRATUM'])
 length(unique(slop_sppoly$STRATUM))
 
-str(slop_sppoly@data)
-
+#get stratums wfor 200-400m slope
 slope200_400<-sort(unique(slop_sppoly$STRATUM))[c(1,6,11,16,21,27)]
 #slop_sppoly[,"STRATUM"][slop_sppoly[,"STRATUM"] %in% slope200_400,]
 
+#get stratum and sf object
 xx<-slop_sppoly['STRATUM']
 xx1<-xx[xx$STRATUM %in% slope200_400,]
 xx2<-as(xx1, "sf")
 
+#plot
 ggplot()+
   geom_sf(data=xx2,aes(fill=as.factor(STRATUM)))+
   geom_polygon(data=ak_sppoly,aes(x=long,y=lat,group=group),fill = 'grey60')+
@@ -443,51 +544,10 @@ ggplot()+
            #xlim = c(panel_extent$x[1]+200000,panel_extent$x[2]),
            xlim = c(panel_extent$x[1]+200000,panel_extent$x[2]+100000),
            ylim = c(panel_extent$y[1]-100000,panel_extent$y[2]-200000),
-           label_axes = "-NE
-           
-           -")
-
-
-
-
-all1<-readRDS(paste0('./data processed/species/slope_shelf_EBS_NBS_data_geostat.rds'))
-all2<-subset(all1,survey_name=='Eastern Bering Sea Slope Bottom Trawl Survey' & depth_m<=400)
-all3<-all2[,c("hauljoin","year","lat_start","lon_start")]
-dim(unique(all3));dim(all3)
-all4<-unique(all3)
-
-#coordinates(all4)<- ~ lat_strat
-#df to spatialpoint df
-coordinates(all4) <- ~ lon_start + lat_start
-proj4string(all4)<-CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
-
-#reproject coordinates for plotting purposes
-all4<-spTransform(all4,'+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs')
-#all4<-data.frame(all4)
-
-#over(all4,xx1)
-summary(all2)
-all4$strata<-as.vector(over(all4,xx1))$STRATUM
-names(all4)
-all5<-data.frame(all4)
-all5<-all5[complete.cases(all5),]
-yy<-aggregate(hauljoin ~  strata+year,all5,FUN=length)
-yy1<-aggregate(hauljoin ~  strata,yy,FUN=mean)
-yy1
-yy2<-aggregate(hauljoin ~  year,all5,FUN=length)
-mean(yy2$hauljoin)
-
-slop_area<-as(slope$survey.area, 'Spatial')
-dyy<-slop_area['Shape_Area']
-plot(slop_area)
-
-
-over(slop_area,slop_sppoly)
-slope$survey.strata
-
+           label_axes = "-NE-")
 
 #################################################
-# CREATE DATA SAMPLING SCENARIO BASELINE.    - - need to add slope
+# CREATE DATA SAMPLING SCENARIO BASELINE (existing)
 #################################################
 
 #load grid of NBS and EBS
@@ -562,18 +622,11 @@ y<-aggregate(locations$cell,by=list(locations$Stratum),length)
 yc<-aggregate(subset(locations,corner!=TRUE)[,'cell'],by=list(subset(locations,corner!=TRUE)[,'Stratum']),length)
 n_samples<-data.frame('stratum'=yc$Group.1,'scnbase'=y$x,'scnbase_bis'=yc$x)
 
-# grid1<-grid
-# coordinates(grid1)<- ~ Lon + Lat
-# crs(grid1)<-'+proj=aea +lat_0=50 +lon_0=-154 +lat_1=55 +lat_2=65 +x_0=0 +y_0=0 +datum=NAD83 +units=m +no_defs'
-# 
-# xx<- as(x, 'Spatial')
-# #grid over polygon to get samples grid which current baseline strata
-# cell_strata<-data.frame(as.data.frame(grid1,'stratum'=over(grid1,xx)[,'Stratum']))
-
 #list baseline strata
 baseline_strata<-list(strata_areas=strata_areas,locations=locations,n_samples=n_samples,cell_strata=as.data.frame(grid))
 
 #create directory
 dir.create('./output/',showWarnings = FALSE)
+
 #save data
 save(baseline_strata,file='./output/baseline_strata.RData')
