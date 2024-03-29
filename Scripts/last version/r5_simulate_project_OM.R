@@ -443,7 +443,7 @@ for (sp in spp) {
      pm<-VAST::project_model(x = fit,
                              working_dir = paste0('./shelf EBS NBS VAST/',sp,'/'),
                              n_proj = n_proj,
-                             n_samples = n_sim_proj/2, #n_sim_proj?
+                             n_samples = n_sim_proj/2, #n_sim_proj=100
                              new_covariate_data = new_data,
                             historical_uncertainty = 'none')
     
