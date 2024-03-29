@@ -4,7 +4,7 @@
 ##    Create raster of SBT for species projections
 ##    Plot SBT projection figures - scenarios annual maps and SBT change
 ##    Daniel Vilas (danielvilasgonzalez@gmail.com/dvilasg@uw.edu/daniel.vilas@noaa.gov)
-##    Lewis Barnett, Zack Oyafuso, Megsie Siple
+##    Lewis Barnett, Stan Kotwicki, Zack Oyafuso, Megsie Siple, Leah Zacher, Lukas Defilippo, Andre Punt
 ##
 ####################################################################
 ####################################################################

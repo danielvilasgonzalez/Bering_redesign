@@ -8,7 +8,7 @@
 ##    (shelf Eastern Bering Sea, slope Eastern Bering Sea, northern Bering Sea)
 ##    Save data_geostat_temp file to fit VAST
 ##    Daniel Vilas (danielvilasgonzalez@gmail.com/dvilasg@uw.edu/daniel.vilas@noaa.gov)
-##    Lewis Barnett, Zack Oyafuso, Megsie Siple
+##    Lewis Barnett, Stan Kotwicki, Zack Oyafuso, Megsie Siple, Leah Zacher, Lukas Defilippo, Andre Punt
 ##
 ####################################################################
 ####################################################################

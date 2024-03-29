@@ -7,7 +7,7 @@
 ##    Create data_geostat file to fit OM VAST 
 ##    *sea botton temperature is appended in the next script (#3)
 ##    Daniel Vilas (danielvilasgonzalez@gmail.com/dvilasg@uw.edu/daniel.vilas@noaa.gov)
-##    Lewis Barnett, Zack Oyafuso, Megsie Siple
+##    Lewis Barnett, Stan Kotwicki, Zack Oyafuso, Megsie Siple, Leah Zacher, Lukas Defilippo, Andre Punt
 ##
 ####################################################################
 ####################################################################

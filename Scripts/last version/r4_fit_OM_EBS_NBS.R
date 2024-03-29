@@ -3,7 +3,7 @@
 ##    
 ##    fit single sp VAST model for the EBS shelf and NBS using temp (SBT, BotTemp) with cubic effect 
 ##    Daniel Vilas (danielvilasgonzalez@gmail.com/dvilasg@uw.edu/daniel.vilas@noaa.gov)
-##    Lewis Barnett, Zack Oyafuso, Megsie Siple
+##    Lewis Barnett, Stan Kotwicki, Zack Oyafuso, Megsie Siple, Leah Zacher, Lukas Defilippo, Andre Punt
 ##
 ##    *evaluate parameters : https://github.com/James-Thorson-NOAA/VAST/blob/main/R/make_parameters.R
 ##    https://rdrr.io/github/James-Thorson/VAST/man/check_fit.html
@@ -73,7 +73,6 @@ spp<-c('Limanda aspera',
 fol_region<-c('shelf EBS NBS VAST')
 
 #load grid
-load('./extrapolation grids/lastversion_grid_EBS.RData')
 load('./data processed/grid_EBS_NBS.RData')
 
 #dir create for slope region results
@@ -100,13 +99,13 @@ df2<-subset(df1,year %in% c(yrs,2020))
 
 #select rows and rename
 df3<-df2[,c("lat_start","lon_start","year",'scientific_name','weight_kg','effort','depth_m','LogDepth',"ScaleLogDepth",'Scalebottom_temp_c','bottom_temp_c','survey_name')]
-colnames(df3)<-c('Lat','Lon','Year','Species','CPUE_kg','Effort','Depth','LogDepth','ScaleLogDepth','ScaleBotTemp','BotTemp','Region')
+colnames(df3)<-c('Lat','Lon','Year','Species','Weight_kg','Swept_area','Depth','LogDepth','ScaleLogDepth','ScaleBotTemp','SBT_insitu','Region')
 
 #data geostat
 df4<-subset(df3,Region %in% c("Eastern Bering Sea Crab/Groundfish Bottom Trawl Survey",
                               "Northern Bering Sea Crab/Groundfish Survey - Eastern Bering Sea Shelf Survey Extension"))
 
-data_geostat<-df4[complete.cases(df4[,c('CPUE_kg')]),]
+data_geostat<-df4[complete.cases(df4[,c('Weight_kg')]),]
 data_geostat<-subset(data_geostat,Year %in% yrs)
 
 #if kamtchatka arrowtooth flounder only use data from 1991 because of missidentification issue
@@ -116,7 +115,7 @@ if (sp=='Atheresthes evermanni') {
 
 #covariate data - filter by year and complete cases for env variables
 #covariate_data<-subset(df2,Year>=yrs_region[1] & Year<=yrs_region[2])
-covariate_data<-df3[complete.cases(df3[,c('BotTemp')]),] #,'ScaleLogDepth'
+covariate_data<-df3[complete.cases(df3[,c('SBT_insitu')]),] #,'ScaleLogDepth'
 
 #get grid_ebs_nbs
 grid_ebs<-grid.ebs_year[which(grid.ebs_year$region != 'EBSslope' & grid.ebs_year$Year %in% unique(data_geostat$Year)),]
@@ -126,18 +125,18 @@ grid_df<-data.frame(Lat=grid_ebs$Lat,
                     Lon=grid_ebs$Lon,
                     Year=grid_ebs$Year,
                     Species=rep(sp,times=nrow(grid_ebs)),
-                    CPUE_kg=mean(data_geostat$CPUE_kg),
-                    Effort=grid_ebs$Area_in_survey_km2,
+                    Weight_kg=mean(data_geostat$Weight_kg),
+                    Swept_area=grid_ebs$Area_in_survey_km2,
                     Depth=grid_ebs$Depth,
-                    BotTemp=grid_ebs$Temp,
+                    SBT_insitu=grid_ebs$Temp,
                     Region=grid_ebs$region,
                     stringsAsFactors = T)
 
 #ha to km2
-data_geostat$Effort<-data_geostat$Effort/100 #(from ha to km²)
+data_geostat$Swept_area<-data_geostat$Swept_area/100 #(from ha to km²)
 
 #rbind grid and data_geostat to get prediction into grid values when simulating data
-data_geostat1<-rbind(data_geostat[,c("Lat","Lon","Year","Species","CPUE_kg","Effort","Depth","BotTemp","Region")],
+data_geostat1<-rbind(data_geostat[,c("Lat","Lon","Year","Species","Weight_kg","Swept_area","Depth","SBT_insitu","Region")],
                      grid_df)
 
 #to get predictions in locations but not influencing fit
@@ -151,7 +150,7 @@ saveRDS(data_geostat1,paste(out_dir,fol_region,sp,'data_geostat_temp.rds',sep='/
 print(
   percent_zeros <- data_geostat %>%
     group_by(Year) %>%
-    summarize(percentage_zeros = mean(CPUE_kg == 0) * 100)
+    summarize(percentage_zeros = mean(Weight_kg == 0) * 100)
 )
 
 #regions (predefined in VAST)
@@ -178,7 +177,7 @@ settings <- make_settings(n_x=knots,
                                       "Calculate_effective_area" = F)) 
 
 #formula and predictors settings for each model
-X1_formula<-' ~ bs(BotTemp, degree=3, intercept=FALSE)'
+X1_formula<-' ~ bs(SBT_insitu, degree=3, intercept=FALSE)'
 X1config_cp = array( c(1,1), dim=c(1,1))
 
 #formula for positive catch rates equal to presence/absence
@@ -192,14 +191,14 @@ fit <- tryCatch( {fit_model(settings=settings,
                             Lat_i=data_geostat1$Lat, 
                             Lon_i=data_geostat1$Lon,
                             t_i=data_geostat1$Year,
-                            b_i=data_geostat1$CPUE_kg,
+                            b_i=data_geostat1$Weight_kg,
                             c_iz = as.numeric(factor(data_geostat1$Species))-1,
-                            a_i=data_geostat1$Effort,
+                            a_i=data_geostat1$Swept_area,
                             #input_grid=grid.ebs,
                             getJointPrecision = TRUE,
                             test_fit=FALSE,
                             create_strata_per_region = TRUE,  
-                            covariate_data = covariate_data[,c('Year',"Lat","Lon","ScaleLogDepth","LogDepth",'ScaleBotTemp','BotTemp',"CPUE_kg")], 
+                            covariate_data = covariate_data[,c('Year',"Lat","Lon",'SBT_insitu',"Weight_kg")], 
                             X1_formula =  X1_formula,
                             X2_formula = X2_formula, 
                             newtonsteps = 1,
