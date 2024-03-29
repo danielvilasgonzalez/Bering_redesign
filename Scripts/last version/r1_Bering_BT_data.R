@@ -163,11 +163,6 @@ unique(catch$common_name)[grepl('rock sole',unique(catch$common_name))]
 subset(catch, common_name=='rock sole unid.')
 
 #check other spp
-# shortraker rockfish
-# blackspotted and rougheye rockfish
-# other rockfish (mostly shortspine thornyhead on slope)
-# other flatfish (almost all rex sole, but Dover and deepsea sole are present here in low numbers)
-# other skates (represent with Aleutian skate for a single species, as it is the most abundant and commonly observed in the 2016 survey; if necessary, could consider a combo of Aleutian/Bering/Commander: Bering is much less common but more shallow, Commander are less common and deeper)
 unique(catch$common_name)[grep('shortraker',unique(catch$common_name))] #shortraker rockfish - #Sebastes borealis
 #catch[which(catch$common_name=='shortraker rockfish'),]
 unique(catch$common_name)[grep('shortspine',unique(catch$common_name))] #shortspine thornyhead - #Sebastolobus alascanus

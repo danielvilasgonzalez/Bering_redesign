@@ -2,7 +2,7 @@
 ####################################################################
 ##
 ##    Script #0
-##    Plot biomass by species, year and region
+##    Plot sampling stations for each region
 ##    Figure 1
 ##    Baseline strata - existing sampling design
 ##    Daniel Vilas (danielvilasgonzalez@gmail.com/dvilasg@uw.edu/daniel.vilas@noaa.gov)

@@ -101,7 +101,7 @@ id.bering.folder<-files[which(files$name=='Bering redesign RWP project'),'id']
 
 #list of files and folder
 files.1<-googledrive::drive_ls(id.bering.folder$id)
-id.data<-files.1[which(files.1$name=='data raw'),'id']
+id.data<-files.1[which(files.1$name=='data'),'id']
 files.2<-googledrive::drive_ls(id.data$id)
 
 #####################################
@@ -154,6 +154,9 @@ bering_sea_slope_grid$region<-'EBSslope'
 grid.ebs<-rbind(northern_bering_sea_grid,
                eastern_bering_sea_grid,
                bering_sea_slope_grid[,c("Lat","Lon","Area_in_survey_km2",'Stratum',"region")])
+
+#check km2 per region (grid data)
+aggregate(Area_in_survey_km2 ~ region, grid.ebs,FUN=sum)
 
 #####################################
 # Add GEBCO depth (downloaded on August 2022)
@@ -506,5 +509,3 @@ for (sp in spp) {
           paste0('./data processed/species/',sp,'/data_geostat_temp.rds'))
   
 }
-
-

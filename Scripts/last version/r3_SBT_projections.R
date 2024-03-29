@@ -2,6 +2,7 @@
 ####################################################################
 ##
 ##    Create raster of SBT for species projections
+##    Plot SBT projection figures - scenarios annual maps and SBT change
 ##    Daniel Vilas (danielvilasgonzalez@gmail.com/dvilasg@uw.edu/daniel.vilas@noaa.gov)
 ##    Lewis Barnett, Zack Oyafuso, Megsie Siple
 ##
@@ -48,7 +49,16 @@ spp<-c('Limanda aspera',
        'Anoplopoma fimbria',
        'Chionoecetes opilio',
        'Paralithodes platypus',
-       'Paralithodes camtschaticus')
+       'Paralithodes camtschaticus',
+       #'Lepidopsetta sp.',
+       'Chionoecetes bairdi',
+       'Sebastes alutus',
+       'Sebastes melanostictus',
+       'Atheresthes evermanni',
+       'Sebastes borealis',
+       'Sebastolobus alascanus',
+       'Glyptocephalus zachirus',
+       'Bathyraja aleutica')
 
 ######################################
 # Create SBT rasters (2023-2027) for projections
@@ -118,6 +128,9 @@ ak_sppoly<-as(ebs_layers$akland, 'Spatial')
 panel_extent <- data.frame(x = c(-1516559.21, -77636.05), #x = c(-1326559.21, -87636.05),
                            y = c(483099.5, 1894909.7)) #y = c(533099.5, 1894909.7))
 
+#list to store plots
+plot_sbt<-list()
+
 #loop over scenarios and projected years
 for (sbt in unique(df_sbt$sbt_n)) {
 
@@ -145,12 +158,12 @@ for (sbt in unique(df_sbt$sbt_n)) {
                          limits=c(-1,15),#oob = scales::squish,breaks=c(0,50,100,200),
                          #labels=c('0','50','100',paste0('200 - ',round(maxValue(ak_bathy_4)))),
                          na.value = 'white',
-                         name='SBT',
+                         name='SBT (°C)',
                          guide = guide_colorbar(frame.colour = 'black',ticks.colour = 'black'))+
     theme(aspect.ratio = 1,panel.grid.major = element_line(color = rgb(0, 0, 0,20, maxColorValue = 285), linetype = 'dashed', linewidth =  0.5),
           panel.background = element_rect(fill = NA),panel.ontop = TRUE,text = element_text(size=10),
           legend.background =  element_rect(fill = "transparent", colour = "transparent"),legend.key.height= unit(25, 'points'),
-          legend.key.width= unit(25, 'points'),axis.title = element_blank(),legend.position = c(0.12,0.47),
+          legend.key.width= unit(25, 'points'),axis.title = element_blank(),legend.position = 'none',
           panel.border = element_rect(fill = NA, colour = 'black'),legend.key = element_rect(color="black"),
           axis.text = element_text(color='black'),legend.spacing.y = unit(10, 'points'),
           axis.text.y.right = element_text(hjust= 0.1 ,margin = margin(0,7,0,-25, unit = 'points'),color='black'),
@@ -160,13 +173,14 @@ for (sbt in unique(df_sbt$sbt_n)) {
     labs(title = '2022')+
     scale_y_continuous(expand = c(0,0),position = 'right',sec.axis = dup_axis())
   
-  #store plot in list
-  plot_list[[1]]<-p
+  # #store plot in list
+  # plot_list[[1]]<-p
     
   #get legend
   legend1 <- cowplot::get_legend( 
     p + 
-      theme(legend.position = "bottom")+ guides(fill=guide_colorbar(title.position='top', title.hjust = 0.5,ticks.colour = 'black',frame.colour = 'black'))
+      theme(legend.key.height= unit(35, 'points'),
+            legend.key.width= unit(35, 'points'),legend.text = element_text(size=14),legend.title = element_text(size=16),legend.position = "bottom")+ guides(fill=guide_colorbar(title.position='top', title.hjust = 0.5,ticks.colour = 'black',frame.colour = 'black'))
   ) 
 
   #create stack
@@ -198,7 +212,7 @@ for (sbt in unique(df_sbt$sbt_n)) {
       geom_polygon(data=ak_sppoly,aes(x=long,y=lat,group=group),color='black',linewidth=0.2,fill = 'grey80')+
       #geom_polygon(data=eez_sh33,aes(x=long,y=lat,group=group),fill=NA,color='grey40')+
       scale_x_continuous(expand = c(0,0),position = 'bottom',
-                         breaks = c(-175,-170,-165,-160,-155),sec.axis = dup_axis())+
+                         breaks = c(-175,-165),sec.axis = dup_axis())+
       coord_sf(crs = '+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs',
                xlim = panel_extent$x,
                ylim = panel_extent$y,
@@ -213,30 +227,32 @@ for (sbt in unique(df_sbt$sbt_n)) {
                            name='SBT',
                            guide = guide_colorbar(frame.colour = 'black',ticks.colour = 'black'))+
       theme(aspect.ratio = 1,panel.grid.major = element_line(color = rgb(0, 0, 0,20, maxColorValue = 285), linetype = 'dashed', linewidth =  0.5),
-            panel.background = element_rect(fill = NA),panel.ontop = TRUE,text = element_text(size=10),
+            panel.background = element_rect(fill = NA),panel.ontop = TRUE,text = element_text(size=14),
             legend.background =  element_rect(fill = "transparent", colour = "transparent"),legend.key.height= unit(25, 'points'),
             legend.key.width= unit(25, 'points'),axis.title = element_blank(),legend.position = 'none', #c(0.12,0.47)
             panel.border = element_rect(fill = NA, colour = 'black'),legend.key = element_rect(color="black"),
             axis.text = element_text(color='black'),legend.spacing.y = unit(10, 'points'),
             plot.margin = margin(0.01,0.01,0.01,0.01), 
-            axis.text.y.right = element_text(hjust= 0.1 ,margin = margin(0,7,0,-25, unit = 'points'),color='black'),
-            axis.text.x = element_text(vjust = 6, margin = margin(-7,0,7,0, unit = 'points'),color='black'),
-            axis.ticks.length = unit(-5,"points"),plot.title = element_text(hjust = 0.01, vjust = -7, size = 14))+
+            axis.text.y.right = element_text(hjust= 0.1 ,margin = margin(0,0,0,-35, unit = 'points'),color='black'),
+            axis.text.x = element_text(vjust = 6, margin = margin(-5,0,0,0, unit = 'points'),color='black'),
+            axis.ticks.length = unit(-5,"points"),plot.title = element_text(hjust = 0.01, vjust = -7, size = 16))+
       labs(title = yrs[y])+
-      scale_y_continuous(expand = c(0,0),position = 'right',sec.axis = dup_axis())
+      scale_y_continuous(expand = c(0,0),position = 'right',sec.axis = dup_axis(), breaks = c(64,60,56))
       
     #store plot
-    plot_list[[y+1]]<-p
+    plot_list[[y]]<-p
     
   }
   
   pgrid1<-cowplot::plot_grid(plotlist = plot_list, nrow = 1)
   #pgrid2<-cowplot::plot_grid(plotlist = plot_list_n, nrow = 2)
-  title <- cowplot::ggdraw() + cowplot::draw_label(paste0(df_sbt[sbt,'Scenario'],' (SBT',sbt,')'), fontface='bold')
+  title <- cowplot::ggdraw() + cowplot::draw_label(paste0(df_sbt[sbt,'Scenario'],' (SBT',sbt,')'), fontface='bold',vjust=1)
+  
+  plot_sbt[[sbt]]<-print(cowplot::plot_grid(title,pgrid1, nrow = 2, rel_heights = c(.05,1)))
   
   #save plots
   ragg::agg_png(paste0('./figures/SBT/sbt',sbt,'.png'), width = 20, height = 5, units = "in", res = 300)
-  print(cowplot::plot_grid(title,pgrid1, legend1, nrow = 3, rel_heights = c(.05,1, .3)))
+  print(cowplot::plot_grid(title,pgrid1, nrow = 2, rel_heights = c(.05,1)))
   dev.off()
   
   #sbt remove 2022
@@ -246,6 +262,14 @@ for (sbt in unique(df_sbt$sbt_n)) {
   #save raster
   writeRaster(sbt_stack, paste0('data processed/SBT projections/SBT_',sbt,'_',paste0(range(yrs)[1],'-',range(yrs)[2]),'.grd'),overwrite=TRUE)
 }
+
+pgrid2<-cowplot::plot_grid(plotlist = plot_sbt, ncol = 1)
+
+ragg::agg_png(paste0('./figures/SBT_future.png'), width = 10, height = 23, units = "in", res = 300)
+print(cowplot::plot_grid(pgrid2,legend1, nrow = 2, rel_heights = c(1,.05)))
+dev.off()
+
+
 
 ######################################
 # Plot SBT projections SBT trend
@@ -262,14 +286,16 @@ df_sbt1$Scenario <- factor(df_sbt1$Scenario, levels = df_sbt$Scenario)
 p<-
   ggplot()+
   geom_line(data=df_sbt1,aes(x=variable,y=value,group=Scenario,color=Scenario),size=0.8)+
-  scale_color_tableau(palette = 'Tableau 10')+
-  #scale_color_manual(values=c("#ea5545", "#f46a9b", "#ef9b20", "#edbf33", "#ede15b", "#bdcf32", "#87bc45", "#27aeef", "#b33dc6"))+
+  #scale_color_tableau(palette = 'Tableau 10')+
+  scale_color_manual(values=c('SBT1_status quo'="grey50", 'SBT2_gradually warm'="#a25db4", 'SBT3_severe gradually warm'="#740094",
+                              'SBT4_warm low variation'="#f5aab4", 'SBT5_warm moderate variation'="#ec6174", 'SBT6_warm high variation'="#e5203a",
+                              'SBT7_warm very high variation'="#c5162d", 'SBT8_warm extreme variation'="#8a1020"))+
   theme_bw()+
   scale_x_discrete(labels=c(2022:2027))+
   labs(color = 'SBTn_scenario name', x = '', y = expression('SBT anomaly (SBT'[y]*'-SBT'[2022]*')'))
 
 #save plot
-ragg::agg_png(paste0('./figures/SBT_projections.png'), width = 7, height = 4, units = "in", res = 300)
+ragg::agg_png(paste0('./figures/SBT_projections_v2.png'), width = 7, height = 4, units = "in", res = 300)
 print(p)
 dev.off()
 
