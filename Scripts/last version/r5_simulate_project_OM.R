@@ -32,8 +32,8 @@ if (!('VAST' %in% installed.packages())) {
 pacman::p_load(pack_cran,character.only = TRUE)
 
 #setwd - depends on computer using
-#out_dir<-'C:/Users/Daniel.Vilas/Work/Adapting Monitoring to a Changing Seascape/' #NOAA laptop  
-out_dir<-'/Users/daniel/Work/Adapting Monitoring to a Changing Seascape/' #mac
+out_dir<-'C:/Users/Daniel.Vilas/Work/Adapting Monitoring to a Changing Seascape/' #NOAA laptop  
+#out_dir<-'/Users/daniel/Work/Adapting Monitoring to a Changing Seascape/' #mac
 #out_dir<-'/Users/daniel/Work/VM' #VM
 setwd(out_dir)
 
@@ -57,7 +57,8 @@ spp<-c('Limanda aspera',
        'Chionoecetes opilio',
        'Paralithodes platypus',
        'Paralithodes camtschaticus',
-       'Chionoecetes bairdi')
+       'Chionoecetes bairdi',
+       'Atheresthes evermanni')
 
 #remove Anoploma and Reinhardtius because habitat preference reasons
 spp<-setdiff(spp, c('Anoplopoma fimbria','Reinhardtius hippoglossoides'))
@@ -78,7 +79,8 @@ spp1<-c('Yellowfin sole',
         'Snow crab',
         'Blue king crab',
         'Red king crab',
-        'Tanner crab')
+        'Tanner crab',
+        'Kamchatka flounder')
 
 #df sp scientific and common
 df_spp<-data.frame('spp'=spp,
@@ -190,22 +192,11 @@ sim_proj_dens_spp<-array(NA,
 #loop over spp
 for (sp in spp) {
   
-  #sp<-spp[14]
+  sp<-spp[15]
   
   #create folder simulation data
   dir.create(paste0('./output/species/',sp,'/'))
   
-  id.data<-files.4[which(files.4$name==sp),'id']
-  files.5<-googledrive::drive_ls(id.data$id)
-  
-  dir.create(paste0('./shelf EBS NBS VAST/',sp))
-  file<-files.5[grep('fit',files.5$name),]
-  
-  # #download file
-  # googledrive::drive_download(file=file$id,
-  #                             path = paste0('./shelf EBS NBS VAST/',sp,'/fit.RData'),
-  #                             overwrite = TRUE)
-  # 
   #get list of fit data
   ff<-list.files(paste0('./shelf EBS NBS VAST/',sp),'fit',recursive = TRUE)
   
@@ -247,27 +238,27 @@ for (sp in spp) {
   
   #select rows and rename
   df3<-df2[,c("lat_start","lon_start","year",'scientific_name','weight_kg','effort','depth_m','LogDepth',"ScaleLogDepth",'Scalebottom_temp_c','bottom_temp_c','survey_name')]
-  colnames(df3)<-c('Lat','Lon','Year','Species','CPUE_kg','Effort','Depth','LogDepth','ScaleLogDepth','ScaleBotTemp','BotTemp','Region')
+  colnames(df3)<-c('Lat','Lon','Year','Species','Weight_kg','Swept_area','Depth','LogDepth','ScaleLogDepth','ScaleBotTemp','SBT_insitu','Region')
   
   #data geostat
   df4<-subset(df3,Region %in% c("Eastern Bering Sea Crab/Groundfish Bottom Trawl Survey",
                                 "Northern Bering Sea Crab/Groundfish Survey - Eastern Bering Sea Shelf Survey Extension"))
   
-  data_geostat<-df4[complete.cases(df4[,c('CPUE_kg')]),]
+  data_geostat<-df4[complete.cases(df4[,c('Weight_kg')]),]
   
   #covariate data - filter by year and complete cases for env variables
   #covariate_data<-subset(df2,Year>=yrs_region[1] & Year<=yrs_region[2])
-  covariate_data<-df3[complete.cases(df3[,c('BotTemp')]),] #,'ScaleLogDepth'
+  covariate_data<-df3[complete.cases(df3[,c('SBT_insitu')]),] #,'ScaleLogDepth'
   
   #add grid to get prediction for simulate data on each cell of the grid (sim$b_i)
   grid_df<-data.frame(Lat=grid_ebs$Lat,
                       Lon=grid_ebs$Lon,
                       Year=grid_ebs$Year,
                       Species=rep(sp,times=nrow(grid_ebs)),
-                      CPUE_kg=mean(data_geostat$CPUE_kg),
-                      Effort=grid_ebs$Area_in_survey_km2,
+                      Weight_kg=mean(data_geostat$Weight_kg),
+                      Swept_area=grid_ebs$Area_in_survey_km2,
                       Depth=grid_ebs$Depth,
-                      BotTemp=grid_ebs$Temp,
+                      SBT_insitu=grid_ebs$Temp,
                       Region=grid_ebs$region,
                       stringsAsFactors = T)
   
@@ -275,7 +266,7 @@ for (sp in spp) {
   data_geostat$Effort<-data_geostat$Effort/100
   
   #rbind grid and data_geostat to get prediction into grid values when simulating data
-  data_geostat1<-rbind(data_geostat[,c("Lat","Lon","Year","Species","CPUE_kg","Effort","Depth","BotTemp","Region")],
+  data_geostat1<-rbind(data_geostat[,c("Lat","Lon","Year","Species","Weight_kg","Swept_area","Depth","SBT_insitu","Region")],
                        grid_df)
   
   #to get predictions in locations but not influencing fit

@@ -86,7 +86,7 @@ for (sp in spp) {
 #loop over species to fit models
 for (sp in spp) {
 
-#sp<-spp[18]
+#=sp<-spp[18]
 
 #print year to check progress
 cat(paste("\n","    ----- ", sp, " -----\n"))  
@@ -225,10 +225,10 @@ if (!is.null(fit)) {
     #plot comparison pred/obs
     ggplot(data = data_geostat1, aes(x = obs)) +
       geom_histogram(aes(color = "obs"), bins = 20, alpha = 0.5, fill='white',position = "identity") +
-      geom_histogram(data = data_geostat1, aes(x = pred, color = "pred"), bins = 20, alpha = 0.5,fill='white', position = "identity") +
+      geom_histogram(data = data_geostat1, aes(x = Weight_kg, color = "pred"), bins = 20, alpha = 0.5,fill='white', position = "identity") +
       scale_color_manual(values = c("obs" = "blue", "pred" = "red"),name='') +
       labs(fill = "") +
-      facet_wrap(~Year,nrow = 1) +
+      facet_wrap(~Year) +
       theme_bw()
   )
 }
