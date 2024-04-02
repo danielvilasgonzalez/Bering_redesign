@@ -1,7 +1,7 @@
 ####################################################################
 ####################################################################
 ##
-##    Get true index from the OM, prepare data for optimization
+##    Get true index from the OM, prepare EBS+NBS data for optimization 
 ##    (using devtools::install_github(repo = "zoyafuso-NOAA/SamplingStrata"))
 ##    Daniel Vilas (daniel.vilas@noaa.gov/dvilasg@uw.edu)
 ##
