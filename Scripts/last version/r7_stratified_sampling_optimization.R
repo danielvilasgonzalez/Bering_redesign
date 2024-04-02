@@ -861,68 +861,78 @@ samp_df$samp_scn<-paste0(paste0('scn',1:nrow(samp_df)))
   ggplot()+
     geom_boxplot(data=df,aes(x=cvtrue,y=common,group=interaction(samp,common)))#,group=samp),color='black',fill='white',stat = "identity", position = position_dodge(width = 0.7),size=2)
     
+  cvs3<-reshape2::melt(cvs2)
     
-  #p1<-
+  p1<-
   ggplot()+
     #geom_boxplot(data=df1,aes(x=cvtrue,y=common,group=interaction(samp,common),color=samp),fill='white', position = position_dodge(width = 0.7),outlier.shape = NA)+
     geom_linerange(data=cvs2,aes(xmin=ss,xmax=ms,x=ms,y=common,color=samp),linewidth=1,stat = "identity", position = position_dodge(width = 0.7))+ 
-    geom_point(data=cvs2,aes(x=ss,y=common,group=samp),shape=4,stat = "identity", position = position_dodge(width = 0.7),size=2)+
-    geom_point(data=cvs2,aes(x=ms,y=common,group=samp),shape=21,stat = "identity", color='black',fill='black',position = position_dodge(width = 0.7),size=2)+
+    geom_point(data=subset(cvs3,variable!='cvtrue'),aes(x=value,y=common,group=samp,shape=variable),stat = "identity", position = position_dodge(width = 0.7),size=1.5)+
+    
+    geom_point(data=cvs2,aes(x=ms,y=common,group=samp),shape=21,stat = "identity", color='black',fill='black',position = position_dodge(width = 0.7),size=1.5,alpha=0.7)+
     #geom_point(data=cvs2,aes(x=cvtrue,y=common,group=samp),shape='*',color='black',stat = "identity", position = position_dodge(width = 0.7),size=7)+
-    geom_point(data=cvs2,aes(x=cvtrue,y=common,group=samp,fill=samp),shape=21,color='black',stat = "identity", position = position_dodge(width = 0.7),size=2)+
-    scale_color_manual(values=c('scn1'='#4b7a99','scn2'='#679bc3','scn3'='#8db6c3'),
-                      labels = c('opt depth','opt varSBT','opt depth + varSBT'),
+    #geom_point(data=cvs2,aes(x=cvtrue,y=common,group=samp,fill=samp),shape=21,color='black',stat = "identity", position = position_dodge(width = 0.7),size=2)+
+    scale_color_manual(values=c('scn1'='#9B59B6','scn2'='#3498DB','scn3'='#1ABC9C'),
+                      labels = c('depth','varSBT','depth + varSBT'),
                       limits=c('scn3','scn2','scn1'),
-                      name='stratification')+
-    scale_fill_manual(values=c('scn1'='#4b7a99','scn2'='#679bc3','scn3'='#8db6c3'),
+                      name='optimized\nsampling design')+
+    scale_fill_manual(values=c('scn1'='#9B59B6','scn2'='#3498DB','scn3'='#1ABC9C'),
                        labels = c('opt depth','opt varSBT','opt depth + varSBT'),
                        limits=c('scn3','scn2','scn1'),
                        name='stratification')+
+    scale_shape_manual(values=c('ss'=4,'ms'=16),
+                      labels = c('single-species','multispecies'),
+                      limits=c('ss','ms'),
+                      name='target stratification')+
     # scale_color_manual(values=c('scn1'='#4b7a99','scn2'='#679bc3','scn3'='#8db6c3'),
     #                   labels = c('opt depth','opt varSBT','opt depth + varSBT'),name='stratification')+
     theme_bw()+
     theme(panel.grid.minor = element_line(linetype=2,color='grey90',),#strip.background = element_rect(fill='white'),
-          legend.key.size = unit(12, 'points'),legend.direction = 'vertical',legend.text = element_text(size=9),legend.position=c(.78,.925),
-          legend.title = element_text(size=10),legend.spacing.x = unit(0.05, "cm"),legend.box.spacing =  unit(0.01, "cm"), #,strip.text = element_text(size=12)
-          strip.background = element_blank(), legend.box.background = element_rect(fill = "white", color = "black"),#legend.background = element_blank(),legend.box = 'horizontal',#legend.justification = 'right',legend.position='bottom',#
+          legend.key.size = unit(15, 'points'),legend.direction = 'vertical',legend.text = element_text(size=10),legend.position = 'right',#legend.position=c(.70,.85),
+          legend.title = element_text(size=11),legend.spacing.x = unit(0.10, "cm"),legend.box.spacing =  unit(0.10, "cm"), #,strip.text = element_text(size=12)
+          strip.background = element_blank(), legend.box.background = element_blank(),#legend.background = element_blank(),legend.box = 'horizontal',#legend.justification = 'right',legend.position='bottom',#
           strip.text = element_blank())+ #axis.text.x = element_text(angle=90,vjust=0.5),
     expand_limits(x = 0)+
-    labs(y='',x='CV')+
-    scale_x_continuous(limits = c(0,max(cvs1$ms)+max(cvs1$ms)*0.1),expand = c(NA,0)) #expand = c(NA,0.1),limits = c(0,NA)
+    labs(y='',x='expected CV')+
+    scale_x_continuous(limits = c(0,max(cvs1$ms)+max(cvs1$ms)*0.3),expand = c(NA,0)) #expand = c(NA,0.1),limits = c(0,NA)
+  
+  p1
+  
+  #save plot
+  ragg::agg_png(paste0('./figures/CVss_CVms.png'),  width = 6, height = 7, units = "in", res = 300)
+  p1
+  dev.off()
+  
   
   cvs1$samp<-factor(cvs1$samp,
                     levels = c('scn3','scn2','scn1'))
   
-  p<- 
-  ggplot()+
-    #geom_linerange(data=cvs1,aes(xmin=ss,xmax=ms,x=ms,y=common,color=samp),linewidth=1,stat = "identity", position = position_dodge(width = 0.7))+ 
-    geom_point(data=cvs1,aes(x=log(ms/ss),y=rev(common),group=samp,fill=samp),stat = "identity", position = position_dodge(width = 0.5),size=3,shape=21)+
-    #geom_point(data=cvs1,aes(x=ms,y=common,group=samp),shape=16,stat = "identity", position = position_dodge(width = 0.7),size=2)+
-      scale_fill_manual(values=c('scn1'='#4b7a99','scn2'='#679bc3','scn3'='#8db6c3'),
-                        labels = c('opt depth','opt varSBT','opt depth + varSBT'),
-                        limits=c('scn3','scn2','scn1'),
-                        name='stratification')+
-    # scale_color_manual(values=c('scn1'='#4b7a99','scn2'='#679bc3','scn3'='#8db6c3'),
-    #                   labels = c('opt depth','opt varSBT','opt depth + varSBT'),name='stratification')+
-    theme_bw()+
-    theme(panel.grid.minor = element_line(linetype=2,color='grey90',),#strip.background = element_rect(fill='white'),
-          legend.key.size = unit(12, 'points'),legend.direction = 'vertical',legend.text = element_text(size=9),legend.position=c(.78,.925),
-          legend.title = element_text(size=10),legend.spacing.x = unit(0.05, "cm"),legend.box.spacing =  unit(0.01, "cm"), #,strip.text = element_text(size=12)
-          strip.background = element_blank(), legend.box.background = element_rect(fill = "white", color = "black"),#legend.background = element_blank(),legend.box = 'horizontal',#legend.justification = 'right',legend.position='bottom',#
-          strip.text = element_blank())+ #axis.text.x = element_text(angle=90,vjust=0.5),
-    expand_limits(x = 0)+
-    labs(y='',x='log(CVms/CVss)')+
-    scale_x_continuous(limits = c(0,max(log(cvs1$ms/cvs1$ss))+max(log(cvs1$ms/cvs1$ss))*0.1),expand = c(NA,0)) #expand = c(NA,0.1),limits = c(0,NA)
-  
-  #save plot
-  ragg::agg_png(paste0('./figures/CVss_CVms_ratio.png'),  width = 5, height = 7, units = "in", res = 300)
-  p
-  dev.off()
-  
-  #save plot
-  ragg::agg_png(paste0('./figures/CVss_CVms.png'),  width = 5, height = 7, units = "in", res = 300)
-  p1
-  dev.off()
+  # #p<- 
+  # ggplot()+
+  #   #geom_linerange(data=cvs1,aes(xmin=ss,xmax=ms,x=ms,y=common,color=samp),linewidth=1,stat = "identity", position = position_dodge(width = 0.7))+ 
+  #   geom_point(data=cvs1,aes(x=log(ms/ss),y=rev(common),group=samp,fill=samp),stat = "identity", position = position_dodge(width = 0.5),size=3,shape=21)+
+  #   #geom_point(data=cvs1,aes(x=ms,y=common,group=samp),shape=16,stat = "identity", position = position_dodge(width = 0.7),size=2)+
+  #     scale_fill_manual(values=c('scn1'='#4b7a99','scn2'='#679bc3','scn3'='#8db6c3'),
+  #                       labels = c('opt depth','opt varSBT','opt depth + varSBT'),
+  #                       limits=c('scn3','scn2','scn1'),
+  #                       name='stratification')+
+  #   # scale_color_manual(values=c('scn1'='#4b7a99','scn2'='#679bc3','scn3'='#8db6c3'),
+  #   #                   labels = c('opt depth','opt varSBT','opt depth + varSBT'),name='stratification')+
+  #   theme_bw()+
+  #   theme(panel.grid.minor = element_line(linetype=2,color='grey90',),#strip.background = element_rect(fill='white'),
+  #         legend.key.size = unit(12, 'points'),legend.direction = 'vertical',legend.text = element_text(size=9),legend.position=c(.78,.925),
+  #         legend.title = element_text(size=10),legend.spacing.x = unit(0.05, "cm"),legend.box.spacing =  unit(0.01, "cm"), #,strip.text = element_text(size=12)
+  #         strip.background = element_blank(), legend.box.background = element_rect(fill = "white", color = "black"),#legend.background = element_blank(),legend.box = 'horizontal',#legend.justification = 'right',legend.position='bottom',#
+  #         strip.text = element_blank())+ #axis.text.x = element_text(angle=90,vjust=0.5),
+  #   expand_limits(x = 0)+
+  #   labs(y='',x='log(CVms/CVss)')+
+  #   scale_x_continuous(limits = c(0,max(log(cvs1$ms/cvs1$ss))+max(log(cvs1$ms/cvs1$ss))*0.1),expand = c(NA,0)) #expand = c(NA,0.1),limits = c(0,NA)
+  # 
+  # #save plot
+  # ragg::agg_png(paste0('./figures/CVss_CVms_ratio.png'),  width = 5, height = 7, units = "in", res = 300)
+  # p
+  # dev.off()
+
   
   
   ###################
