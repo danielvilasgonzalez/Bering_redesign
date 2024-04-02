@@ -246,7 +246,8 @@ dfarea$sp <- rownames(dfarea)
 
 #get cells in each region
 BB_RKC_cells<-grid2[which(grid2$BBRKC_strata==TRUE),'cell']
-PBL_KC_cells<-grid2[which(grid2$Pribilof_BKC_strata==TRUE),'cell']
+PBL_BKC_cells<-grid2[which(grid2$Pribilof_BKC_strata==TRUE),'cell']
+PBL_RKC_cells<-grid2[which(grid2$Pribilof_RKC_strata==TRUE),'cell']
 STM_BKC_cells<-grid2[which(grid2$StMatt_BKC_strata==TRUE),'cell']
 EBS_C_cells<-grid2[which(grid2$EBS_CO_CB_strata==TRUE),'cell']
 
@@ -533,8 +534,8 @@ for (sim in 1:n_sim_hist) {
 
               #get densities based on station allocations
               sim_survey_crabs<-data.frame(rbind(cbind(sim_dens2[intersect(scn_allocations_sur1[,'cell'],BB_RKC_cells),"Paralithodes camtschaticus"],scn_allocations_sur1[which(scn_allocations_sur1[,'cell'] %in%  intersect(scn_allocations_sur1[,'cell'],BB_RKC_cells)),],'BB_RKC'),
-                                                 cbind(sim_dens2[intersect(scn_allocations_sur1[,'cell'],PBL_KC_cells),"Paralithodes platypus"],scn_allocations_sur1[which(scn_allocations_sur1[,'cell'] %in%  intersect(scn_allocations_sur1[,'cell'],PBL_KC_cells)),],'PBL_BKC'),
-                                                 cbind(sim_dens2[intersect(scn_allocations_sur1[,'cell'],PBL_KC_cells),"Paralithodes camtschaticus"],scn_allocations_sur1[which(scn_allocations_sur1[,'cell'] %in%  intersect(scn_allocations_sur1[,'cell'],PBL_KC_cells)),],'PBL_RKC'),
+                                                 cbind(sim_dens2[intersect(scn_allocations_sur1[,'cell'],PBL_BKC_cells),"Paralithodes platypus"],scn_allocations_sur1[which(scn_allocations_sur1[,'cell'] %in%  intersect(scn_allocations_sur1[,'cell'],PBL_BKC_cells)),],'PBL_BKC'),
+                                                 cbind(sim_dens2[intersect(scn_allocations_sur1[,'cell'],PBL_RKC_cells),"Paralithodes camtschaticus"],scn_allocations_sur1[which(scn_allocations_sur1[,'cell'] %in%  intersect(scn_allocations_sur1[,'cell'],PBL_RKC_cells)),],'PBL_RKC'),
                                                        cbind(sim_dens2[intersect(scn_allocations_sur1[,'cell'],STM_BKC_cells),"Paralithodes platypus"],scn_allocations_sur1[which(scn_allocations_sur1[,'cell'] %in%  intersect(scn_allocations_sur1[,'cell'],STM_BKC_cells)),],'STM_BKC'),
                                                              cbind(sim_dens2[intersect(scn_allocations_sur1[,'cell'],EBS_C_cells),"Chionoecetes opilio"],scn_allocations_sur1[which(scn_allocations_sur1[,'cell'] %in%  intersect(scn_allocations_sur1[,'cell'],EBS_C_cells)),],'SNW_CRB'),
                                                                    cbind(sim_dens2[intersect(scn_allocations_sur1[,'cell'],EBS_C_cells),"Chionoecetes bairdi"],scn_allocations_sur1[which(scn_allocations_sur1[,'cell'] %in%  intersect(scn_allocations_sur1[,'cell'],EBS_C_cells)),],'TNR_CRB')),stringsAsFactors = FALSE)
@@ -863,8 +864,8 @@ for (sbt in df_sbt$sbt_n) {
         
         #get densities based on station allocations
         sim_survey_crabs<-data.frame(rbind(cbind(sim_dens2[intersect(scn_allocations_sur1[,'cell'],BB_RKC_cells),"Paralithodes camtschaticus"],scn_allocations_sur1[which(scn_allocations_sur1[,'cell'] %in%  intersect(scn_allocations_sur1[,'cell'],BB_RKC_cells)),],'BB_RKC'),
-                                           cbind(sim_dens2[intersect(scn_allocations_sur1[,'cell'],PBL_KC_cells),"Paralithodes platypus"],scn_allocations_sur1[which(scn_allocations_sur1[,'cell'] %in%  intersect(scn_allocations_sur1[,'cell'],PBL_KC_cells)),],'PBL_BKC'),
-                                           cbind(sim_dens2[intersect(scn_allocations_sur1[,'cell'],PBL_KC_cells),"Paralithodes camtschaticus"],scn_allocations_sur1[which(scn_allocations_sur1[,'cell'] %in%  intersect(scn_allocations_sur1[,'cell'],PBL_KC_cells)),],'PBL_RKC'),
+                                           cbind(sim_dens2[intersect(scn_allocations_sur1[,'cell'],PBL_BKC_cells),"Paralithodes platypus"],scn_allocations_sur1[which(scn_allocations_sur1[,'cell'] %in%  intersect(scn_allocations_sur1[,'cell'],PBL_BKC_cells)),],'PBL_BKC'),
+                                           cbind(sim_dens2[intersect(scn_allocations_sur1[,'cell'],PBL_RKC_cells),"Paralithodes camtschaticus"],scn_allocations_sur1[which(scn_allocations_sur1[,'cell'] %in%  intersect(scn_allocations_sur1[,'cell'],PBL_RKC_cells)),],'PBL_RKC'),
                                            cbind(sim_dens2[intersect(scn_allocations_sur1[,'cell'],STM_BKC_cells),"Paralithodes platypus"],scn_allocations_sur1[which(scn_allocations_sur1[,'cell'] %in%  intersect(scn_allocations_sur1[,'cell'],STM_BKC_cells)),],'STM_BKC'),
                                            cbind(sim_dens2[intersect(scn_allocations_sur1[,'cell'],EBS_C_cells),"Chionoecetes opilio"],scn_allocations_sur1[which(scn_allocations_sur1[,'cell'] %in%  intersect(scn_allocations_sur1[,'cell'],EBS_C_cells)),],'SNW_CRB'),
                                            cbind(sim_dens2[intersect(scn_allocations_sur1[,'cell'],EBS_C_cells),"Chionoecetes bairdi"],scn_allocations_sur1[which(scn_allocations_sur1[,'cell'] %in%  intersect(scn_allocations_sur1[,'cell'],EBS_C_cells)),],'TNR_CRB')),stringsAsFactors = FALSE)
