@@ -56,12 +56,40 @@ spp<-c('Limanda aspera',
        'Chionoecetes opilio',
        'Paralithodes platypus',
        'Paralithodes camtschaticus',
+       #'Lepidopsetta sp.',
        'Chionoecetes bairdi',
        'Sebastes alutus',
-       #'Sebastes melanostictus',
-       'Atheresthes evermanni')
+       'Sebastes melanostictus',
+       'Atheresthes evermanni',
+       'Sebastes borealis',
+       'Sebastolobus alascanus',
+       'Glyptocephalus zachirus',
+       'Bathyraja aleutica')
 
-
+#common names
+spp1<-c('Yellowfin sole',
+        'Alaska pollock',
+        'Pacific cod',
+        'Arrowtooth flounder',
+        'Greenland turbot',
+        'Northern rock sole',
+        'Flathead sole',
+        'Alaska plaice',
+        'Bering flounder',
+        'Arctic cod',
+        'Saffron cod',
+        'Sablefish',
+        'Snow crab',
+        'Blue king crab',
+        'Red king crab',
+        'Tanner crab',
+        'Pacific ocean perch',
+        'Rougheye and blackspotted rockfish',
+        'Kamchatka flounder',
+        'Shortraker rockfish',
+        'Shortspine thornyhead',
+        'Rex sole',
+        'Aleutian skate')
 
 #####################
 # check the slope model that converged
@@ -123,10 +151,9 @@ for (sp in spp) {
 
 #write table
 write.csv(df_conv,'./tables/slope_ebsnbs_convspp.csv')
-
+#read.csv('./tables/slope_ebsnbs_convspp.csv')
 conv_spp<-
   df_conv[which(df_conv$conv=='There is no evidence that the model is not converged'),'spp']
-
 
 ###################################
 # LOAD GRID EBS (remember to keep the same order as in fit_model if multiple grids)
@@ -369,6 +396,7 @@ for (sp in spp) {
 }
 
 save(df,file=paste0('./output/multisp_optimization_static_data_slope.RData'))
+load(file=paste0('./output/multisp_optimization_static_data_slope.RData'))
 
 
 ######################
