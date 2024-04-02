@@ -53,3 +53,17 @@ Stratification scheme and station allocation information for each sampling desig
 | optimized             | depth and variance of sea bottom temperature | balanced random           |
 | optimized             | depth and variance of sea bottom temperature | random                    |
 
+
+## Scripts
+
+The analysis is coded into 9 scripts:
+
+-
+-
+-
+-
+-
+-
+-
+
+
