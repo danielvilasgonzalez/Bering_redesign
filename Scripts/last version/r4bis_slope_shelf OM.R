@@ -172,7 +172,7 @@ n_sim_hist<-100
 #                          dimnames=list(1:nrow(bering_sea_slope_grid),unique(yrs_region),1:n_sim_hist,spp))
 
 
-for (sp in spp[c(10,12:15)]) {
+for (sp in spp) { #[c(10,12:15)]
 
 #example
 #sp<-spp[1]  
@@ -443,7 +443,7 @@ fit <- tryCatch( {fit_model(settings=settings,
   #array to store simulated densities/CPUE
   sim_dens<-array(NA,
                   dim=c(nrow(bering_sea_slope_grid),length(unique(data_geostat1$Year)),n_sim_hist),
-                  dimnames=list(1:nrow(bering_sea_slope_grid),unique(data_geostat1$Year),1:n_sim_hist))
+                  dimnames=list(1:nrow(bering_sea_slope_grid),sort(unique(data_geostat1$Year)),1:n_sim_hist))
   
   #create folder simulation data
   dir.create(paste0('./output/species/',sp,'/simulated historical data slope/'))
@@ -471,6 +471,10 @@ fit <- tryCatch( {fit_model(settings=settings,
                        nrow = nrow(bering_sea_slope_grid),
                        ncol = length(unique(unique(data_geostat1$Year))))
       
+      
+      # head(sim_bio)
+      # colSums(sim_bio)
+      # Sim1$Index_ctl
       
       #biomass (kg) to CPUE (kg/km2)
       sim_dens[,,isim]<-sim_bio/bering_sea_slope_grid$Area_in_survey_km2
@@ -505,7 +509,7 @@ n_sim<-100
 #array to store simulated densities/CPUE
 sim_dens1 <- array(NA,
                    dim = c(nrow(bering_sea_slope_grid), length(spp), length(unique(data_geostat1$Year)), n_sim),
-                   dimnames = list(1:nrow(bering_sea_slope_grid), spp, unique(data_geostat1$Year), 1:n_sim))
+                   dimnames = list(1:nrow(bering_sea_slope_grid), spp, sort(unique(data_geostat1$Year)), 1:n_sim))
 
 #parallel loop over spp
 foreach(sp = spp) %do% {
@@ -530,4 +534,4 @@ stopCluster(cl)
 
 #store HIST simulated data
 save(sim_dens1, file = paste0('./output/species/ms_sim_dens_slope.RData'))  
-
+#load(file = paste0('./output/species/ms_sim_dens_slope.RData'))

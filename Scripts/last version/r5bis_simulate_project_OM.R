@@ -192,7 +192,14 @@ sim_proj_dens_spp<-array(NA,
 #loop over spp
 for (sp in spp) {
   
-  sp<-spp[15]
+  sp<-spp[15] #4
+  
+  # if (sp %in% c('Atheresthes stomias','Atheresthes evermanni')) {
+  #   yrs<-1991:2022
+  # } else {
+  #   yrs<-1982:2022
+  # }
+  # 
   
   #create folder simulation data
   dir.create(paste0('./output/species/',sp,'/'))
@@ -205,8 +212,8 @@ for (sp in spp) {
   #getLoadedDLLs() #if check loaded DLLs
   
   ##reload model
-  fit<-
-    reload_model(x = fit)
+   fit<-
+     reload_model(x = fit)
   
   #store index and dens
   index<-fit$Report$Index_ctl
@@ -233,42 +240,11 @@ for (sp in spp) {
   #################
   
   #read data_geostat_temp file
-  df1<-readRDS(paste0('./data processed/species/',sp,'/data_geostat_temp.rds'))
-  df2<-subset(df1,year %in% yrs)
-  
-  #select rows and rename
-  df3<-df2[,c("lat_start","lon_start","year",'scientific_name','weight_kg','effort','depth_m','LogDepth',"ScaleLogDepth",'Scalebottom_temp_c','bottom_temp_c','survey_name')]
-  colnames(df3)<-c('Lat','Lon','Year','Species','Weight_kg','Swept_area','Depth','LogDepth','ScaleLogDepth','ScaleBotTemp','SBT_insitu','Region')
-  
-  #data geostat
-  df4<-subset(df3,Region %in% c("Eastern Bering Sea Crab/Groundfish Bottom Trawl Survey",
-                                "Northern Bering Sea Crab/Groundfish Survey - Eastern Bering Sea Shelf Survey Extension"))
-  
-  data_geostat<-df4[complete.cases(df4[,c('Weight_kg')]),]
-  
-  #covariate data - filter by year and complete cases for env variables
-  #covariate_data<-subset(df2,Year>=yrs_region[1] & Year<=yrs_region[2])
-  covariate_data<-df3[complete.cases(df3[,c('SBT_insitu')]),] #,'ScaleLogDepth'
-  
-  #add grid to get prediction for simulate data on each cell of the grid (sim$b_i)
-  grid_df<-data.frame(Lat=grid_ebs$Lat,
-                      Lon=grid_ebs$Lon,
-                      Year=grid_ebs$Year,
-                      Species=rep(sp,times=nrow(grid_ebs)),
-                      Weight_kg=mean(data_geostat$Weight_kg),
-                      Swept_area=grid_ebs$Area_in_survey_km2,
-                      Depth=grid_ebs$Depth,
-                      SBT_insitu=grid_ebs$Temp,
-                      Region=grid_ebs$region,
-                      stringsAsFactors = T)
-  
-  #ha to km2
-  data_geostat$Effort<-data_geostat$Effort/100
-  
+  data_geostat1<-readRDS(paste0('./shelf EBS NBS VAST/',sp,'/data_geostat_temp.rds'))
+
   #rbind grid and data_geostat to get prediction into grid values when simulating data
-  data_geostat1<-rbind(data_geostat[,c("Lat","Lon","Year","Species","Weight_kg","Swept_area","Depth","SBT_insitu","Region")],
-                       grid_df)
-  
+  data_geostat<-data_geostat1[which(data_geostat1$Region %in% c("Eastern Bering Sea Crab/Groundfish Bottom Trawl Survey",
+                                                                 "Northern Bering Sea Crab/Groundfish Survey - Eastern Bering Sea Shelf Survey Extension")),]
   #to get predictions in locations but not influencing fit
   pred_TF <- rep(1, nrow(data_geostat1))
   pred_TF[1:nrow(data_geostat)] <- 0
@@ -294,12 +270,31 @@ for (sp in spp) {
                                           type = 1,
                                           random_seed = isim)
     
-    #select simulated data that belong to grid points
-    sim_bio <-matrix(data = Sim1$b_i[pred_TF == 1], #kg
-                     nrow = nrow(grid),
-                     ncol = length(unique(yrs)))
+    if (sp=='Atheresthes evermanni') {
+      #select simulated data that belong to grid points
+      sim_bio <-matrix(data = Sim1$b_i[pred_TF == 1], #kg
+                       nrow = nrow(grid),
+                       ncol = length(c(1991:2019,2021:2022)))
+      
+      sim_bio <-
+          cbind(matrix(NA,nrow = nrow(grid),ncol=length(1982:1990)),
+          sim_bio[,c(1:29)],
+          matrix(NA,nrow = nrow(grid),ncol=length(2020)),
+          sim_bio[,c(30:31)])
+      
+    } else if (sp=='Atheresthes stomias') {
+      sim_bio <-matrix(data = Sim1$b_i[pred_TF == 1], #kg
+                       nrow = nrow(grid),
+                       ncol = length(c(1982:2022)))
+      sim_bio[,c(1:9,39)]<-NA
+    } else{
+      sim_bio <-matrix(data = Sim1$b_i[pred_TF == 1], #kg
+                       nrow = nrow(grid),
+                       ncol = length(c(1982:2022)))
+      sim_bio[,c(39)]<-NA
+    }
     
-    
+   
     #biomass (kg) to CPUE (kg/km2)
     sim_dens[,,isim]<-sim_bio/grid$Area_in_survey_km2
     

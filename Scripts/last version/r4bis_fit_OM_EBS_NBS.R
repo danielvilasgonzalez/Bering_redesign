@@ -64,10 +64,15 @@ spp<-c('Limanda aspera',
        'Chionoecetes opilio',
        'Paralithodes platypus',
        'Paralithodes camtschaticus',
+       #'Lepidopsetta sp.',
        'Chionoecetes bairdi',
        'Sebastes alutus',
-       #'Sebastes melanostictus',
-       'Atheresthes evermanni')
+       'Sebastes melanostictus',
+       'Atheresthes evermanni',
+       'Sebastes borealis',
+       'Sebastolobus alascanus',
+       'Glyptocephalus zachirus',
+       'Bathyraja aleutica')
 
 #folder region
 fol_region<-c('shelf EBS NBS VAST')
@@ -86,7 +91,7 @@ for (sp in spp) {
 #loop over species to fit models
 for (sp in spp) {
 
-#=sp<-spp[18]
+sp<-spp[22]
 
 #print year to check progress
 cat(paste("\n","    ----- ", sp, " -----\n"))  
@@ -150,7 +155,7 @@ saveRDS(data_geostat1,paste(out_dir,fol_region,sp,'data_geostat_temp.rds',sep='/
 print(
   percent_zeros <- data_geostat %>%
     group_by(Year) %>%
-    summarize(percentage_zeros = mean(Weight_kg == 0) * 100)
+    summarize(percentage_zeros = mean(Weight_kg == 0) * 100),n=30)
 )
 
 #regions (predefined in VAST)
