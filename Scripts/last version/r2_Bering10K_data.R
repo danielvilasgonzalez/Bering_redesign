@@ -19,7 +19,7 @@ rm(list = ls(all.names = TRUE))
 gc() 
 
 #libraries from cran to call or install/load
-pack_cran<-c('ncdf4','raster','FNN','lubridate')
+pack_cran<-c('ncdf4','raster','FNN','lubridate','ggpubr')
 
 #install pacman to use p_load function - call library and if not installed, then install
 if (!('pacman' %in% installed.packages())) {
@@ -509,3 +509,17 @@ for (sp in spp) {
           paste0('./data processed/species/',sp,'/data_geostat_temp.rds'))
   
 }
+
+
+#check temp ROMS vs temp in situ
+#save data_geostat with SBT
+data_geostat<-
+readRDS(paste0('./data processed/species/Gadus macrocephalus//data_geostat_temp.rds'))
+
+#plot check temperatures
+plot(x=data_geostat$Temp,y=data_geostat$bottom_temp_c,xlab='ROMS',ylab='insitu')
+ggplot(data_geostat, aes(x=Temp, y=bottom_temp_c)) + 
+  geom_point(shape=18, color="blue")+
+  stat_cor(method = "pearson", label.x = 0, label.y = 20)+
+  geom_smooth(method=lm,  linetype="dashed",
+              color="darkred", fill="blue")
