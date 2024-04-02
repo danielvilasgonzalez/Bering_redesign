@@ -7,6 +7,8 @@ This repository provides the code used for an In Prep manuscript by Daniel Vilas
 
 We investigated whether defining survey boundaries based on historical and future environmental conditions improves the precision and accuracy of abundance estimates in a multispecies survey. We fitted univariate spatiotemporal species distribution models to 16 stocks (14 species) using historical observations of fishery-independent bottom trawl survey catch-per-unit-effort and sea bottom temperature in the eastern and northern Bering Sea from 1982 to 2022. We used spatiotemporal models to simulate historical and future survey data from these models and optimize stratuma boundaries and sample allocation for abundance estimation under a variety of environmental conditions. We then compared simulated abundance estimates to the simulated true abundance among sampling designs and future temperature scenarios.
 
+![Flowchart - Frame 2](https://github.com/danielvilasgonzalez/Bering_redesign/assets/11243119/6fe456d5-9bf6-466a-a290-bdf9a1bbc17a)
+
 ## Species/Stocks Included
 
 The species and stocks set included in the manuscript are 10 groundfish and 4 crab species (6 stocks) of the Bering Sea:
@@ -39,15 +41,15 @@ Stratification scheme and station allocation information for each sampling desig
 | Stratification scheme | Stratification factors                       | Sampling allocation       |
 |-----------------------|----------------------------------------------|---------------------------|
 | existing              | depth and geographical subregion             | fixed                     |
-| existing              | depth and geographical subregion             | fixed                     |
-| existing              | depth and geographical subregion             | fixed                     |
+| existing              | depth and geographical subregion             | balanced random           |
+| existing              | depth and geographical subregion             | random                    |
 | optimized             | depth                                        | fixed                     |
-| optimized             | depth                                        | fixed                     |
-| optimized             | depth                                        | fixed                     |
+| optimized             | depth                                        | balanced random           |
+| optimized             | depth                                        | random                    |
 | optimized             | variance of sea bottom temperature           | fixed                     |
-| optimized             | variance of sea bottom temperature           | fixed                     |
-| optimized             | variance of sea bottom temperature           | fixed                     |
+| optimized             | variance of sea bottom temperature           | balanced random           |
+| optimized             | variance of sea bottom temperature           | random                    |
 | optimized             | depth and variance of sea bottom temperature | fixed                     |
-| optimized             | depth and variance of sea bottom temperature | fixed                     |
-| optimized             | depth and variance of sea bottom temperature | fixed                     |
+| optimized             | depth and variance of sea bottom temperature | balanced random           |
+| optimized             | depth and variance of sea bottom temperature | random                    |
 
