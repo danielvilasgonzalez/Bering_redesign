@@ -127,6 +127,8 @@ load('./extrapolation grids/eastern_bering_sea_grid.rda')
 grid<-as.data.frame(rbind(data.frame(northern_bering_sea_grid,region='NBS'),
                           data.frame(eastern_bering_sea_grid,region='EBS'),
                           data.frame(bering_sea_slope_grid,region='SLP')))
+ncell_ebsnbs<-nrow(rbind(data.frame(northern_bering_sea_grid,region='NBS'),
+                         data.frame(eastern_bering_sea_grid,region='EBS')))
 grid$cell<-1:nrow(grid)
 grid$cell<-as.numeric(grid$cell)
 
@@ -138,14 +140,15 @@ coordinates(x1)=~x + y
 proj4string(x1)<-CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
 x2<-spTransform(x1,'+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs')
 x3<-data.frame(x2)
-#x3$x<-as.integer(x3$coords.x1)
-#x3$y<-as.integer(x3$coords.x2)
+x3$x<-as.integer(x3$coords.x1)
+x3$y<-as.integer(x3$coords.x2)
 lon<-sort(unique(x3$x),decreasing = FALSE) #1556
 lat<-sort(unique(x3$y),decreasing = TRUE) #1507
 lons<-data.frame(x=lon,col=1:length(lon))
 lats<-data.frame(y=lat,row=1:length(lat))
 x4<-merge(x3,lons,by='x',all.x=TRUE)
 x5<-merge(x4,lats,by='y',all.x=TRUE)
+x5<-x5[,c('y','x','z','optional','col','row'),]
 colnames(x5)<-c('Lat','Lon','cell','optional','col','row')
 grid<-x5[,c('Lat','Lon','cell','col','row')]
 
@@ -182,34 +185,45 @@ calc_expected_CV <- function (strata) {
 }
 
 ###################################
-# SCENARIOS
+# Sampling designs
 ###################################
 
 #sampling scenarios
-samp_df<-expand.grid(strat_var=c('Depth_varTemp','varTemp','Depth',"Depth_Lat"), #LonE and combinations
+samp_df<-expand.grid(strat_var=c('Depth_varTemp','varTemp','Depth'), #LonE and combinations
                      target_var=c('sumDensity'), #,'sqsumDensity'
                      n_samples=c(520), #c(300,500) 520 (EBS+NBS+CRAB);26 (CRAB); 350 (EBS-CRAB); 494 (NBS-CRAB)
-                     n_strata=c(10,5),
+                     n_strata=c(5),
                      domain=1) #c(5,10,15)
 
-
+#add other columns
 samp_df$idomain<-NA
-samp_df1<-samp_df[((nrow(samp_df)/2)+1):(nrow(samp_df)),]
+samp_df1<-samp_df
 samp_df1$domain<-2
-
 samp_df1$idomain<-'region'
-samp_df2<-samp_df1
-samp_df2$idomain<-'lat'
+
+#scenario slope forced
+slope_for<-data.frame(strat_var=c('varTemp_forced','Depth_forced'),
+                       target_var='sumDensity',
+                       n_samples=520,
+                       n_strata=5,
+                       domain=2,
+                       idomain='region',stringsAsFactors = FALSE)
 
 
+slope_samp<-data.frame(strat_var=c('Lat','Depth'),
+                       target_var='sumDensity',
+                       n_samples=520,
+                       n_strata=5,
+                       domain=1,
+                       idomain='slope',stringsAsFactors = FALSE)
 
-samp_df<-rbind(samp_df,samp_df1,samp_df2)
+#rbind scenarios
+samp_df<-rbind(samp_df,samp_df1,slope_for,slope_samp)
+
 #add scenario number
 samp_df$samp_scn<-paste0(paste0('scn',1:nrow(samp_df)))
 
-#north of x Lon
 
-    
 ###############
 # load ms data and settings
 ###############
@@ -239,7 +253,6 @@ samp_df$samp_scn<-paste0(paste0('scn',1:nrow(samp_df)))
   
   #domain_input
   domain_input<-rep(1, nrow(static_df1))
-  
   domain_grid<-as.data.frame(rbind(data.frame(northern_bering_sea_grid,region='NBS'),
                                    data.frame(eastern_bering_sea_grid,region='EBS'),
                                    data.frame(bering_sea_slope_grid,region='SLP')))
@@ -248,10 +261,16 @@ samp_df$samp_scn<-paste0(paste0('scn',1:nrow(samp_df)))
   domain_grid$cell<-as.numeric(domain_grid$cell)
   #domain based on the NBS-EBS
   domain_grid$domain_region<-ifelse(domain_grid$region=='NBS',1,2)
-  #domain based on Lat 
-  ilat<-mean(c(58.00820,60.09159))
-  domain_grid$domain_lat<-ifelse(domain_grid$Lat>=ilat,1,2)
   domain_grid<-domain_grid[which(domain_grid$cell %in% static_df1$cell),]
+  dim(domain_grid)
+  
+  #add forced attribute to force optimize separetely the slope
+  slope_cells<-domain_grid[which(domain_grid$region=='SLP'),'cell']
+  static_df1$forced<-1
+  static_df1[which(static_df1$cell %in% slope_cells),'forced']<-2
+  summary(static_df1)
+  static_all<-static_df1
+  
   
   #########################
   # loop over optimized sampling designs
@@ -259,16 +278,32 @@ samp_df$samp_scn<-paste0(paste0('scn',1:nrow(samp_df)))
   
   #loop through sampling designs
   for (s in 1:nrow(samp_df)) { #nrow(samp_df)
-  #for (s in 1) {
+
+    s<- 10
       
-    #non 4 12, 16
-    #s 
-    
-    #s<-6
-    
     #domain
     dom<-samp_df[s,'domain']
     idom<-samp_df[s,'idomain']
+    
+    #static_all[which(static_all$cell>=ncell_ebsnbs+1),'Depth']<-1000
+    
+    if (idom=='slope') {
+      static_df1<-static_all[which(static_all$cell>=ncell_ebsnbs+1),]
+      static_df1<-static_df1[,colSums(static_df1[,1:ncol(static_df1)]) > 0]
+      colnames(static_df1)[9:(ncol(static_df1)-1)]<-
+        sort(c(paste0('Y',1:(length(colnames(static_df1)[9:(ncol(static_df1)-1)])/2)),
+          paste0('Y',1:(length(colnames(static_df1)[9:(ncol(static_df1)-1)])/2),c('_SQ_SUM'))))
+      tar_var<-colnames(static_df1)[9:(ncol(static_df1)-1)]
+      #names(df)[((ncol(df)-length(tar_var))+1):ncol(df)]<-tar_var
+      ispp<-n_spp<-length(tar_var)/2
+          
+    } else {
+      static_df1<-static_all
+      tar_var<-paste0(rep(df_spp$Y,each=2),c('','_SQ_SUM'))
+      #names(df)[((ncol(df)-length(tar_var))+1):ncol(df)]<-tar_var
+      ispp<-n_spp<-18
+    }
+    
     
     #domain input
     if (dom==1) {
@@ -278,6 +313,8 @@ samp_df$samp_scn<-paste0(paste0('scn',1:nrow(samp_df)))
     } else if (idom=='lat'){
       domain_input<-domain_grid$domain_lat
     }
+    
+    
     
     
     
@@ -709,19 +746,22 @@ samp_df$samp_scn<-paste0(paste0('scn',1:nrow(samp_df)))
    }
 
   #check lat line 
-  s<-7
+  s<-10
   
   
   load(paste0("./output/ms_optim_allocations_ebsnbs_slope_",samp_df[s,'samp_scn'],'_','DOM',samp_df[s,'domain'],".RData"))
   all$result_list$sum_stats
-  plotStrata2d(x = all$result_list$solution$framenew,outstrata = all$result_list$solution$aggr_strata,domain = 1,vars = c('X1','X2'))
+  #plotStrata2d(x = all$result_list$solution$framenew,outstrata = all$result_list$solution$aggr_strata,domain = 1,vars = c('X1','X2'))
   
   dd<-all$result_list$solution$framenew
   
+  summary(dd)
+  dd1<-merge(dd[,c('DOMAINVALUE','STRATO','ID')],grid,by.x='ID',by.y='cell')
+  dd1$strata<-paste0(dd1$DOMAINVALUE,'_',dd1$STRATO)
   
   ggplot()+
-    geom_tile(data=dd,aes(x=X1,y=X2,color=as.factor(STRATO),fill=as.factor(STRATO)))+
-    theme_bw()
+    geom_tile(data=dd1,aes(x=Lon,y=Lat,fill=strata,color=strata),size=3)
+    
   
   plotSamprate(all$result_list$solution,dom=1)
   
@@ -734,7 +774,7 @@ samp_df$samp_scn<-paste0(paste0('scn',1:nrow(samp_df)))
   cvs<-data.frame(matrix(NA,nrow = 0,ncol = 4))
   names(cvs)<-c('sp','samp','ss','ms')
   
-  for (s in c(1:3,5:7,9:12)) {
+  for (s in 1:nrow(samp_df)) {
     
     #s<-1
     
@@ -744,7 +784,8 @@ samp_df$samp_scn<-paste0(paste0('scn',1:nrow(samp_df)))
     load(paste0('./output/multisp_optimization_static_data_ebsnbs_slope.RData')) #df
     
     #load optimized stratification
-    load(file = paste0("./output/ms_optim_allocations_ebsnbs_slope_",samp_df[s,'samp_scn'],".RData")) #all
+    #load(file = paste0("./output/ms_optim_allocations_ebsnbs_slope_",samp_df[s,'samp_scn'],".RData")) #all
+    load(paste0("./output/ms_optim_allocations_ebsnbs_slope_",samp_df[s,'samp_scn'],'_','DOM',samp_df[s,'domain'],".RData"))
     
     strata<-rbind(all$result_list$solution$indices,
                   data.frame(ID=rem_cells,X1=NA))
@@ -982,8 +1023,8 @@ samp_df$samp_scn<-paste0(paste0('scn',1:nrow(samp_df)))
   
 }  
   
-  save(cvs,file = './output/ss_ms.RData')
-  load(file = './output/ss_ms.RData')
+  save(cvs,file = './output/ss_ms_slope.RData')
+  load(file = './output/ss_ms_slope.RData')
   spp_name$common<-gsub('_EBSNBS','',spp_name$common)
   cvs1<-merge(cvs,spp_name,by.x='sp',by.y='spp')
   cvs1<-cvs1[order(cvs1$common,decreasing = FALSE),]
