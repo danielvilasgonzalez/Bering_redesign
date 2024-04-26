@@ -39,7 +39,7 @@ setwd(out_dir)
 version<-"VAST_v14_0_1" #if using "VAST_v13_1_0" follow covariate values
 
 #number of knots
-knots<-'500' #1000 
+knots<-'300' #1000 
 
 #years
 #yrs<-1982:2022
@@ -155,8 +155,17 @@ saveRDS(data_geostat1,paste(out_dir,fol_region,sp,'data_geostat_temp.rds',sep='/
 print(
   percent_zeros <- data_geostat %>%
     group_by(Year) %>%
-    summarize(percentage_zeros = mean(Weight_kg == 0) * 100),n=30)
+    summarize(percentage_zeros = mean(Weight_kg == 0) * 100),n=41
 )
+
+library(ggplot2)
+
+ggplot()+
+  geom_point(data = data_geostat,aes(x=Lon,y=Lat,color=Weight_kg))+
+  facet_wrap(~Year)
+ggplot()+
+  geom_histogram(data = data_geostat,aes(y=Weight_kg))+
+  facet_wrap(~Year)
 
 #regions (predefined in VAST)
 region<-c("northern_bering_sea","eastern_bering_sea")
@@ -173,10 +182,10 @@ settings <- make_settings(n_x=knots,
                                                 nrow=4, 
                                                 dimnames=list(c("Omega","Epsilon","Beta","Epsilon_year"),c("Component_1","Component_2"))),
                           #FieldConfig = c("Omega1"="IID", "Epsilon1"="IID", "Omega2"="IID", "Epsilon2"="IID",'Beta1'=0,'Beta2'=0),
-                          RhoConfig=c("Beta1"=2,"Beta2"=2,"Epsilon1"=4,"Epsilon2"=4), #NON CONVERGENCE for'Lepidopsetta polyxystra','Paralithodes platypus', and Epsilon1 = 2 (RW)
+                          RhoConfig=c("Beta1"=2,"Beta2"=2,"Epsilon1"=2,"Epsilon2"=4), #NON CONVERGENCE for'Lepidopsetta polyxystra','Paralithodes platypus', and Epsilon1 = 2 (RW)
                           Version = version,
                           #fine_scale=TRUE,
-                          ObsModel = c(2,1), #obs
+                          ObsModel = c(1,1), #obs
                           max_cells = Inf,
                           Options = c("Calculate_Range" =  F, 
                                       "Calculate_effective_area" = F)) 
@@ -241,3 +250,8 @@ if (!is.null(fit)) {
 #remove memory
 gc()
 }
+
+load('./slope EBS VAST/Anoplopoma fimbria/fit.RData')
+
+read.delim('./slope EBS VAST/Anoplopoma fimbria/settings.txt')
+

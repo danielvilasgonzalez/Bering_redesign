@@ -46,45 +46,49 @@ spp<-c('Limanda aspera',
        'Gadus chalcogrammus',
        'Gadus macrocephalus',
        'Atheresthes stomias',
-       #'Reinhardtius hippoglossoides',
+      'Reinhardtius hippoglossoides',
        'Lepidopsetta polyxystra',
        'Hippoglossoides elassodon',
        'Pleuronectes quadrituberculatus',
        'Hippoglossoides robustus',
        'Boreogadus saida',
        'Eleginus gracilis',
-       #'Anoplopoma fimbria',
+       'Anoplopoma fimbria',
        'Chionoecetes opilio',
        'Paralithodes platypus',
        'Paralithodes camtschaticus',
        'Chionoecetes bairdi',
-       'Atheresthes evermanni')
+       'Atheresthes evermanni',
+       'Sebastes borealis',
+       'Sebastolobus alascanus',
+       'Glyptocephalus zachirus',
+       'Bathyraja aleutica')
 
 #remove Anoploma and Reinhardtius because habitat preference reasons
-spp<-setdiff(spp, c('Anoplopoma fimbria','Reinhardtius hippoglossoides'))
+#spp<-setdiff(spp, c('Anoplopoma fimbria','Reinhardtius hippoglossoides'))
 
 #common names
-spp1<-c('Yellowfin sole',
-        'Alaska pollock',
-        'Pacific cod',
-        'Arrowtooth flounder',
-        #'Greenland turbot',
-        'Northern rock sole',
-        'Flathead sole',
-        'Alaska plaice',
-        'Bering flounder',
-        'Arctic cod',
-        'Saffon cod',
-        #'Sablefish',
-        'Snow crab',
-        'Blue king crab',
-        'Red king crab',
-        'Tanner crab',
-        'Kamchatka flounder')
-
-#df sp scientific and common
-df_spp<-data.frame('spp'=spp,
-                   'common'=spp1)
+#' spp1<-c('Yellowfin sole',
+#'         'Alaska pollock',
+#'         'Pacific cod',
+#'         'Arrowtooth flounder',
+#'         #'Greenland turbot',
+#'         'Northern rock sole',
+#'         'Flathead sole',
+#'         'Alaska plaice',
+#'         'Bering flounder',
+#'         'Arctic cod',
+#'         'Saffon cod',
+#'         #'Sablefish',
+#'         'Snow crab',
+#'         'Blue king crab',
+#'         'Red king crab',
+#'         'Tanner crab',
+#'         'Kamchatka flounder')
+#' 
+#' #df sp scientific and common
+#' df_spp<-data.frame('spp'=spp,
+#'                    'common'=spp1)
 
 #create folder simulation data
 dir.create(paste0('./output/species/'))
@@ -192,7 +196,7 @@ sim_proj_dens_spp<-array(NA,
 #loop over spp
 for (sp in spp) {
   
-  sp<-spp[15] #4
+  sp<-spp[20] #20
   
   # if (sp %in% c('Atheresthes stomias','Atheresthes evermanni')) {
   #   yrs<-1991:2022
@@ -210,6 +214,7 @@ for (sp in spp) {
   #load fit file
   load(paste0('./shelf EBS NBS VAST/',sp,'/',ff)) #fit
   #getLoadedDLLs() #if check loaded DLLs
+  #check_fit(fit$parameter_estimates)
   
   ##reload model
    fit<-

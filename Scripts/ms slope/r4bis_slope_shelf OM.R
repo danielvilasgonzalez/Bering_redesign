@@ -25,7 +25,7 @@ pacman::p_load(pack_cran,character.only = TRUE)
 
 #setwd
 out_dir<-'C:/Users/Daniel.Vilas/Work/Adapting Monitoring to a Changing Seascape/'
-out_dir<- '/Users/daniel/Work/Adapting Monitoring to a Changing Seascape/'
+#out_dir<- '/Users/daniel/Work/Adapting Monitoring to a Changing Seascape/'
 setwd(out_dir)
 
 #version VAST (cpp)
@@ -453,9 +453,11 @@ fit <- tryCatch( {fit_model(settings=settings,
     
     save(list = 'fit',file=paste(out_dir,fol_region,sp,'fit.RData',sep = '/'))
 
+    #load('./slope EBS VAST/Anoplopoma fimbria/fit.RData')
+    
     for (isim in 1:n_sim_hist) { #simulations
       
-      #isim<-1
+      isim<-1
       
       #print simulation to check progress
       cat(paste(" #############   Species", sp, match(sp,spp), 'out of',length(spp),  "  #############\n",
