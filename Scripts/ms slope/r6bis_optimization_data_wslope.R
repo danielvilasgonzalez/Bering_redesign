@@ -97,14 +97,15 @@ spp1<-c('Yellowfin sole',
 
 #fitfiles<-list.files('./slope EBS VAST/',recursive = TRUE,pattern = 'fit.RData')
 #spp<-gsub('/fit.RData','',fitfiles)
-df_conv<-data.frame(spp=c(spp),conv=NA)
+df_conv<-data.frame(spp=c(spp))
 
 #prepare dataframe optimization
+df_conv$slope<-NA
 df_conv$EBS_NBS<-NA
 
 for (sp in spp) {
   
-  #sp<-spp[2]
+  #sp<-spp[23]
   
   cat(paste0('#####  ',sp,'  #######\n'))
   
@@ -114,13 +115,13 @@ for (sp in spp) {
   }
   
   if (length(list.files(paste0('./slope EBS VAST/',sp,'/'),pattern = 'fit.RData'))==0) {
-    df_conv[which(df_conv$spp==sp),'conv']<-'non convergence'
+    df_conv[which(df_conv$spp==sp),'slope']<-'non convergence'
   } else if (is.null(fit)) {
-    df_conv[which(df_conv$spp==sp),'conv']<-'non convergence'
+    df_conv[which(df_conv$spp==sp),'slope']<-'non convergence'
   } else if (is.null(fit$parameter_estimates$Convergence_check)) {
-    df_conv[which(df_conv$spp==sp),'conv']<-fit$Report
+    df_conv[which(df_conv$spp==sp),'slope']<-fit$Report
   }else{
-    df_conv[which(df_conv$spp==sp),'conv']<-fit$parameter_estimates$Convergence_check
+    df_conv[which(df_conv$spp==sp),'slope']<-fit$parameter_estimates$Convergence_check
   }
   
   #EBS+NBS fit
@@ -151,9 +152,26 @@ for (sp in spp) {
 
 #write table
 write.csv(df_conv,'./tables/slope_ebsnbs_convspp.csv')
-#read.csv('./tables/slope_ebsnbs_convspp.csv')
-conv_spp<-
-  df_conv[which(df_conv$conv=='There is no evidence that the model is not converged'),'spp']
+#df_conv<-read.csv('./tables/slope_ebsnbs_convspp.csv')
+
+spp_conv_slope<-c(
+      df_conv[which(df_conv$slope=='There is no evidence that the model is not converged'),'spp'],
+      'Bathyraja aleutica')
+
+spp_conv_ebsnbs<-c(
+  df_conv[which(df_conv$EBS_NBS=='There is no evidence that the model is not converged'),'spp'])
+
+list.files('./output/species/',pattern = 'sim_dens_slope',recursive = TRUE)
+list.files('./output/species/',pattern = 'sim_dens.RData',recursive = TRUE)
+
+spp_sim_dens_slope<-sub("\\/.*", "", list.files('./output/species/',pattern = 'sim_dens_slope',recursive = TRUE))
+spp_sim_dens_slope<-spp_sim_dens_slope[!grepl('sim_dens',spp_sim_dens_slope)]
+spp_sim_dens_ebsnbs<-sub("\\/.*", "", list.files('./output/species/',pattern = 'sim_dens.RData',recursive = TRUE))
+spp_sim_dens_ebsnbs<-spp_sim_dens_ebsnbs[!grepl('sim_dens',spp_sim_dens_ebsnbs)]
+
+length(spp_conv_ebsnbs);length(spp_sim_dens_ebsnbs)
+length(spp_conv_slope);length(spp_sim_dens_slope)
+
 
 ###################################
 # LOAD GRID EBS (remember to keep the same order as in fit_model if multiple grids)
@@ -185,6 +203,9 @@ load(file = './data processed/grid_EBS_NBS.RData')
 
 #yrs slope
 yrs_slope<-c(2002,2004,2008,2010,2012,2016)
+
+#load grid
+load('./data processed/grid_EBS_NBS.RData')
 
 #remove grids deeper than XXX because they cannot be sampled
 grid.ebs_year1<-grid.ebs_year[which(grid.ebs_year$Year %in% yrs_slope & grid.ebs_year$region =='EBSslope'),]
@@ -378,6 +399,7 @@ for (sp in spp) {
   save(tdf,file=paste0('./output/species/',sp,'/optimization data/fit_temporal_data_slope.RData'))
   
 }
+
 
 #join optimmization data into a one single 
 for (sp in spp) {
