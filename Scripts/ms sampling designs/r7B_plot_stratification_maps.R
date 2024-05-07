@@ -177,44 +177,6 @@ ebs_sh<-EBSshelf_sh
 pal<-wesanderson::wes_palette('Zissou1',15,type='continuous')
 
 #####################################
-# GET EEZ
-#####################################
-
-#create directory
-dir.create('./shapefiles/',showWarnings = FALSE)
-
-#get id shared folder from google drive
-id.bering.folder<-files[which(files$name=='EEZ'),'id']
-
-#list of files and folder
-id.data<-googledrive::drive_ls(id.bering.folder$id)
-
-#loop over files
-for (j in 1:nrow(id.data)) {
-  
-  googledrive::drive_download(file=id.data$id[j],
-                              path = paste0('./shapefiles/',id.data$name[j]),
-                              overwrite = TRUE)
-}
-
-#shapefile EEZ
-eez_sh<-rgdal::readOGR(dsn='./shapefiles',layer = 'EEZ_Land_v3_202030')
-
-#clip EEZ
-bbox = c(latN = 70, latS = 50, lonW = -200, lonE = -150)
-pol <- extent(bbox[3],bbox[4], bbox[2],bbox[1])
-eez_sh1<-crop(eez_sh, pol)
-bbox = c(latN = 70, latS = 50, lonW = 160, lonE = 180)
-pol <- extent(bbox[3],bbox[4], bbox[2],bbox[1])
-eez_sh2<-crop(eez_sh, pol)
-
-#change CRS projection of EEZ files
-proj4string(eez_sh1) <- CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
-eez_sh1<-spTransform(eez_sh1,CRSobj = CRS('+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs'))
-proj4string(eez_sh2) <- CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
-eez_sh2<-spTransform(eez_sh2,CRSobj = CRS('+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs'))
-
-#####################################
 # Get current ebs and NBS stations
 #####################################
 
@@ -1423,7 +1385,7 @@ cowplot::plot_grid(plot_list_nsamples[['baseline']],plot_list_nsamples[[3]],plot
       ggplot()+
       geom_raster(data=r3,aes(x=x,y=y,fill=as.numeric(ratio)))+
       scale_fill_gradient2(midpoint = mean(range(r3$ratio)), low = "#F21A00", mid = "white",
-                           high = "#3B9AB2",breaks=range(as.numeric(r3$ratio)),labels=c("ms\nundersampled","ms\noversampled"),name='log(ms/ss stations)')+
+                           high = "#3B9AB2",breaks=range(as.numeric(r3$ratio)),labels=c("Undersampled","Oversampled"),name='log(ms/ss stations)\n')+
       guides(fill=guide_colorbar(title.position = 'top', title.hjust = 0.5,ticks.colour = NA,frame.colour = 'black'))+
       theme(legend.position = 'right',legend.text = element_text(size=12),legend.title = element_text(size=14),legend.key.size = unit(20,"points"),legend.spacing.y = unit(10, 'points'),
             legend.direction = "vertical")+
@@ -1439,8 +1401,10 @@ cowplot::plot_grid(plot_list_nsamples[['baseline']],plot_list_nsamples[[3]],plot
     
     legend1 <- cowplot::get_legend( 
       legend_d + 
-        theme(legend.position = "right") 
+        theme(legend.position = "right",
+              legend.justification = c(0.72,0.5)) 
     ) 
+    plot(legend1)
     
     legend2 <- cowplot::get_legend( 
       legend_prop + 
@@ -1573,17 +1537,24 @@ cowplot::plot_grid(plot_list_nsamples[['baseline']],plot_list_nsamples[[3]],plot
   legend_rf<-
     ggplot()+
     geom_raster(data=r3,aes(x=x,y=y,fill=as.numeric(layer)))+
-    scale_fill_viridis_c(breaks=range(as.numeric(r3$layer),na.rm = TRUE),labels=c("Low","High"),option = 'A',name=('Spatial Random\nField deviations'),
+    scale_fill_viridis_c(breaks=range(as.numeric(r3$layer),na.rm = TRUE),labels=c("Low","High"),option = 'A',name=('         Spatial Random\n         Field deviations\n'),
                          guide = guide_colorbar(  frame.colour = "black",ticks.colour = 'black'),na.value=rgb(1, 0, 0, 0))+
     guides(fill=guide_colorbar(title.position = 'top', title.hjust = 0.5,ticks.colour = NA,frame.colour = 'black'))+
-    theme(legend.position = 'right',legend.text = element_text(size=12),legend.title = element_text(size=14),legend.key.size = unit(20,"points"),legend.spacing.y = unit(10, 'points'),)+
+    theme(legend.position = 'left',legend.text = element_text(size=12),legend.title = element_text(size=14),legend.key.size = unit(20,"points"),legend.spacing.y = unit(10, 'points'),)+
     labs(fill='')
   
   #legend
   legend1 <- cowplot::get_legend( 
     legend_rf + 
-      theme(legend.position = "right") 
+      theme(legend.position = "right",
+            legend.justification = c(0,0.5),
+            #legend.position = c(1,0),
+            #legend.margin = unit(0,"lines"),
+            #legend.box = "vertical",
+            #legend.key.size = unit(1,"lines"),
+            ) 
   ) 
+  plot(legend1)
   
   #prandi<-
   prandi1<-cowplot::plot_grid(prandi1, legend1, ncol = 2, rel_widths = c(1, .14))
@@ -1596,15 +1567,15 @@ cowplot::plot_grid(plot_list_nsamples[['baseline']],plot_list_nsamples[[3]],plot
   print(cowplot::plot_grid(pgridi2, prandi2, nrow = 2))
   print(cowplot::plot_grid(pgridi3, prandi3, nrow = 2))
 
-  ragg::agg_png(paste0('./figures/str_ss_ms_rf1.png'),  width = 20, height = 6, units = "in", res = 300)
+  ragg::agg_png(paste0('./figures/str_ss_ms_rf1b.png'),  width = 20, height = 6, units = "in", res = 300)
   print(cowplot::plot_grid(pgridi1, prandi1, nrow = 2))
   dev.off()
-  ragg::agg_png(paste0('./figures/str_ss_ms_rf2.png'),  width = 20, height = 6, units = "in", res = 300)
+  ragg::agg_png(paste0('./figures/str_ss_ms_rf2b.png'),  width = 20, height = 6, units = "in", res = 300)
   print(cowplot::plot_grid(pgridi2, prandi2, nrow = 2))
   dev.off()
   
   #save plot
-  ragg::agg_png(paste0('./figures/str_ss_ms_rfsel.png'),  width = 15, height = 6, units = "in", res = 300)
+  ragg::agg_png(paste0('./figures/str_ss_ms_rfselb.png'),  width = 15, height = 6, units = "in", res = 300)
   print(cowplot::plot_grid(pgridi3, prandi3, nrow = 2))
   dev.off()
   

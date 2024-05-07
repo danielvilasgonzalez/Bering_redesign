@@ -290,7 +290,7 @@ dat_area1<-merge(dat_area,spp_ind1,by='SPECIES_CODE')
 
 head(dat_area1)
 
-dat_area2<-dat_area1[which(dat_area1$AREA_ID==99901),] #99902
+dat_area2<-dat_area1[which(dat_area1$AREA_ID==99900),] #99902
 View(dat_area2)
 gapindex$subarea
 
@@ -477,6 +477,7 @@ y_scale$scn<-'scn1'
 #Our transformation function
 scaleFUN <- function(x) sprintf("%.2f", x)
 
+
 #plot abundance index for each sampling design
 p<-
   ggplot()+
@@ -523,6 +524,73 @@ ragg::agg_png(paste0('./figures/ms_hist_indices_v4.png'), width = 14, height = 8
 p
 dev.off()
 
+names(true_ind1)[3]<-'true_ind'
+df2<-(merge(df,true_ind1,by=c('spp','common','year','label')))
+
+
+df2$diff<-(df2$index[,'mean']-(df2$true_ind))/(df2$true_ind)
+
+#to adjust y axis limits
+df2$value<-df2$diff
+y_scale<-aggregate(value ~ common, df2,max)
+y_scale$scale<-y_scale$value+y_scale$value*0.2
+y_scale$text<-y_scale$value+y_scale$value*0.15
+y_scale$apr<-'sys'
+y_scale$year<-2010
+y_scale$scn<-'scn1'
+
+
+p<-
+ggplot()+
+  #geom_ribbon(data=df,aes(x=year,ymax=index[,'q95']/1000000000,ymin=index[,'q5']/1000000000,group=interaction(scn,approach,common),fill=scn),alpha=0.05)+
+  #geom_point(data=ex2,aes(x=year,y=biomass_MT/1000000,group=common),fill='black',color='black',size=1.5,shape=4)+
+  #geom_point(data=true_ind1,aes(x=year,y=value/1000000000,group=common,shape=dummy),fill='black',color='black',size=1.5)+
+  geom_line(data=df2,aes(x=year,y=diff,color=scn,group=interaction(scn,approach,common),linetype=approach),linewidth=0.5,alpha=0.7)+
+  labs(y=expression("("*hat('I')*" - I ) / I"),x='')+
+  scale_fill_manual(values=c('scn1'='#9B59B6','scn2'='#3498DB','scn3'='#1ABC9C','scnbase'='#696778'),
+                    labels = c('existing' ,'opt depth','opt varSBT','opt depth + varSBT'),name='stratification')+
+  scale_color_manual(values=c('scn1'='#9B59B6','scn2'='#3498DB','scn3'='#1ABC9C','scnbase'='#696778'),
+                     labels = c('existing','opt depth','opt varSBT','opt depth + varSBT'),name='stratification')+
+  scale_alpha_manual(values = c('scn1'=1,'scn2'=1,'scn3'=1,'scnbase'=0.8),
+                     labels = c('existing' ,'depth','var temp','depth + var temp'),name='stratification')+
+  theme_bw()+
+  scale_linetype_manual(values = c('sys'='solid',
+                                   'sb'='dashed',
+                                   'rand'='dotted'),
+                        label=c('systematic','balanced random','random'),
+                        name='station allocation')+
+  scale_shape_manual(values=c('true index'=16),name='')+
+  #coord_trans(y = "exp")+
+  scale_x_continuous(expand=c(0,0),
+                     breaks = c(1985,1990,1995,2000,2005,2010,2015,2020),
+                     minor_breaks = setdiff(1982:2022,c(1982,1985,1990,1995,2000,2005,2010,2015,2020,2022)))+
+  #scale_y_continuous(expand = c(0,0),limits = c(0,NA),labels=scaleFUN)+
+  #                    limits =  c(0, max(df$index[,'mean']/1000) + mean(df$index[,'mean'])/10000))+
+  theme(panel.grid.minor = element_line(linetype=2,color='grey90',),legend.key.width = unit(1.5, "lines"),#strip.background = element_rect(fill='white'),
+        legend.key.size = unit(15, 'points'),legend.direction = 'vertical',legend.text = element_text(size=11), #legend.position=c(.85,.19)
+        legend.title = element_text(size=12),legend.spacing = unit(2, "cm"),legend.box.spacing =  unit(0.01, "cm"), #,strip.text = element_text(size=12)
+        strip.background = element_blank(),legend.background = element_blank(),legend.box = 'horizontal',legend.position = 'bottom',#legend.justification = 'right',legend.position='bottom',#legend.position=c(.84,.05),
+        strip.text = element_blank(),axis.title.x = element_blank(),axis.text = element_text(size = 10))+ #axis.text.x = element_text(angle=90,vjust=0.5),
+  expand_limits(y = 0)+
+  geom_text(data=y_scale,aes(label = common, y = text),x = Inf, vjust = 'inward', hjust = 1.1,size=4, lineheight = 0.8) + #,fontface='italic'
+  geom_text(data=df2,aes(label = label),x = 1984, y = Inf, vjust = 1.5,size=5) + #,fontface='italic'
+  guides(fill=guide_legend(nrow=1,order = 1),color=guide_legend(nrow=1,order = 1),linetype=guide_legend(nrow=1,order = 2),shape=guide_legend(nrow=1,order = 3))+
+  #facet_wrap(~com_sci,scales='free',dir='v',nrow = 3)
+  #pacific cod 
+  geom_blank(data=y_scale,aes(x=year,y=scale,fill=scn,group =interaction(scn,apr)))+
+  facet_wrap(~common,scales='free_y',dir='h',nrow = 5)
+
+#save index plot
+ragg::agg_png(paste0('./figures/ms_hist_diff.png'), width = 14, height = 8, units = "in", res = 300)
+p
+dev.off()
+
+
+
+
+
+
+
 ######################
 # HISTORICAL CV
 ######################
@@ -539,11 +607,13 @@ names(cv2)<-c('spp','year','approach','sur','scn','cv','sim')
 
 #list of files (100 files, one for each simulated data)
 files<-list.files('./output/ms_sim_survey_hist/',pattern = 'index_hist',recursive = TRUE,full.names = TRUE)
+files<-files[!grepl('crab.RData',files)]
+
   
 #loop over simulated data - files  
 for (sim in 1:100) {
     
-    #sim<-100
+    #sim<-1
     
     #print
     cat(paste0('##### ',' sim', sim))
@@ -574,6 +644,9 @@ for (sim in 1:100) {
     rm(index_hist);rm(index_hist_crab)
 }
   
+setDT(cv2)
+cv2[spp==sp & scn==iscn & approach==apr & sim==1 & sur==su]
+
 #save cv sim data  
 save(cv2,file = './output/estimated_cvsim_hist.RData')
 #load(file = './output/estimated_cvsim_hist.RData')
@@ -682,9 +755,9 @@ dev.off()
 df<-df1
 df<-df[which(df$common %in% unique(df$common)[!grepl('EBSNBS',unique(df$common))]),]
 
-#p<-
+p<-
   ggplot()+
-  geom_point(data=ex2,aes(x=year,y=value),shape=4)+
+  #geom_point(data=ex2,aes(x=year,y=biomass_cv),shape=4)+
   geom_line(data=df1,aes(x=year,y=cv[,'mean'],color=scn,group=interaction(scn,approach),linetype=approach),linewidth=0.7,alpha=0.8)+
   labs(y=expression(widehat(CV)),x='')+
   scale_fill_manual(values=c('scn1'='#9B59B6','scn2'='#3498DB','scn3'='#1ABC9C','scnbase'='#696778'),
@@ -781,6 +854,7 @@ summary(cv2)
 
 #rename
 names(cv2)[6]<-'cvsim'
+#cv2[spp==sp & scn==iscn & approach==apr & sim==si & sur==su]
 
 #get estimated index SD for each survey across years, sampling scenario and approach
 #index_sd by sim, and scn
@@ -793,6 +867,7 @@ names(index_sd)[6]<-'index_sd'
 
 #data.table to fasten the merging process
 setDT(cv2)
+View(cv2[spp==sp & scn==iscn & approach==apr & sim==si & sur==su])
 setDT(index_sd)
 
 #estimated df by merge cvsim with estindex_sd
@@ -814,15 +889,184 @@ dim(all_df)
 
 #CV true
 all_df$cvtrue<-all_df$index_sd/all_df$true_ind
-summary(true_df$cvtrue)
 
 #check
 all_df[order(all_df$cvtrue, decreasing = TRUE),]  
 all_df[which(all_df$approach=='sys' & all_df$scn=='scnbase'),]
 
+
 #calculate RRMSE
 all_df$sqdiffcv<-(all_df$cvsim-all_df$cvtrue)^2
 all_df1<-all_df[, .(mean_sqdiffcv = mean(sqdiffcv,na.rm=FALSE),mean_cvsim=mean(cvsim,na.rm=FALSE),mean_cvtrue=mean(cvtrue,na.rm=FALSE)), by = .(spp,scn,approach,sim,year)]
+
+###################
+# Spearman rank correlation CVsim - CVtrue
+###################
+
+for (sp in unique(all_df$spp)[10:20]) {
+  
+  #df to store results
+  corr_df<-data.frame(matrix(NA,nrow = 0,ncol = 7))
+  names(corr_df)<-c('spp','scn','approach','sim','sur','pvalue','rho')
+  
+  for (iscn in unique(all_df$scn)[1:4]) {
+    for (apr in unique(all_df$approach)) {
+      for (si in unique(all_df$sim)) {
+        for (su in unique(all_df$sur)) {
+          
+          #sp<-unique(all_df$spp)[1];iscn<-unique(all_df$scn)[4];apr<-unique(all_df$approach)[1];si<-unique(all_df$sim)[1];su<-unique(all_df$sur)[1]
+          
+          cat(paste(sp,' - ',iscn,' - ',apr,' - ',si,' - ',su,'\n'))
+          #View(all_df[spp==sp & scn==iscn & approach==apr & sim==si & sur==su])
+          
+          #subset
+          iall_df<-all_df1[spp==sp & scn==iscn & approach==apr & sim==si]
+          
+          # Spearman's rank correlation analysis
+          correlation_result <- cor.test(iall_df$mean_cvsim,iall_df$mean_cvtrue, method = "spearman")
+          
+          # Print the correlation coefficient
+          #cat("Spearman's rank correlation coefficient:", correlation_result$estimate, "\n")
+          
+          # Print the p-value
+          #cat("p-value:", correlation_result$p.value, "\n")
+          
+          #idf
+          idf<-data.frame('spp'=paste0(sp),
+                          'scn'=paste0(iscn),
+                          'approach'=paste0(apr),
+                          'sim'=si,
+                          'sur'=su,
+                          'pvalue'=round(correlation_result$p.value,digits = 3),
+                          'rho'=round(correlation_result$estimate[1],digits = 3))
+          
+          
+          #append results
+          corr_df<-rbind(corr_df,idf)
+          
+          
+          # Print a summary of the test
+          # cat("\nTest summary:\n")
+          # print(correlation_result)        
+          
+          # A value close to 1 indicates a strong positive correlation, suggesting high consistency in the ranking of estimated CVs relative to true CVs across the years.
+          # A value close to -1 indicates a strong negative correlation, suggesting an inverse relationship between the ranking of estimated CVs and true CVs across the years.
+          # A value close to 0 suggests no significant correlation, indicating inconsistency in the ranking of estimated CVs relative to true CVs across the years.
+          
+        }
+      }
+    }
+  }
+  
+  save(corr_df,file = paste0('./output/full_spearman_',sp,'.RData'))
+  
+}
+
+#corr_df<-corr_df[which(corr_df$spp!='Boreogadus saida'),]
+#save(corr_df,file = './output/full_spearman_1-8.RData')
+
+files_list<-list.files('./output/',pattern = 'full_spearman',full.names = TRUE)
+
+data_list <- lapply(files_list, function(file) {
+  load(file)
+  return(get("corr_df")) # Change "your_data_object_name" to the actual name of your data object in each .RData file
+})
+
+combined_data <- do.call(rbind, data_list)
+
+#combined_data[which(combined_data$scn=='scnbase' & combined_data$approach=='sys'),]
+
+
+library(dplyr)
+
+# Calculate mean for groups on multiple categories
+means <- combined_data %>%
+  group_by(spp, scn, approach) %>%
+  summarise(mean_value = mean(rho))
+
+# Calculate percentage of values above a threshold
+#threshold <- 0  # set your threshold here
+percent_above_threshold <- combined_data %>%
+  group_by(spp, scn, approach) %>%
+  summarise(count_above_threshold = sum(pvalue > 0.05),
+            count = n(),
+            above_threshold = mean(pvalue > 0.05) * 100)
+percent_above_threshold$percent<-percent_above_threshold$count_above_threshold/percent_above_threshold$count*100
+corr_df[which(corr_df$spp=='Hippoglossoides robustus' & corr_df$approach=='rand'),]
+
+
+percent_above_threshold0 <- combined_data %>%
+  group_by(approach, scn, spp) %>%
+  summarise(#count_above_threshold = sum(pvalue > 0.05,na.rm = TRUE),
+    #count = n(),
+    mean_rho = mean(rho,na.rm = TRUE),
+    percent_significant = mean(pvalue < 0.05,na.rm = TRUE) * 100)
+
+write.csv(percent_above_threshold0, file = "./tables/spearman_all.csv", row.names = FALSE)
+
+spp_cr<-c(
+'Chionoecetes opilio',
+'Paralithodes platypus',
+'Paralithodes camtschaticus',
+'Chionoecetes bairdi')
+
+spp2<-setdiff(df_spp1$spp,spp_cr)
+
+percent_above_threshold00<-percent_above_threshold0[which(percent_above_threshold0$spp %in% spp2),]
+percent_above_threshold000<-merge(percent_above_threshold00,df_spp1,by='spp')
+percent_above_threshold000$scn<-factor(percent_above_threshold000$scn)
+levels(percent_above_threshold000$scn)<-rev(c('existing' ,'opt depth','opt varSBT','opt depth + varSBT'))
+percent_above_threshold000$approach<-factor(percent_above_threshold000$approach)
+levels(percent_above_threshold000$approach)<-rev(c('systematic','balanced random','random'))
+percent_above_threshold000$common<-gsub('\n',' ',percent_above_threshold000$common)
+
+write.csv(percent_above_threshold000, file = "./tables/spearman_all1.csv", row.names = FALSE)
+
+df$scn<-factor(df$scn,
+               levels = c('scnbase','scnbase_bis','scn3','scn2','scn1'))
+
+percent_above_threshold1 <- combined_data %>%
+  group_by(approach) %>%
+  summarise(#count_above_threshold = sum(pvalue > 0.05,na.rm = TRUE),
+            #count = n(),
+            mean_rho = mean(rho,na.rm = TRUE),
+            percent_significant = mean(pvalue < 0.05,na.rm = TRUE) * 100)
+
+write.csv(percent_above_threshold1, file = "./tables/spearman_approach.csv", row.names = FALSE)
+
+
+percent_above_threshold2 <- combined_data %>%
+  group_by(scn) %>%
+  summarise(#count_above_threshold = sum(pvalue > 0.05,na.rm = TRUE),
+    #count = n(),
+    mean_rho = mean(rho,na.rm = TRUE),
+    percent_significant = mean(pvalue < 0.05,na.rm = TRUE) * 100)
+
+write.csv(percent_above_threshold2, file = "./tables/spearman_scn.csv", row.names = FALSE)
+
+
+percent_above_threshold3 <- combined_data %>%
+  group_by(spp) %>%
+  summarise(#count_above_threshold = sum(pvalue > 0.05,na.rm = TRUE),
+    #count = n(),
+    mean_rho = mean(rho,na.rm = TRUE),
+    percent_significant = mean(pvalue < 0.05,na.rm = TRUE) * 100)
+
+write.csv(percent_above_threshold3, file = "./tables/spearman_spp.csv", row.names = FALSE)
+
+percent_above_threshold4 <- combined_data %>%
+  group_by(scn,approach) %>%
+  summarise(#count_above_threshold = sum(pvalue > 0.05,na.rm = TRUE),
+    #count = n(),
+    mean_rho = mean(rho,na.rm = TRUE),
+    percent_significant = mean(pvalue < 0.05,na.rm = TRUE) * 100)
+
+write.csv(percent_above_threshold4, file = "./tables/spearman_design.csv", row.names = FALSE)
+
+###################
+# contiunuation RRMSE
+###################
+
 all_df1$sqrtmean_sqdiffcv<-sqrt(all_df1$mean_sqdiffcv)
 all_df1$rrmse<-all_df1$sqrtmean_sqdiffcv/all_df1$mean_cvsim
 
@@ -887,7 +1131,7 @@ p<-
       geom_blank(data=y_scale,aes(x=scn,y=scale,fill=scn,group =interaction(scn,apr)))+
       facet_wrap(~common,scales='free_y',dir='h',nrow = 5)+
     expand_limits(y = 0)+
-      labs(y='RRMSE of CV',x='')+
+      labs(y=expression('RRMSE of '*widehat(CV)),x='')+
     guides(fill=guide_legend(nrow=1,order=1),color=guide_legend(nrow=1,order=1),linetype=guide_legend(nrow=1,order = 2))#+
 
   #geom_blank(data=y_scale,aes(x=scn,y=scale,fill=scn,group =interaction(scn,apr)))
@@ -1945,7 +2189,7 @@ p<-
   ggplot()+
   geom_boxplot(data=df3,aes(x=scn,y=mean,fill=scn,group =interaction(scn,approach,sbt),linetype=approach)  ,lwd=0.6,alpha=1,outlier.alpha = 0.3,outlier.size = 1.2,outlier.stroke = 0)+ #x=reorder(scn,value)
   #stat_summary(data=df3,aes(x=scn,y=mean,fill=scn,group =interaction(scn,approach,sbt),linetype=approach),alpha=1,position = position_dodge(),geom = "crossbar", fun = "median", linetype = "solid", width = .7,linewidth=0.3)+
-  labs(y='RRMSE of CV',x='')+
+  labs(y=expression('RRMSE of '*widehat(CV)),x='')+
   scale_fill_manual(values=c('scn1'='#9B59B6','scn2'='#3498DB','scn3'='#1ABC9C','scnbase'='#696778'),
                     labels = c('existing' ,'opt depth','opt varSBT','opt depth + varSBT'),name='stratification')+
   scale_color_manual(values=c('scn1'='#9B59B6','scn2'='#3498DB','scn3'='#1ABC9C','scnbase'='#696778'),
@@ -2058,7 +2302,7 @@ p<-
   ggplot()+
   geom_boxplot(data=df3,aes(x=scn,y=mean,fill=scn,group =interaction(scn,approach,common),linetype=approach)  ,lwd=0.6,alpha=1,outlier.alpha = 0.3,outlier.size = 1.2,outlier.stroke = 0)+ #x=reorder(scn,value)
   #stat_summary(data=df3,aes(x=scn,y=mean,fill=scn,group =interaction(scn,approach,common),linetype=approach),alpha=1,position = position_dodge(),geom = "crossbar", fun = "median", linetype = "solid", width = .7,linewidth=0.3)+
-  labs(y='RRMSE of CV',x='')+
+  labs(y=expression('RRMSE of '*widehat(CV)),x='')+
   scale_fill_manual(values=c('scn1'='#9B59B6','scn2'='#3498DB','scn3'='#1ABC9C','scnbase'='#696778'),
                     labels = c('existing' ,'opt depth','opt varSBT','opt depth + varSBT'),name='stratification')+
   scale_color_manual(values=c('scn1'='#9B59B6','scn2'='#3498DB','scn3'='#1ABC9C','scnbase'='#696778'),
