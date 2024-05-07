@@ -425,8 +425,8 @@ ggplot()+
            xlim = panel_extent$x,
            ylim = c(panel_extent$y[1],panel_extent$y[2]-300000),
            label_axes = "-NE-")+
-  scale_fill_gradient2(high = '#1ABC9C',#'#007c9b',
-                       limits=c(0,200),oob = scales::squish,breaks=c(0,50,100,200),
+  scale_fill_gradient2(high = '#10715e',mid='#1ABC9C',low = 'white',midpoint = 100,#'#007c9b',
+                       limits=c(5,200),oob = scales::squish,breaks=c(5,50,100,200),
                        labels=c('0','50','100',paste0('200')), #round(maxValue(ak_bathy_4))
                        na.value = 'white',
                        name='depth (m)',
