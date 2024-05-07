@@ -321,26 +321,29 @@ for (sp in spp) {
 # Reshape simulated historical data
 ######################
 
+spp<-spp_conv_ebsnbs
+
+
 # Initializing parallel backend
 cl <- makeCluster(detectCores()-1)  # Using all available cores
 registerDoParallel(cl)
 
 #array to store simulated densities/CPUE
 sim_dens1 <- array(NA,
-                   dim = c(nrow(grid), length(spp), length(unique(yrs)), n_sim),
-                   dimnames = list(1:nrow(grid), spp, unique(yrs), 1:n_sim))
+                   dim = c(nrow(grid), length(spp), length(unique(yrs)), n_sim_hist),
+                   dimnames = list(1:nrow(grid), spp, unique(yrs), 1:n_sim_hist))
 
 #parallel loop over spp
 foreach(sp = spp) %do% {
   
-  #sp<-spp[1]
+  sp<-spp_conv_ebsnbs[17]
   
   #load data
   load(paste0('./output/species/', sp, '/simulated historical data/sim_dens.RData'))
   
   #parallel loop over years and simulations
   foreach(y = yrs) %:%
-    foreach(sim = 1:n_sim) %do% {
+    foreach(sim = 1:n_sim_hist) %do% {
       #y<-'1982';sim<-'1'
       
       #store results
