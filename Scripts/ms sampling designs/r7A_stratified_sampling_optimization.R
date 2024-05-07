@@ -875,7 +875,7 @@ samp_df$samp_scn<-paste0(paste0('scn',1:nrow(samp_df)))
     scale_color_manual(values=c('scn1'='#9B59B6','scn2'='#3498DB','scn3'='#1ABC9C'),
                       labels = c('depth','varSBT','depth + varSBT'),
                       limits=c('scn3','scn2','scn1'),
-                      name='optimized\nsampling design')+
+                      name='optimized\nstratification')+
     scale_fill_manual(values=c('scn1'='#9B59B6','scn2'='#3498DB','scn3'='#1ABC9C'),
                        labels = c('opt depth','opt varSBT','opt depth + varSBT'),
                        limits=c('scn3','scn2','scn1'),
@@ -883,7 +883,7 @@ samp_df$samp_scn<-paste0(paste0('scn',1:nrow(samp_df)))
     scale_shape_manual(values=c('ss'=4,'ms'=16),
                       labels = c('single-species','multispecies'),
                       limits=c('ss','ms'),
-                      name='target stratification')+
+                      name='objective')+
     # scale_color_manual(values=c('scn1'='#4b7a99','scn2'='#679bc3','scn3'='#8db6c3'),
     #                   labels = c('opt depth','opt varSBT','opt depth + varSBT'),name='stratification')+
     theme_bw()+
@@ -894,6 +894,7 @@ samp_df$samp_scn<-paste0(paste0('scn',1:nrow(samp_df)))
           strip.text = element_blank())+ #axis.text.x = element_text(angle=90,vjust=0.5),
     expand_limits(x = 0)+
     labs(y='',x='expected CV')+
+    guides(color=guide_legend(order = 1))+
     scale_x_continuous(limits = c(0,max(cvs1$ms)+max(cvs1$ms)*0.3),expand = c(NA,0)) #expand = c(NA,0.1),limits = c(0,NA)
   
   p1
