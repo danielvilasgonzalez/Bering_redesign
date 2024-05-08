@@ -58,18 +58,18 @@ Stratification scheme and station allocation information for each sampling desig
 
 The analysis is coded into 12 scripts and can be found in Bering_redesign/Scripts/ms sampling designs/:
 
-r0. Creates figures of the study area, sampling stations, and existing sampling design.
-r1. Converts raw bottom-trawl data into the input dataframe for the species distribution models.
-r2. Exports SBT data from Bering 10K ROMS into the dataset.
-r3. Prepares data for projecting models into the future.
-r4. Fits operating models.
-r5. Simulates data from OM for historical and projected years.
-r6. Retrieves true indices from the OM, prepares EBS+NBS data for optimization.
-r7A. Runs sampling optimization based on predicted densities from VAST OM EBS+NBS and calculates stratification boundaries and sample allocations for each sampling design.
-r7B. Plots stratification maps and comparisons.
-r8A. Simulates station allocations for each sampling design.
-r8B. Simulates data and surveys for historical and projected years and prepares estimates to compute design-based indices for groundfish and crab species.
-r9. Compares and plots design estimates versus true estimates.
+- r0. Creates figures of the study area, sampling stations, and existing sampling design.
+- r1. Converts raw bottom-trawl data into the input data frame for the species distribution models.
+- r2. Exports SBT data from Bering 10K ROMS into the dataset.
+- r3. Prepares data for projecting models into the future.
+- r4. Fits operating models.
+- r5. Simulates data from OM for historical and projected years.
+- r6. Retrieves true indices from the OM, and prepares EBS+NBS data for optimization.
+- r7A. Runs sampling optimization based on predicted densities from VAST OM EBS+NBS and calculates stratification boundaries and sample allocations for each sampling design.
+- r7B. Plots stratification maps and comparisons.
+- r8A. Simulates station allocations for each sampling design.
+- r8B. Simulates data and surveys for historical and projected years and prepares estimates to compute design-based indices for groundfish and crab species.
+- r9. Compares and plots design estimates versus true estimates.
 
 ## Data
 
