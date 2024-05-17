@@ -46,21 +46,21 @@ spp<-c('Limanda aspera',
        'Gadus chalcogrammus',
        'Gadus macrocephalus',
        'Atheresthes stomias',
-       'Reinhardtius hippoglossoides',
+       #'Reinhardtius hippoglossoides',
        'Lepidopsetta polyxystra',
        'Hippoglossoides elassodon',
        'Pleuronectes quadrituberculatus',
        'Hippoglossoides robustus',
        'Boreogadus saida',
        'Eleginus gracilis',
-       'Anoplopoma fimbria',
+       #'Anoplopoma fimbria',
        'Chionoecetes opilio',
        'Paralithodes platypus',
        'Paralithodes camtschaticus',
-       'Chionoecetes bairdi',
-       'Sebastes alutus',
+       'Chionoecetes bairdi')
+       #'Sebastes alutus',
        #'Sebastes melanostictus',
-       'Atheresthes evermanni')
+       #'Atheresthes evermanni')
 
 ###################################
 # LOAD GRID EBS (remember to keep the same order as in fit_model if multiple grids)
