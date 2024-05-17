@@ -76,7 +76,7 @@ id.bering.folder<-files[which(files$name=='Bering redesign RWP project'),'id']
 
 #list of files and folder
 files.1<-googledrive::drive_ls(id.bering.folder$id)
-id.data<-files.1[which(files.1$name=='data raw'),'id']
+id.data<-files.1[which(files.1$name=='data'),'id']
 files.2<-googledrive::drive_ls(id.data$id)
 
 #create directory
@@ -116,7 +116,7 @@ id.bering.folder<-files[which(files$name=='Bering redesign RWP project'),'id']
 
 #list of files and folder
 files.1<-googledrive::drive_ls(id.bering.folder$id)
-id.data<-files.1[which(files.1$name=='data raw'),'id']
+id.data<-files.1[which(files.1$name=='data'),'id']
 files.2<-googledrive::drive_ls(id.data$id)
 
 #get haul (stations) data
@@ -237,7 +237,7 @@ mm$year<-lubridate::year(mm$date)
 tapply(mm$count,mm$year,summary)
 
 #remove Lepidopsetta sp. >=1996
-all1<-all1[-which(all1$scientific_name=='Lepidopsetta sp.' & all1$year>=1996),]
+#all1<-all1[-which(all1$scientific_name=='Lepidopsetta sp.' & all1$year>=1996),]
 
 #remove Lepidopsetta sp. <=1995
 all1<-all1[-which(all1$scientific_name=='Lepidopsetta polyxystra' & all1$year<=1995),]
@@ -250,6 +250,7 @@ spp<-spp[spp!='Lepidopsetta sp.']
 
 #save data_geostat file
 saveRDS(all1, paste0('./data processed/species/slope_shelf_EBS_NBS_data_geostat.rds'))
+#all1<-readRDS(paste0('./data processed/species/slope_shelf_EBS_NBS_data_geostat.rds'))
 
 #loop over species to create data_geostat df
 for (sp in spp) {
