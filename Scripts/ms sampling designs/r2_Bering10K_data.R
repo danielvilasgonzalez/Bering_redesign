@@ -181,7 +181,7 @@ googledrive::drive_download(file=id.data$id,
 r<-raster('./bathymetry/gebco_2022_n70.0_s50.0_w-180.0_e-155.0.asc')
 
 #extract depth values for each station of grid - using GEBCO data
-rr<-extract(r, SpatialPoints(cbind(grid.ebs$Lon,grid.ebs$Lat)))
+rr<-raster::extract(r, SpatialPoints(cbind(grid.ebs$Lon,grid.ebs$Lat)))
 grid.ebs$DepthGEBCO<--rr
 grid.ebs$depth_m <-grid.ebs$DepthGEBCO
 summary(grid.ebs)
