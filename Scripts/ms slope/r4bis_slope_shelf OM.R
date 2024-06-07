@@ -24,8 +24,8 @@ if (!('VAST' %in% installed.packages())) {
 pacman::p_load(pack_cran,character.only = TRUE)
 
 #setwd
-out_dir<-'C:/Users/Daniel.Vilas/Work/Adapting Monitoring to a Changing Seascape/'
-#out_dir<- '/Users/daniel/Work/Adapting Monitoring to a Changing Seascape/'
+#out_dir<-'C:/Users/Daniel.Vilas/Work/Adapting Monitoring to a Changing Seascape/'
+out_dir<- '/Users/daniel/Work/Adapting Monitoring to a Changing Seascape/'
 setwd(out_dir)
 
 #version VAST (cpp)
@@ -119,7 +119,7 @@ ggplot()+
   geom_point(data=subset(df12,year==2016 & depth_m >100),aes(x=lon_start,y=lat_start,group=year),col='green',alpha=0.8)+
   facet_wrap(~year)
 
-#plot boxplot by region and species
+##plot boxplot by region and species
 df2$survey_name <- factor(df2$survey_name, levels = c('EBS shelf','>100 EBS shelf','slope'))
 ggplot()+
   geom_boxplot(data=df2,aes(x=as.factor(year),y=log(cpue_kgha+1),group=interaction(year,survey_name,scientific_name),color=survey_name))+
@@ -175,7 +175,7 @@ n_sim_hist<-100
 for (sp in spp) { #[c(10,12:15)]
 
 #example
-#sp<-spp[1]  
+sp<-spp[1]  
   
 #filter by sp
 data_geostat<-subset(df3,Species==sp)
@@ -184,10 +184,10 @@ if (fol_region=='slope EBS VAST') {
 
 #add grid to get prediction for simulate data on each cell of the grid (sim$b_i)
 
-load('./extrapolation grids/eastern_bering_sea_grid.rda')
-head(eastern_bering_sea_grid)
-dim(eastern_bering_sea_grid)
-eastern_bering_sea_grid<-subset(as.data.frame(eastern_bering_sea_grid),Stratum %in% c(50,61))
+# load('./extrapolation grids/eastern_bering_sea_grid.rda')
+# head(eastern_bering_sea_grid)
+# dim(eastern_bering_sea_grid)
+# eastern_bering_sea_grid<-subset(as.data.frame(eastern_bering_sea_grid),Stratum %in% c(50,61))
 load('./extrapolation grids/bering_sea_slope_grid.rda')
 names(bering_sea_slope_grid)[4]<-'Stratum'
 bering_sea_slope_grid$Stratum<-99
@@ -217,7 +217,7 @@ grids<-data.frame(Lat=grid_ebs$Lat,
                     stringsAsFactors = T)
 
 grids<-subset(grids,Year %in% unique(data_geostat$Year))
-
+summary(grids)
 #ha to km2 ------ so kg/km2
 data_geostat$Effort<-data_geostat$Effort/100
 
@@ -311,13 +311,13 @@ settings <- make_settings(n_x=knots,#knots,
                           knot_method='grid',
                           use_anisotropy=FALSE, #TRUE
                           #RhoConfig=rho_c, 
-                          RhoConfig=rho_c,#c("Beta1"=0,"Beta2"=0,"Epsilon1"=0,"Epsilon2"=0), 
+                          #RhoConfig=rho_c,#c("Beta1"=0,"Beta2"=0,"Epsilon1"=0,"Epsilon2"=0), 
                           #FieldConfig = matrix( c("IID","IID",'IID',"Identity","IID","IID",'IID',"Identity"), #c("IID","IID",0,"Identity", "IID","IID",0,"Identity"), 
                           #                       ncol=2, 
                           #                       nrow=4, 
                           #                       dimnames=list(c("Omega","Epsilon","Beta","Epsilon_year"),c("Component_1","Component_2"))),
                           #FieldConfig = c("Omega1"="IID", "Epsilon1"="IID", "Omega2"="IID", "Epsilon2"="IID"),
-                          #RhoConfig=c("Beta1"=4,"Beta2"=4,"Epsilon1"=0,"Epsilon2"=0), # Change Beta1 to AR1, to allow linear covariate effect
+                          RhoConfig=c("Beta1"=2,"Beta2"=2,"Epsilon1"=4,"Epsilon2"=4),
                           Version = version,
                           #fine_scale=TRUE,
                           ObsModel = obs,#c(2,1), #c(1,1) #biomass
@@ -437,8 +437,11 @@ fit <- tryCatch( {fit_model(settings=settings,
                    return(NULL)
                  })
 
+  drop_units(fit$Report$D_gct[,1,])
 
+  check_fit(fit$parameter_estimates)
   
+  #load('./slope EBS VAST/Gadus chalcogrammus/fit.RData')
   
   #array to store simulated densities/CPUE
   sim_dens<-array(NA,
@@ -451,13 +454,13 @@ fit <- tryCatch( {fit_model(settings=settings,
 
   if (class(fit)=='fit_model') {
     
-    save(list = 'fit',file=paste(out_dir,fol_region,sp,'fit.RData',sep = '/'))
+    save(list = 'fit',file=paste(out_dir,fol_region,sp,'fit_st.RData',sep = '/'))
 
     #load('./slope EBS VAST/Anoplopoma fimbria/fit.RData')
     
     for (isim in 1:n_sim_hist) { #simulations
       
-      isim<-1
+      #isim<-1
       
       #print simulation to check progress
       cat(paste(" #############   Species", sp, match(sp,spp), 'out of',length(spp),  "  #############\n",

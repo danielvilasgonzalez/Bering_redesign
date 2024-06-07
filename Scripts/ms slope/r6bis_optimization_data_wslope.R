@@ -234,7 +234,7 @@ ggplot()+
 
 #converged species by region
 spp_conv_ebsnbs<-df_conv[which(df_conv$EBS_NBS=='There is no evidence that the model is not converged'),'spp']
-spp_conv_slope<-df_conv[which(df_conv$conv=='There is no evidence that the model is not converged'),'spp']
+spp_conv_slope<-df_conv[which(df_conv$slope=='There is no evidence that the model is not converged'),'spp']
 
 #years by region
 yrs_slope<-c(2002,2004,2008,2010,2012,2016)

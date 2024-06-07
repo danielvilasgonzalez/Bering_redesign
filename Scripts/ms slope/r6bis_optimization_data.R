@@ -296,13 +296,13 @@ for (sp in spp) {
   }
   
   #save results list
-  save(D6,file=paste0('./output/species/',sp,'/optimization data/optimization_static_data.RData'))
+  save(D6,file=paste0('./output/species/',sp,'/optimization data/optimization_static_data_ebsnbs.RData'))
   
   #save results list
-  save(CPUE_index,file=paste0('./output/species/',sp,'/optimization data/OM_CPUE_index.RData'))
+  save(CPUE_index,file=paste0('./output/species/',sp,'/optimization data/OM_CPUE_index_ebsnbs.RData'))
   
   #save results list
-  save(tdf,file=paste0('./output/species/',sp,'/optimization data/fit_temporal_data.RData'))
+  save(tdf,file=paste0('./output/species/',sp,'/optimization data/fit_temporal_data_ebsnbs.RData'))
 }
 
 #join optimmization data into a one single 
@@ -311,23 +311,23 @@ for (sp in spp) {
   #sp<-spp[2]
   
   if (sp==spp[1]) {
-    load(paste0('./output/species/',sp,'/optimization data/optimization_static_data.RData'))
+    load(paste0('./output/species/',sp,'/optimization data/optimization_static_data_ebsnbs.RData'))
     df<-D6[,c("Lat","Lon","cell","Depth","meanTemp","varTemp","sumDensity_sq","sumDensity","include","meanTempF","LonE")]  
   }
   
   if (sp %in% setdiff(spp,spp_conv_ebsnbs)){
-    load(paste0('./output/species/',sp,'/optimization data/optimization_static_data.RData'))
+    load(paste0('./output/species/',sp,'/optimization data/optimization_static_data_ebsnbs.RData'))
     dens<-data.frame(rep(0,ncells),rep(0,ncells))
     names(dens)<-c(paste0(sp,'_sumDensity'),paste0(sp,'_sumDensity_sq'))
     df<-cbind(df,dens)
     
   } else {
   
-    load(paste0('./output/species/',sp,'/optimization data/optimization_static_data.RData'))
+    load(paste0('./output/species/',sp,'/optimization data/optimization_static_data_ebsnbs.RData'))
     dens<-data.frame(D6$sumDensity,D6$sumDensity_sq)
     names(dens)<-c(paste0(sp,'_sumDensity'),paste0(sp,'_sumDensity_sq'))
     df<-cbind(df,dens)
   }
 }
 
-save(df,file=paste0('./output/multisp_optimization_static_data.RData'))
+save(df,file=paste0('./output/multisp_optimization_static_data_ebsnbs.RData'))

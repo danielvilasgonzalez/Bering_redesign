@@ -21,7 +21,7 @@ rm(list = ls(all.names = TRUE))
 gc() 
 
 #libraries from cran to call or install/load
-pack_cran<-c('cowplot','ggspatial','raster','rasterVis','rgeos','scales','rnaturalearth','grid','ggplot2','lubridate','ragg','rgdal')
+pack_cran<-c('cowplot','ggspatial','raster','rasterVis','rgeos','scales','rnaturalearth','grid','ggplot2','lubridate','ragg','rgdal','sf')
 
 #install pacman to use p_load function - call library and if not installed, then install
 if (!('pacman' %in% installed.packages())) {
@@ -230,8 +230,6 @@ haul1<-as.data.frame(haul1)
 # Plot sampling stations in EBS, NBS and slope in 2010
 #########################################################
 
-library(sf) # Load the sf package
-
 # Convert SpatialPolygonsDataFrame objects to sf objects
 ak_sppoly_sf <- st_as_sf(ak_sppoly)
 NBS_sh_sf <- st_as_sf(NBS_sh)
@@ -335,14 +333,23 @@ slop_sppoly<-as(slope$survey.strata, 'Spatial')
 plot(slop_sppoly['STRATUM'])
 length(unique(slop_sppoly$STRATUM))
 
-#get stratums wfor 200-400m slope
+
+ggplot()+
+  geom_polygon(data=slop_sppoly, aes(x=long, y=lat, group=group,fill=STRATUM))
+
+  
+  #get stratums wfor 200-400m slope
 slope200_400<-sort(unique(slop_sppoly$STRATUM))[c(1,6,11,16,21,26)]
+slopesub4<-c(41:45)
+
 #slop_sppoly[,"STRATUM"][slop_sppoly[,"STRATUM"] %in% slope200_400,]
 
 #get stratum and sf object
 xx<-slop_sppoly['STRATUM']
 xx_sf <- st_as_sf(xx)
-xx1<-xx[xx$STRATUM %in% slope200_400,]
+xx1<-xx[xx$STRATUM %in% slope200_400,] 
+xx1<-xx[xx$STRATUM %in% slopesub4,] #min y 1010033 = 57.5
+#xxx1<-spTransform(xx1,CRSobj = CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"))
 xx2<-as(xx1, "sf")
 
 #plot

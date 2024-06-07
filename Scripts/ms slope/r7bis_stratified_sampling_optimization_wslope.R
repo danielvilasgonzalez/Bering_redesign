@@ -156,6 +156,40 @@ grid<-x5[,c('Lat','Lon','cell','col','row')]
 panel_extent <- data.frame(x = c(-1716559.21, -77636.05), #x = c(-1326559.21, -87636.05),
                            y = c(483099.5, 2194909.7)) #y = c(533099.5, 1894909.7))
 
+#####################################
+# Polygon regions shapefiles (EBS, NBS and slope)
+#####################################
+
+#name shapefiles 
+shfiles<-c('EBSshelfThorson','NBSThorson','EBSslopeThorson')
+
+#loop over shapefiles
+for (i in shfiles) {
+  
+  #shapefile EBS
+  sh<-rgdal::readOGR(dsn='./shapefiles/',layer = i)
+  
+  if (i=='EBSslopeThorson') {
+    
+    #reproject shapefile
+    proj4string(sh) <- CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0") 
+    sh<-spTransform(sh,CRSobj = CRS('+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs'))
+    
+  }
+  
+  #shapefile name
+  shname<-paste0(gsub('Thorson','',i),'_sh')
+  
+  #assign shapefiles
+  assign(shname,sh)
+  
+}
+
+#merge shapefiles
+bs_sh1<-raster::union(EBSshelf_sh,NBS_sh)
+bs_sh<-raster::union(bs_sh1,EBSslope_sh)
+
+
 ###################################
 # FXNs - extracted from ZO code
 ###################################
@@ -189,36 +223,37 @@ calc_expected_CV <- function (strata) {
 ###################################
 
 #sampling scenarios
-samp_df<-expand.grid(strat_var=c('Depth_varTemp','varTemp','Depth'), #LonE and combinations
+samp_df<-expand.grid(strat_var=c('varTemp','Depth','varTemp_forced','Depth_forced'), #LonE and combinations
                      target_var=c('sumDensity'), #,'sqsumDensity'
                      n_samples=c(520), #c(300,500) 520 (EBS+NBS+CRAB);26 (CRAB); 350 (EBS-CRAB); 494 (NBS-CRAB)
-                     n_strata=c(5),
+                     n_strata=c(10),
                      domain=1) #c(5,10,15)
 
 #add other columns
 samp_df$idomain<-NA
 samp_df1<-samp_df
+samp_df1$n_strata<-5
 samp_df1$domain<-2
 samp_df1$idomain<-'region'
 
 #scenario slope forced
-slope_for<-data.frame(strat_var=c('varTemp_forced','Depth_forced'),
-                       target_var='sumDensity',
-                       n_samples=520,
-                       n_strata=5,
-                       domain=2,
-                       idomain='region',stringsAsFactors = FALSE)
+# slope_for<-data.frame(strat_var=c('varTemp_forced','Depth_forced'),
+#                        target_var='sumDensity',
+#                        n_samples=520,
+#                        n_strata=5,
+#                        domain=2,
+#                        idomain='region',stringsAsFactors = FALSE)
 
 
-slope_samp<-data.frame(strat_var=c('Lat','Depth'),
-                       target_var='sumDensity',
-                       n_samples=520,
-                       n_strata=5,
-                       domain=1,
-                       idomain='slope',stringsAsFactors = FALSE)
+# slope_samp<-data.frame(strat_var=c('Lat','Depth'),
+#                        target_var='sumDensity',
+#                        n_samples=520,
+#                        n_strata=5,
+#                        domain=1,
+#                        idomain='slope',stringsAsFactors = FALSE)
 
 #rbind scenarios
-samp_df<-rbind(samp_df,samp_df1,slope_for,slope_samp)
+samp_df<-rbind(samp_df,samp_df1)
 
 #add scenario number
 samp_df$samp_scn<-paste0(paste0('scn',1:nrow(samp_df)))
@@ -266,20 +301,26 @@ samp_df$samp_scn<-paste0(paste0('scn',1:nrow(samp_df)))
   
   #add forced attribute to force optimize separetely the slope
   slope_cells<-domain_grid[which(domain_grid$region=='SLP'),'cell']
+  #nbs_cells<-domain_grid[which(domain_grid$region=='NBS'),'cell']
   static_df1$forced<-1
+  #static_df1[which(static_df1$cell %in% slope_cells),'forced']<-99999
   static_df1[which(static_df1$cell %in% slope_cells),'forced']<-2
+  #static_df1[which(static_df1$cell %in% nbs_cells),'forced']<-9
   summary(static_df1)
   static_all<-static_df1
   
+  aggregate(cell ~ forced,static_all,FUN=length)
   
   #########################
   # loop over optimized sampling designs
   #########################
   
+  #s<-5 cannot find a solution
+  
   #loop through sampling designs
-  for (s in 1:nrow(samp_df)) { #nrow(samp_df)
+  for (s in c(1:nrow(samp_df))) { #nrow(samp_df)
 
-    s<- 10
+    #s<- 6
       
     #domain
     dom<-samp_df[s,'domain']
@@ -287,7 +328,13 @@ samp_df$samp_scn<-paste0(paste0('scn',1:nrow(samp_df)))
     
     #static_all[which(static_all$cell>=ncell_ebsnbs+1),'Depth']<-1000
     
-    if (idom=='slope') {
+    if (is.na(idom)) {
+      static_df1<-static_all
+      tar_var<-paste0(rep(df_spp$Y,each=2),c('','_SQ_SUM'))
+      #names(df)[((ncol(df)-length(tar_var))+1):ncol(df)]<-tar_var
+      ispp<-n_spp<-18
+    
+    } else if(idom=='slope') {
       static_df1<-static_all[which(static_all$cell>=ncell_ebsnbs+1),]
       static_df1<-static_df1[,colSums(static_df1[,1:ncol(static_df1)]) > 0]
       colnames(static_df1)[9:(ncol(static_df1)-1)]<-
@@ -330,6 +377,9 @@ samp_df$samp_scn<-paste0(paste0('scn',1:nrow(samp_df)))
       stratum_var_input<-data.frame(X1 = static_df1[,paste0(sub("\\_.*", "", samp_df[s,'strat_var']))])
     }
 
+    #test
+    #stratum_var_input$X2<-rlnorm(length(stratum_var_input$X2),meanlog = 2,sdlog = 1)
+    
     #target variables
     target_var_input<-static_df1[,tar_var]
     n_samples<-srs_n<-samp_df[s,'n_samples']
@@ -340,6 +390,10 @@ samp_df$samp_scn<-paste0(paste0('scn',1:nrow(samp_df)))
                         stratum_var_input, #Stratification variables
                         WEIGHT=n_years, #weight for spp depending on the presence of years
                         target_var_input) #target variables 
+    
+    #correct years
+    # frame$WEIGHT<-ifelse(frame$id %in% slope_cells,6,
+    #                      ifelse(frame$id %in% nbs_cells,5, 40))
     
     ###################################
     # Simple random sampling design CV constraints
@@ -383,6 +437,13 @@ samp_df$samp_scn<-paste0(paste0('scn',1:nrow(samp_df)))
     # Run optimization
     ###################################
     
+    #for plot 
+    load('./data processed/grid_EBS_NBS.RData')
+    gridi<-
+      unique(grid.ebs_year[,c('Lat','Lon','DepthGEBCO')])
+    gridi1<-subset(gridi,DepthGEBCO <= 400)
+    
+    #count
     count<-0
     
     #while loop until the desired number of strata  
@@ -399,23 +460,35 @@ samp_df$samp_scn<-paste0(paste0('scn',1:nrow(samp_df)))
       solution <- optimStrata(method = "continuous", #continous variables
                               errors = cv_df,  #precision level - maximum allowable coefficient of variation set by the simple random sampling 
                               framesamp = frame, #df of input variables
-                              iter = 30, #300 #maximum number of iterations
-                              pops = 10, #100  #dimension of each generations
+                              iter = 150, #30, #300 #maximum number of iterations
+                              pops = 50,#10, #100  #dimension of each generations
                               elitism_rate = 0.1, #0.1
                               mut_chance = 1 / (no_strata[1] + 1), #mutation chance
                               nStrata = c(no_strata,no_strata), #maximum strata
                               showPlot = TRUE, #FALSE
                               writeFiles = FALSE)
       
+      #plot strata
+      solution$framenew$strata<-paste0(solution$framenew$DOMAINVALUE,'_',solution$framenew$STRATO)
+      print(
+      ggplot()+
+        geom_point(data=cbind(static_df1[,c('Lat','Lon')],solution$framenew),aes(x=Lon,y=Lat,color=strata))
+      )
+      
+      #solution$aggr_strata
       #flag to keep the loop
       flag<-ifelse(nrow(solution$aggr_strata)!=samp_df$n_strata[s]*dom,TRUE,FALSE)
       
        #if condition reduce or increase CV to achieve the objective
-      if (nrow(solution$aggr_strata)<samp_df$n_strata[s]*dom) {
-        cv_df[,c(2:(ispp+1))]<-cv_df[,c(2:(ispp+1))]-(cv_df[,c(2:(ispp+1))]*0.001) #reduce 0.1% CV ###0.001
-      } else if (nrow(solution$aggr_strata)>samp_df$n_strata[s]*dom){
-        cv_df[,c(2:(ispp+1))]<-cv_df[,c(2:(ispp+1))]+cv_df[,c(2:(ispp+1))]*0.01} #increase 1%
+       if (nrow(solution$aggr_strata)<samp_df$n_strata[s]*dom) {
+         cv_df[,c(2:(ispp+1))]<-cv_df[,c(2:(ispp+1))]-(cv_df[,c(2:(ispp+1))]*0.001) #reduce 0.1% CV ###0.001
+       } else if (nrow(solution$aggr_strata)>samp_df$n_strata[s]*dom){
+        cv_df[,c(2:(ispp+1))]<-cv_df[,c(2:(ispp+1))]+cv_df[,c(2:(ispp+1))]*0.10} #increase 1%
     }
+
+
+
+
     
     ###################################
     # Store solutions from optimizations
@@ -740,30 +813,138 @@ samp_df$samp_scn<-paste0(paste0('scn',1:nrow(samp_df)))
               samples_strata=data.frame(strata=1:no_strata,n_samples=samples_strata),
               cv=cv_temp)
     
+    #strata to plot
+    dd<-all$result_list$solution$framenew
+    #all$ms_sample_allocations
+    effort<-all$ms_sample_allocations[,colnames(all$ms_sample_allocations)[grepl(pattern = 'Str',colnames(all$ms_sample_allocations))]]
+    effort1<-reshape2::melt(effort)
+    names(effort1)<-c('STRATO','effort')
+    effort1$STRATO<-gsub('Str_','',effort1$STRATO)
+    dd1<-merge(dd[,c('DOMAINVALUE','STRATO','ID')],grid,by.x='ID',by.y='cell')
+    dd2<-merge(dd1,effort1,by='STRATO')
+    dd2$strata<-paste0(dd2$DOMAINVALUE,'_',dd2$STRATO)
+    
     #save list
       save(all,
            file = paste0("./output/ms_optim_allocations_ebsnbs_slope_",samp_df[s,'samp_scn'],'_','DOM',length(unique(domain_input)),".RData"))
+      
+      
+      #save plot
+      ragg::agg_png(paste0('./figures slope/',"ms_optim_allocations_ebsnbs_slope_",samp_df[s,'samp_scn'],'.png'),  width = 7, height = 7, units = "in", res = 300)
+      print(
+        ggplot()+
+          geom_tile(data=dd2,aes(x=Lon,y=Lat,color=strata),size=1.5)+
+          geom_polygon(data=NBS_sh,aes(x=long,y=lat,group=group),fill=NA,col='black')+
+          geom_polygon(data=EBSshelf_sh,aes(x=long,y=lat,group=group),fill=NA,col='black')+
+          geom_polygon(data=EBSslope_sh,aes(x=long,y=lat,group=group),fill=NA,col='black')+
+          ggtitle(samp_df[s,'strat_var'])#+
+          #scale_color_continuous(type='viridis')
+      )
+      dev.off()
+      
+      #save plot
+      ragg::agg_png(paste0('./figures slope/',"ms_optim_allocations_ebsnbs_slope_",samp_df[s,'samp_scn'],'_effort.png'),  width = 7, height = 7, units = "in", res = 300)
+      print(
+        ggplot()+
+          geom_tile(data=dd2,aes(x=Lon,y=Lat,color=effort),size=1.5)+
+          geom_polygon(data=NBS_sh,aes(x=long,y=lat,group=group),fill=NA,col='black')+
+          geom_polygon(data=EBSshelf_sh,aes(x=long,y=lat,group=group),fill=NA,col='black')+
+          geom_polygon(data=EBSslope_sh,aes(x=long,y=lat,group=group),fill=NA,col='black')+
+          ggtitle(samp_df[s,'strat_var'])+
+          scale_color_continuous(type='viridis')
+      )
+      dev.off()
+      
+      
    }
 
-  #check lat line 
-  s<-10
+  for (s in c(2,4,6)) { #nrow(samp_df)
   
-  
-  load(paste0("./output/ms_optim_allocations_ebsnbs_slope_",samp_df[s,'samp_scn'],'_','DOM',samp_df[s,'domain'],".RData"))
-  all$result_list$sum_stats
-  #plotStrata2d(x = all$result_list$solution$framenew,outstrata = all$result_list$solution$aggr_strata,domain = 1,vars = c('X1','X2'))
-  
-  dd<-all$result_list$solution$framenew
-  
-  summary(dd)
-  dd1<-merge(dd[,c('DOMAINVALUE','STRATO','ID')],grid,by.x='ID',by.y='cell')
-  dd1$strata<-paste0(dd1$DOMAINVALUE,'_',dd1$STRATO)
-  
-  ggplot()+
-    geom_tile(data=dd1,aes(x=Lon,y=Lat,fill=strata,color=strata),size=3)
+    #2,4,6
     
+    #s<-6
+    
+    dom<-samp_df[s,'domain']
+    
+    
+    #load list
+    load(
+      file = paste0("./output/ms_optim_allocations_ebsnbs_slope_",samp_df[s,'samp_scn'],'_','DOM',dom,".RData")) #all
+    
+    #strata to plot
+    dd<-all$result_list$solution$framenew
+    #all$ms_sample_allocations
+    effort<-all$ms_sample_allocations[,colnames(all$ms_sample_allocations)[grepl(pattern = 'Str',colnames(all$ms_sample_allocations))]]
+    effort1<-reshape2::melt(effort)
+    names(effort1)<-c('STRATO','effort')
+    effort1$STRATO<-gsub('Str_','',effort1$STRATO)
+ 
+    
+    if (dom==2) {
+      
+      effort1$STRATO<-paste0(c(1,2,1,2,1,2,1,2,1,2),'_',effort1$STRATO)
+      names(effort1)[1]<-'strata'
+      dd1<-merge(dd[,c('DOMAINVALUE','STRATO','ID')],grid,by.x='ID',by.y='cell')
+      dd1$strata<-paste0(dd1$DOMAINVALUE,'_',dd1$STRATO)
+      dd2<-merge(dd1,effort1,by='strata')
+      #dd2$strata<-paste0(dd2$DOMAINVALUE,'_',dd2$STRATO)
+      
+    } else {
+      
+    dd1<-merge(dd[,c('DOMAINVALUE','STRATO','ID')],grid,by.x='ID',by.y='cell')
+    dd2<-merge(dd1,effort1,by='STRATO')
+    dd2$strata<-paste0(dd2$DOMAINVALUE,'_',dd2$STRATO)
+    }
+    
+    if (dom==2) {
+      
+    nbs_effort<-aggregate(ID ~ X1,all$result_list$sol_by_cell[1:15180,],FUN=length)
+    nbs_effort$X1<-paste0('1_',nbs_effort$X1)
+    
+    ebs_effort<-aggregate(ID ~ X1,all$result_list$sol_by_cell[15181:nrow(all$result_list$sol_by_cell),],FUN=length)
+    ebs_effort$X1<-paste0('2_',ebs_effort$X1)
   
-  plotSamprate(all$result_list$solution,dom=1)
+    all_effort<-rbind(nbs_effort,ebs_effort)
+    names(all_effort)<-c('strata','effort_area')
+    dd2<-merge(dd2,all_effort,by=('strata'))
+    dd2$effort_area<-dd2$effort_area/dd2$effort
+    
+    } else {
+      
+      all_effort<- aggregate(ID ~ X1,all$result_list$sol_by_cell,FUN=length)
+      names(all_effort)<-c('strata','effort_area')
+      all_effort$strata<-paste0('1_',all_effort$strata)
+      dd2<-merge(dd2,all_effort,by=('strata'))
+      dd2$effort_area<-dd2$effort_area/dd2$effort
+    }
+  #save plot
+  #ragg::agg_png(paste0('./figures slope/',"ms_optim_allocations_ebsnbs_slope_",samp_df[s,'samp_scn'],'.png'),  width = 7, height = 7, units = "in", res = 300)
+  print(
+    ggplot()+
+      geom_point(data=dd2,aes(x=Lon,y=Lat,color=strata),size=0.3)+
+      geom_polygon(data=NBS_sh,aes(x=long,y=lat,group=group),fill=NA,col='black')+
+      geom_polygon(data=EBSshelf_sh,aes(x=long,y=lat,group=group),fill=NA,col='black')+
+      geom_polygon(data=EBSslope_sh,aes(x=long,y=lat,group=group),fill=NA,col='black')+
+      ggtitle(samp_df[s,'strat_var'])#+
+    #scale_color_discrete(type='viridis')
+  )
+  #dev.off()
+  
+  #save plot
+  #ragg::agg_png(paste0('./figures slope/',"ms_optim_allocations_ebsnbs_slope_",samp_df[s,'samp_scn'],'_effort.png'),  width = 7, height = 7, units = "in", res = 300)
+  print(
+    ggplot()+
+      geom_point(data=dd2,aes(x=Lon,y=Lat,color=effort_area),size=0.3)+
+      geom_polygon(data=NBS_sh,aes(x=long,y=lat,group=group),fill=NA,col='black')+
+      geom_polygon(data=EBSshelf_sh,aes(x=long,y=lat,group=group),fill=NA,col='black')+
+      geom_polygon(data=EBSslope_sh,aes(x=long,y=lat,group=group),fill=NA,col='black')+
+      ggtitle(samp_df[s,'strat_var'])+
+      theme_minimal()+
+      theme(text = element_blank())+
+      scale_color_continuous(type='viridis',name='stations/area')
+  )
+  #dev.off()
+  }
   
   
   
