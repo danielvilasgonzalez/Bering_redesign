@@ -1,6 +1,16 @@
 ---
 title: "Evaluating changes in species distribution in the Eastern Bering Sea"
-author: "Daniel Vilas, Lewis Barnett, Lukas DeFilippo and Andre Punt"
+subtitle: 'internal report'
+author:
+- Daniel Vilas
+- Lewis A.K. Barnett
+- André E. Punt
+- Zack S. Oyafuso
+- Lukas DeFilippo
+- Margaret C. Siple
+- Shannon Hennessey
+- Leah S Zacher
+- Stan Kotwicki
 date: "`r format(Sys.time(), '%Y-%m-%d')`"
 output:
   pdf_document:
@@ -45,9 +55,14 @@ p_load(pack_cran,character.only = TRUE)
 
 # Set the root directory for knitting to a temporary directory
 temp_dir <- tempdir()
-print(temp_dir)
 opts_knit$set(root.dir = temp_dir)
 opts_chunk$set(echo = TRUE, warning = FALSE)
+```
+
+```{r}
+
+#temporary directory where files are saved
+print(temp_dir)
 ```
 
 # Introduction
@@ -425,11 +440,17 @@ legend_rects <- data.frame(
 
 #plot
 ggplot() +
-  geom_rect(data = legend_rects, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax, fill = label), alpha = 0.5, show.legend = TRUE) +
-  annotate("rect", xmin = 2002, xmax = 2005.5, ymin = -Inf, ymax = Inf, alpha = 0.5, fill = 'red') +
-  annotate("rect", xmin = 2013.5, xmax = 2022.5, ymin = -Inf, ymax = Inf, alpha = 0.5, fill = 'red') +
-  annotate("rect", xmin = 2005.5, xmax = 2013.5, ymin = -Inf, ymax = Inf, alpha = 0.5, fill = 'blue') +
-  geom_bar(data = ind_all3, aes(x = year, y = frac, fill = variable), stat = 'identity') +
+  geom_rect(data = legend_rects, aes(xmin = xmin, xmax = xmax, 
+                                     ymin = ymin, ymax = ymax, fill = label), 
+            alpha = 0.5, show.legend = TRUE) +
+  annotate("rect", xmin = 2002, xmax = 2005.5, 
+           ymin = -Inf, ymax = Inf, alpha = 0.5, fill = 'red') +
+  annotate("rect", xmin = 2013.5, xmax = 2022.5, 
+           ymin = -Inf, ymax = Inf, alpha = 0.5, fill = 'red') +
+  annotate("rect", xmin = 2005.5, xmax = 2013.5, 
+           ymin = -Inf, ymax = Inf, alpha = 0.5, fill = 'blue') +
+  geom_bar(data = ind_all3, aes(x = year, y = frac, fill = variable), 
+           stat = 'identity') +
   scale_fill_manual(values = c('EBSshelf' = '#046407', 
                                'NBS' = '#B4AF46',
                                'Period 1' = 'red',
@@ -571,13 +592,13 @@ dens_all1$region2<-factor(dens_all1$region2,
 suppressWarnings(print(
 ggplot(dens_all1, aes(x = Year, y=log(1+dens),group=interaction(Year,region2),
                       fill=region2)) +
-    annotate("rect", xmin = 2001.5, xmax = 2005.5, ymin = -Inf, 
-             ymax = Inf, alpha = 0.3, fill = 'red') +
+  annotate("rect", xmin = 2001.5, xmax = 2005.5, ymin = -Inf, 
+           ymax = Inf, alpha = 0.3, fill = 'red') +
   annotate("rect", xmin = 2013.5, xmax = 2016.5, ymin = -Inf, 
            ymax = Inf, alpha = 0.3, fill = 'red') +
   annotate("rect", xmin = 2005.5, xmax = 2013.5, ymin = -Inf, 
            ymax = Inf, alpha = 0.3, fill = 'blue') +
-    geom_boxplot(alpha = 0.7,outliers = FALSE,
+  geom_boxplot(alpha = 0.7,outliers = FALSE,
                position=position_dodge(width=0.8,preserve = "single"),
                size=0.2) +
   theme_minimal()+
@@ -692,13 +713,13 @@ for (s in shelfslope_spp) {
   #COG and total abundance
   centroids <- df %>%
                 group_by(Year) %>%
-                summarise(COG_lat = sum(dens * Lat,na.rm = TRUE) / sum(dens,na.rm = TRUE),
-                          COG_lon = sum(dens * Lon,na.rm = TRUE) / sum(dens,na.rm = TRUE),
-                          COG_depth = sum(dens * DepthGEBCO,na.rm = TRUE) / sum(dens,na.rm = TRUE),
-                          COG_temp = sum(dens * Temp,na.rm = TRUE) / sum(dens,na.rm = TRUE),
-                          total_bio = sum(dens * Area_in_survey_km2,na.rm = TRUE),
-                          mean_dens = mean(dens,na.rm=TRUE),
-                          mean_temp = mean(Temp,na.rm=TRUE))
+                summarise(COG_lat=sum(dens*Lat,na.rm=TRUE)/sum(dens,na.rm=TRUE),
+                          COG_lon=sum(dens*Lon,na.rm=TRUE)/sum(dens,na.rm=TRUE),
+                          COG_depth=sum(dens*DepthGEBCO,na.rm=TRUE)/sum(dens,na.rm=TRUE),
+                          COG_temp=sum(dens*Temp,na.rm = TRUE)/sum(dens,na.rm=TRUE),
+                          total_bio=sum(dens*Area_in_survey_km2,na.rm=TRUE),
+                          mean_dens=mean(dens,na.rm=TRUE),
+                          mean_temp=mean(Temp,na.rm=TRUE))
 
   #cbind data
   metrics<-cbind(centroids,quantiles[,c('q10','q20','q80','q90')],'species'=s)
@@ -753,14 +774,15 @@ rect_data <- data.frame(xmin = c(2002, 2005.5, 2013.5),
   
 #plot effective area
 ggplot(data=subset(metrics_df,species %in% sel_sp))+
-    geom_rect(data = rect_data, aes(ymin = -Inf, ymax = Inf, xmin = xmin, xmax = xmax, fill = fill), 
+    geom_rect(data = rect_data, aes(ymin = -Inf, ymax = Inf, 
+                                    xmin = xmin, xmax = xmax, fill = fill), 
               alpha = 0.3) +
     geom_line(aes(x=Year,y=total_bio/mean_dens),color='black')+
     labs(x='',y='effective area occupied (km2)')+
     theme_bw()+
     scale_x_continuous(breaks=c(2002,2006,2010,2014,2016))+
-    theme(aspect.ratio = 1,strip.background = element_blank(),strip.text = element_text(size=12),
-          text = element_text(size = 12))+
+    theme(aspect.ratio = 1,strip.background = element_blank(),
+          strip.text = element_text(size=12),text = element_text(size = 12))+
     facet_wrap(~species,nrow = 2)+
     theme(legend.position = 'none',aspect.ratio = 1)
 
@@ -768,7 +790,7 @@ ggplot(data=subset(metrics_df,species %in% sel_sp))+
 
 Range edges of species relative to the cold pool were visualized and saved as PNG and GIF files. (*This process can take a few minutes, approximately 10 minutes per species, depending on the computer's performance.*)
 
-```{r, echo=FALSE, warning=FALSE,message=FALSE}
+```{r, echo=FALSE, warning=FALSE,message=FALSE, fig.width=20, fig.height=13}
 
 # Define the files ID from the shareable link
 file_id1 <- "1TEAsIAqWPjyVoOM_eljU3D4DZC5IhZvk"
@@ -809,6 +831,9 @@ get_temp_color <- function(itemp, temp_min, temp_max) {
   return(gradient[round(temp_scaled)])
 }
 
+#filter SBT years
+temp_region2<-subset(temp_region1,year %in% c(2002:2016))
+
 # Loop over species
 for (s in shelfslope_spp) {
   
@@ -824,6 +849,9 @@ for (s in shelfslope_spp) {
                                            'DepthGEBCO', 'depth_m', 
                                            'Year', 'Temp'))
   
+  # Convert df to data.table for faster operations
+  df <- as.data.table(df)
+  
   # Calculate quantiles
   quantiles <- df[, .(dens.10. = quantile(dens, 0.10),
                        dens.90. = quantile(dens, 0.90)),
@@ -833,28 +861,39 @@ for (s in shelfslope_spp) {
   frames <- vector("list", length = 2016 - 2002 + 1)
   names(frames) <- as.character(2002:2016)
   
+  # Precompute the raster extent and CRS
+  base_extent <- extent(raster())
+  base_crs <- CRS(paste0("+proj=aea +lat_1=55"," +lat_2=65 +lat_0=50 ",
+                         "+lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 ",
+                         "+datum=NAD83 +units=m +no_defs"))
+
   # Loop over years
   for (y in 2002:2016) {
     
-    cat(paste('#################### ', y, " - ", '\n'))
-    
+    #cat(paste('#################### ', y, " - ", '\n'))
+      
     # Get quantiles for the year
     p1 <- quantiles[Year == y, dens.10.]
     p2 <- quantiles[Year == y, dens.90.]
-    
+      
     # Filter and process data
     df$quantile <- ifelse(df$dens < p2 & df$dens > p1, 1, 0)
     all_bio4 <- df[Year == y]
-    
+    all_bio4[, quantile := as.integer(dens < p2 & dens > p1)]
+  
     # Convert to sf and rasterize
-    all_bio5 <- st_transform(st_as_sf(all_bio4, coords = c("Lon", "Lat"), 
-                                      crs = 4326), crs = st_crs(3338))
+    all_bio5 <- st_as_sf(all_bio4, coords = c("Lon", "Lat"), 
+                         crs = 4326) %>% st_transform(crs = st_crs(base_crs))
+    
+    #get number of cells
     xycells <- as.integer(sqrt(nrow(all_bio5)))
+    
+    #create raster
     r1 <- raster(ext = extent(all_bio5), ncol = xycells, nrow = xycells)
-    r2 <- rasterize(all_bio5, r1, field = c('quantile', 'Temp', 'all'))
-    crs(r2) <- CRS(paste("+proj=aea","+lat_1=55 +lat_2=65 +lat_0=50",
-                           "+lon_0=-154 +x_0=0 +y_0=0","+ellps=GRS80 +datum=NAD83",
-                           "+units=m +no_defs"))
+    
+    #create raster range
+    r2 <- rasterize(all_bio5, r1, field = c('quantile', 'Temp'))
+    crs(r2) <- base_crs
     r2$quantile[r2$quantile == 0] <- NA
     r2$Temp[r2$Temp > 2] <- NA
     r2[r2$Temp < 2] <- 1
@@ -863,16 +902,18 @@ for (s in shelfslope_spp) {
     r3$quantile <- as.factor(r3$quantile)
     
     # Convert rasters to polygons
+    #contour of range
     r4a <- st_as_sf(rasterToPolygons(r2$quantile, dissolve = TRUE))
+    #contour of cold pool
     r4b <- st_as_sf(rasterToPolygons(r2$Temp, dissolve = TRUE))
     
     # Temp region and year for label
-    itemp_df <- temp_region1[year == y]
-    temp_min <- min(temp_region1$temp)
-    temp_max <- max(temp_region1$temp)
+    itemp_df <- temp_region2[year == y]
+    temp_min <- min(temp_region2$temp)
+    temp_max <- max(temp_region2$temp)
     itemp <- itemp_df$temp
     
-    # Plot
+    # Create the plot
     p <- ggplot() +
       geom_sf(data = r4b, aes(color = 'cold pool'), fill = 'blue', alpha = 0.7) +
       geom_tile(data = r3, aes(x = x, y = y, fill = as.factor(quantile)), alpha = 0.4) +
@@ -884,58 +925,65 @@ for (s in shelfslope_spp) {
       geom_sf(data = ebs.slope$survey.area, fill = NA, col = 'black', linewidth = 0.5) +
       geom_sf(data = bs.all$akland, fill = 'white', color = 'transparent') +
       theme_bw() +
-      labs(title = s) +
+      #labs(title = s) +
       geom_shadowtext(aes(x = -1200000, y = 1750000), label = y, 
                       color = get_temp_color(itemp, temp_min, temp_max), 
                       size = 14, fontface = "bold", bg.colour = "black", bg.r = .05) +
-      coord_sf(crs = paste("+proj=aea","+lat_1=55 +lat_2=65 +lat_0=50",
-                           "+lon_0=-154 +x_0=0 +y_0=0","+ellps=GRS80 +datum=NAD83",
-                           "+units=m +no_defs"),
-               xlim = c(-1516559.21, -47636.05),
-               ylim = c(383099.5, 1994909.7),
+      coord_sf(crs = base_crs, 
+               xlim = c(-1516559.21, -47636.05), ylim = c(383099.5, 1994909.7), 
                label_axes = "-NE-") +
       theme(axis.title = element_blank(),legend.title = element_blank(),
             plot.margin = unit(c(0, 0, 0, 0), units = 'in'),axis.text = element_blank(),
             legend.position = 'none',panel.grid = element_blank(),
             plot.title = element_text(hjust = 0.5, vjust = -12, size = 18),
             panel.border = element_blank(),axis.ticks = element_blank())
-    
+      
     # Save plot to list of frames
     frames[[as.character(y)]] <- p
   }
   
-# Save frames as PNG files
-dir.create(paste0("./edges_", s), showWarnings = FALSE)
-file_names <- paste0("./edges_", s, "/edge_", 2002:2016, ".png")
-mapply(function(p, file_name) ggsave(file_name, plot = p, width = 8, height = 6), 
-       frames, file_names)
-  
-# Create GIF
-gif_path <- paste0("./edges_", s, "/animated_edge.gif")
-images <- lapply(file_names, image_read)
-image_join(images) %>%
+  #all plots
+  plots<-plot_grid(plotlist = frames,ncol = 5) 
+    
+  # Title with reduced font size
+  title <- ggdraw() + 
+               draw_label(s, fontface = 'bold', size = 20) + 
+               theme(plot.margin = margin(0, 0, 0, 0))
+
+  # Grid plot with adjusted relative heights
+  plot_grid(title, plots, ncol = 1, rel_heights = c(0.05, 1))  
+
+  # Save frames as PNG files
+  dir.create(paste0("./edges_", s), showWarnings = FALSE)
+  file_names <- paste0("./edges_", s, "/edge_", 2002:2016, ".png")
+  mapply(function(p, file_name) ggsave(file_name, plot = p, width = 8, height = 6), 
+         frames, file_names)
+    
+  # Create GIF
+  gif_path <- paste0("./edges_", s, "/animated_edge.gif")
+  images <- lapply(file_names, image_read)
+  image_join(images) %>%
   image_animate(fps = 1) %>%
   image_write(gif_path)
 }
-# if (is_html_output()) {
-#     # For HTML output
-#     cat(sprintf('![GIF](%s)', gif_path))
-#   } else if (is_latex_output()) {
-#     # For PDF output, you can use a static image or link
-#     static_image <- paste0("./edges_", s, "/edge_", 2002, ".png")
-#     if (file.exists(static_image)) {
-#       cat(sprintf('\\includegraphics[width=\\textwidth]{%s}', static_image))
-#     } else {
-#       cat(sprintf('See GIF at %s', gif_path))
-#     }
-#   }
-# }
 
 ```
 
 The cumulative distribution of predicted biomass was analyzed in relation to depth and depth ranges.
 
 ```{r, fig.width=16, fig.height=13}
+
+# Define the files ID from the shareable link
+file_id2 <- "1y345z3DbErtCtz3nA_Xu91LStejLVntU"
+
+suppressMessages(
+  suppressWarnings(
+    drive_download(as_id(file_id2),path = "./grid_EBS_NBS_envs.RData",
+                   overwrite = TRUE)))
+
+#load grid
+load('./grid_EBS_NBS_envs.RData') #xx
+xx <- as.data.table(xx)
 
 #average SBT by region and year
 temp_region<-aggregate(Temp ~ Year + region,xx,FUN=mean)
@@ -960,9 +1008,6 @@ suppressMessages(
   suppressWarnings(
     drive_download(as_id(file_id2),path = "./grid_EBS_NBS_envs.RData",
                                                  overwrite = TRUE)))
-
-#load file grid
-load('./grid_EBS_NBS_envs.RData') #xx
 
 #df to store depth percentiles data to evaluate range
 depth_percentiles<-data.frame(matrix(NA,ncol = 7,nrow = 0))
@@ -1050,6 +1095,13 @@ for (s in shelfslope_spp) { #[-6] no anoplopoma fimbria
     #limits
     lims<-ifelse(s=='Reinhardtius hippoglossoides',1200,500)
     
+    #function to get the color scale
+    get_temp_color <- function(itemp, temp_min, temp_max) {
+      gradient <- colorRampPalette(c("blue", "white", "darkred"))(100)
+      temp_scaled <- rescale(itemp, to = c(1, 100), from = c(temp_min, temp_max))
+      return(gradient[round(temp_scaled)])
+    }
+
     # Plot
     p1<-
       ggplot()+  
@@ -1131,6 +1183,12 @@ ggplot()+
   theme_bw()+
   theme(strip.background = element_blank(),strip.text = element_text(size=12))
 
+
+```
+
+```{r fig.width=10, fig.height=4}
+
+#plot depth range
 ggplot()+
   geom_point(data=depth_percentiles,aes(x=depth_p90-depth_p10,y=species,fill=temp),
              shape=21,size=3)+
@@ -1315,9 +1373,14 @@ ggplot()+
                           guide = guide_colorbar(frame.colour = "black", 
                                                  ticks.colour = "black"))+
     facet_wrap(~scientific_name,scales='free')
-  
-  
-#plot using SBT color metrics by adults without slope data - to not bias the estimates with slope years
+
+```
+
+Latitudinal COG relative to bathymetrical COG using adult data relative to SBT in the regions
+
+```{r}
+
+#plot without slope years
 ggplot()+
     geom_shadowtext(data=subset(data_len2,year %in% setdiff(1982:2022,slp_yrs)),
                     aes(x=COG_depth,y=COG_lat,color=temp,label=year),
@@ -1333,3 +1396,5 @@ ggplot()+
     facet_wrap(~scientific_name,scales='free')
 
 ```
+
+Latitudinal COG relative to bathymetrical COG using adult data relative to SBT in the regions. Slope years were removed to avoid bias towards slope years for the bathymetrical COG.
