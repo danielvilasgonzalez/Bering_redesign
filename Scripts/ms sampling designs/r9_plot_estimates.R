@@ -480,47 +480,55 @@ scaleFUN <- function(x) sprintf("%.2f", x)
 
 #plot abundance index for each sampling design
 p<-
-  ggplot()+
-  #geom_ribbon(data=df,aes(x=year,ymax=index[,'q95']/1000000000,ymin=index[,'q5']/1000000000,group=interaction(scn,approach,common),fill=scn),alpha=0.05)+
-  #geom_point(data=ex2,aes(x=year,y=biomass_MT/1000000,group=common),fill='black',color='black',size=1.5,shape=4)+
-  geom_point(data=true_ind1,aes(x=year,y=value/1000000000,group=common,shape=dummy),fill='black',color='black',size=1.5)+
-  geom_line(data=df,aes(x=year,y=index[,'mean']/1000000000,color=scn,group=interaction(scn,approach,common),linetype=approach),linewidth=0.5,alpha=0.7)+
-    labs(y=expression('MT ('* 10^6 * ' tons)'),x='')+
-    scale_fill_manual(values=c('scn1'='#9B59B6','scn2'='#3498DB','scn3'='#1ABC9C','scnbase'='#696778'),
-                      labels = c('existing' ,'opt depth','opt varSBT','opt depth + varSBT'),name='stratification')+
-    scale_color_manual(values=c('scn1'='#9B59B6','scn2'='#3498DB','scn3'='#1ABC9C','scnbase'='#696778'),
-                       labels = c('existing','opt depth','opt varSBT','opt depth + varSBT'),name='stratification')+
+ggplot() +
+  geom_point(data=true_ind1, aes(x=year, y=value/1000000000, group=common, shape=dummy), fill='black', color='black', size=1.5) +
+  geom_line(data=df, aes(x=year, y=index[,'mean']/1000000000, color=scn, group=interaction(scn, approach, common), linetype=approach), linewidth=0.5, alpha=0.7) +
+  labs(y=expression('MT ('* 10^6 * ' tons)'), x='') +
+  scale_fill_manual(values=c('scn1'='#9B59B6','scn2'='#3498DB','scn3'='#1ABC9C','scnbase'='#696778'),
+                    labels = c('existing' ,'opt depth','opt varSBT','opt depth + varSBT'), name='stratification') +
+  scale_color_manual(values=c('scn1'='#9B59B6','scn2'='#3498DB','scn3'='#1ABC9C','scnbase'='#696778'),
+                     labels = c('existing','opt depth','opt varSBT','opt depth + varSBT'), name='stratification') +
   scale_alpha_manual(values = c('scn1'=1,'scn2'=1,'scn3'=1,'scnbase'=0.8),
-                     labels = c('existing' ,'depth','var temp','depth + var temp'),name='stratification')+
-  theme_bw()+
-    scale_linetype_manual(values = c('sys'='solid',
-                                     'sb'='dashed',
-                                     'rand'='dotted'),
-                          label=c('systematic','balanced random','random'),
-                          name='station allocation')+
-  scale_shape_manual(values=c('true index'=16),name='')+
-    #coord_trans(y = "exp")+
+                     labels = c('existing' ,'depth','var temp','depth + var temp'), name='stratification') +
+  theme_bw() +
+  scale_linetype_manual(values = c('sys'='solid', 'sb'='dashed', 'rand'='dotted'),
+                        labels=c('systematic','balanced random','random'),
+                        name='station allocation') +
+  scale_shape_manual(values=c('true index'=16), name='') +
   scale_x_continuous(expand=c(0,0),
                      breaks = c(1985,1990,1995,2000,2005,2010,2015,2020),
-                     minor_breaks = setdiff(1982:2022,c(1982,1985,1990,1995,2000,2005,2010,2015,2020,2022)))+
-  scale_y_continuous(expand = c(0,0),limits = c(0,NA),labels=scaleFUN)+
-  #                    limits =  c(0, max(df$index[,'mean']/1000) + mean(df$index[,'mean'])/10000))+
-  theme(panel.grid.minor = element_line(linetype=2,color='grey90',),legend.key.width = unit(1.5, "lines"),#strip.background = element_rect(fill='white'),
-        legend.key.size = unit(15, 'points'),legend.direction = 'vertical',legend.text = element_text(size=11), #legend.position=c(.85,.19)
-        legend.title = element_text(size=12),legend.spacing = unit(2, "cm"),legend.box.spacing =  unit(0.01, "cm"), #,strip.text = element_text(size=12)
-        strip.background = element_blank(),legend.background = element_blank(),legend.box = 'horizontal',legend.position = 'bottom',#legend.justification = 'right',legend.position='bottom',#legend.position=c(.84,.05),
-        strip.text = element_blank(),axis.title.x = element_blank(),axis.text = element_text(size = 10))+ #axis.text.x = element_text(angle=90,vjust=0.5),
-  expand_limits(y = 0)+
-  geom_text(data=y_scale,aes(label = common, y = text/1000000),x = Inf, vjust = 'inward', hjust = 1.1,size=4, lineheight = 0.8) + #,fontface='italic'
-  geom_text(data=df,aes(label = label),x = 1984, y = Inf, vjust = 1.5,size=5) + #,fontface='italic'
-  guides(fill=guide_legend(nrow=1,order = 1),color=guide_legend(nrow=1,order = 1),linetype=guide_legend(nrow=1,order = 2),shape=guide_legend(nrow=1,order = 3))+
-  #facet_wrap(~com_sci,scales='free',dir='v',nrow = 3)
-  #pacific cod 
-  geom_blank(data=y_scale,aes(x=year,y=scale/1000000,fill=scn,group =interaction(scn,apr)))+
-  facet_wrap(~common,scales='free_y',dir='h',nrow = 5)
+                     minor_breaks = setdiff(1982:2022,c(1982,1985,1990,1995,2000,2005,2010,2015,2020,2022))) +
+  scale_y_continuous(expand = c(0,0), limits = c(0,NA), labels=scaleFUN) +
+  theme(panel.grid.minor = element_line(linetype=2, color='grey90'),
+        legend.key.width = unit(2.5, "lines"),
+        legend.key.size = unit(20, 'points'),
+        legend.direction = 'vertical',
+        legend.text = element_text(size=12),
+        legend.title = element_text(size=12),
+        legend.spacing = unit(1, "cm"),
+        legend.box.spacing = unit(0.01, "cm"),
+        strip.background = element_blank(),
+        legend.background = element_blank(),
+        legend.box = 'horizontal',
+        legend.position = 'bottom',
+        strip.text = element_blank(),
+        axis.title.x = element_blank(),
+        axis.text = element_text(size = 10)) +
+  expand_limits(y = 0) +
+  geom_text(data=y_scale, aes(label = common, y = text/1000000), x = Inf, vjust = 'inward', hjust = 1.1, size=4, lineheight = 0.8) +
+  geom_text(data=df, aes(label = label), x = 1984, y = Inf, vjust = 1.5, size=5) +
+  guides(
+    fill = guide_legend(nrow=1, order = 1, override.aes = list(size=4)),
+    color = guide_legend(nrow=1, order = 1, override.aes = list(size=4, linewidth=1.2)), # Adjust linewidth here
+    linetype = guide_legend(nrow=1, order = 2, override.aes = list(linewidth=1.2)), # Adjust linewidth here
+    shape = guide_legend(nrow=1, order = 3, override.aes = list(size=4))
+  ) +
+  geom_blank(data=y_scale, aes(x=year, y=scale/1000000, fill=scn, group=interaction(scn, apr))) +
+  facet_wrap(~common, scales='free_y', dir='h', nrow = 5)
+
 
 #save index plot
-ragg::agg_png(paste0('./figures/ms_hist_indices_v4.png'), width = 14, height = 8, units = "in", res = 300)
+ragg::agg_png(paste0('./figures/ms_hist_indices_v5.png'), width = 14, height = 8, units = "in", res = 300)
 p
 dev.off()
 
@@ -534,7 +542,7 @@ df2$diff<-(df2$index[,'mean']-(df2$true_ind))/(df2$true_ind)
 df2$value<-df2$diff
 y_scale<-aggregate(value ~ common, df2,max)
 y_scale$scale<-y_scale$value+y_scale$value*0.2
-y_scale$text<-y_scale$value+y_scale$value*0.15
+y_scale$text<-y_scale$value+y_scale$value*0.17
 y_scale$apr<-'sys'
 y_scale$year<-2010
 y_scale$scn<-'scn1'
@@ -559,37 +567,54 @@ ggplot()+
                                    'rand'='dotted'),
                         label=c('systematic','balanced random','random'),
                         name='station allocation')+
-  scale_shape_manual(values=c('true index'=16),name='')+
+  #scale_shape_manual(values=c('true index'=16),name='')+
   #coord_trans(y = "exp")+
   scale_x_continuous(expand=c(0,0),
                      breaks = c(1985,1990,1995,2000,2005,2010,2015,2020),
-                     minor_breaks = setdiff(1982:2022,c(1982,1985,1990,1995,2000,2005,2010,2015,2020,2022)))+
-  #scale_y_continuous(expand = c(0,0),limits = c(0,NA),labels=scaleFUN)+
-  #                    limits =  c(0, max(df$index[,'mean']/1000) + mean(df$index[,'mean'])/10000))+
-  theme(panel.grid.minor = element_line(linetype=2,color='grey90',),legend.key.width = unit(1.5, "lines"),#strip.background = element_rect(fill='white'),
-        legend.key.size = unit(15, 'points'),legend.direction = 'vertical',legend.text = element_text(size=11), #legend.position=c(.85,.19)
-        legend.title = element_text(size=12),legend.spacing = unit(2, "cm"),legend.box.spacing =  unit(0.01, "cm"), #,strip.text = element_text(size=12)
-        strip.background = element_blank(),legend.background = element_blank(),legend.box = 'horizontal',legend.position = 'bottom',#legend.justification = 'right',legend.position='bottom',#legend.position=c(.84,.05),
-        strip.text = element_blank(),axis.title.x = element_blank(),axis.text = element_text(size = 10))+ #axis.text.x = element_text(angle=90,vjust=0.5),
+                     minor_breaks = setdiff(1982:2022,c(1982,1985,1990,1995,2000,2005,2010,2015,2020,2022))) +
+  #scale_y_continuous(expand = c(0,0), limits = c(0,NA), labels=scaleFUN) +
+  theme(panel.grid.minor = element_line(linetype=2, color='grey90'),
+        legend.key.width = unit(2.5, "lines"),
+        legend.key.size = unit(20, 'points'),
+        legend.direction = 'vertical',
+        legend.text = element_text(size=12),
+        legend.title = element_text(size=12),
+        legend.spacing = unit(1, "cm"),
+        legend.box.spacing = unit(0.01, "cm"),
+        strip.background = element_blank(),
+        legend.background = element_blank(),
+        legend.box = 'horizontal',
+        legend.position = 'bottom',
+        strip.text = element_blank(),
+        axis.title.x = element_blank(),
+        axis.text = element_text(size = 10)) +
+  # scale_x_continuous(expand=c(0,0),
+  #                    breaks = c(1985,1990,1995,2000,2005,2010,2015,2020),
+  #                    minor_breaks = setdiff(1982:2022,c(1982,1985,1990,1995,2000,2005,2010,2015,2020,2022)))+
+  #scale_y_continuous(expand = c(0,0), limits = c(0,NA)) +
+  # #                    limits =  c(0, max(df$index[,'mean']/1000) + mean(df$index[,'mean'])/10000))+
+  # theme(panel.grid.minor = element_line(linetype=2,color='grey90',),legend.key.width = unit(1.5, "lines"),#strip.background = element_rect(fill='white'),
+  #       legend.key.size = unit(15, 'points'),legend.direction = 'vertical',legend.text = element_text(size=11), #legend.position=c(.85,.19)
+  #       legend.title = element_text(size=12),legend.spacing = unit(2, "cm"),legend.box.spacing =  unit(0.01, "cm"), #,strip.text = element_text(size=12)
+  #       strip.background = element_blank(),legend.background = element_blank(),legend.box = 'horizontal',legend.position = 'bottom',#legend.justification = 'right',legend.position='bottom',#legend.position=c(.84,.05),
+  #       strip.text = element_blank(),axis.title.x = element_blank(),axis.text = element_text(size = 10))+ #axis.text.x = element_text(angle=90,vjust=0.5),
   expand_limits(y = 0)+
   geom_text(data=y_scale,aes(label = common, y = text),x = Inf, vjust = 'inward', hjust = 1.1,size=4, lineheight = 0.8) + #,fontface='italic'
   geom_text(data=df2,aes(label = label),x = 1984, y = Inf, vjust = 1.5,size=5) + #,fontface='italic'
-  guides(fill=guide_legend(nrow=1,order = 1),color=guide_legend(nrow=1,order = 1),linetype=guide_legend(nrow=1,order = 2),shape=guide_legend(nrow=1,order = 3))+
-  #facet_wrap(~com_sci,scales='free',dir='v',nrow = 3)
+  guides(
+    fill = guide_legend(nrow=1, order = 1, override.aes = list(size=4)),
+    color = guide_legend(nrow=1, order = 1, override.aes = list(size=4, linewidth=1.2)), # Adjust linewidth here
+    linetype = guide_legend(nrow=1, order = 2, override.aes = list(linewidth=1.2)), # Adjust linewidth here
+    shape = guide_legend(nrow=1, order = 3, override.aes = list(size=4))
+  ) +  #facet_wrap(~com_sci,scales='free',dir='v',nrow = 3)
   #pacific cod 
   geom_blank(data=y_scale,aes(x=year,y=scale,fill=scn,group =interaction(scn,apr)))+
   facet_wrap(~common,scales='free_y',dir='h',nrow = 5)
 
 #save index plot
-ragg::agg_png(paste0('./figures/ms_hist_diff.png'), width = 14, height = 8, units = "in", res = 300)
+ragg::agg_png(paste0('./figures/ms_hist_diff_v5.png'), width = 14, height = 8, units = "in", res = 300)
 p
 dev.off()
-
-
-
-
-
-
 
 ######################
 # HISTORICAL CV
@@ -703,14 +728,27 @@ df1$value<-df1$cv[,'mean']
 df1<-subset(df1,scn!='scnbase_bis')
 unique(df$common)
 df1<-subset(df1,common %in% unique(df1$common)[!grepl("_EBSNBS", as.character(unique(df1$common)))])
+#df1<-subset(df1, grepl("crab", common))
 
 #for geom_blank(0 and adjust scale)
 y_scale<-aggregate(value ~ common, df1,max)
 y_scale$scale<-y_scale$value+y_scale$value*0.2
-y_scale$text<-y_scale$value+y_scale$value*0.15
+y_scale$text<-y_scale$value+y_scale$value*0.17
 y_scale$apr<-'sys'
 y_scale$scn<-'scn1'
 y_scale$year<-2022
+
+# #sort factors just in case
+# df1$common<-factor(df1$common,levels=c('Snow crab','Snow crab_EBSNBS',
+#                                     'Tanner crab','Tanner crab_EBSNBS',
+#                                     'Pribilof Islands\nblue king crab',"St. Matthew Island\nblue king crab","Blue king crab_EBSNBS",
+#                                     "Pribilof Islands\nred king crab","Bristol Bay\nred king crab",'Red king crab_EBSNBS' ))
+# 
+# #sort factors just in case
+# y_scale$common<-factor(y_scale$common,levels=c('Snow crab','Snow crab_EBSNBS',
+#                                        'Tanner crab','Tanner crab_EBSNBS',
+#                                        'Pribilof Islands\nblue king crab',"St. Matthew Island\nblue king crab","Blue king crab_EBSNBS",
+#                                        "Pribilof Islands\nred king crab","Bristol Bay\nred king crab",'Red king crab_EBSNBS' ))
 
 #plot estimated CV for each sampling design
 p<-
@@ -725,30 +763,47 @@ p<-
     #scale_alpha_manual(values = c('scn1'=1,'scn2'=1,'scn3'=1,'scnbase'=,'scnbase_bis'=1),
     #                   labels = c('existing','existing w/o corner' ,'depth','var temp','depth + var temp'),name='stratification')+
     theme_bw()+ 
-    facet_wrap(~common,scales='free_y',dir='h',nrow = 5)+#scales = list(y = list(breaks = pretty(range(df1$value), n = 5))))+
+    facet_wrap(~common,scales='free_y',dir='h',ncol = 2)+#scales = list(y = list(breaks = pretty(range(df1$value), n = 5))))+
     scale_linetype_manual(values = c('sys'='solid',
                                      'sb'='dashed',
                                      'rand'='dotted'),
                           label=c('systematic','balanced random','random'),
                           name='station allocation')+
     scale_shape_manual(values=c('true index'=21),name='')+
-    scale_y_continuous(labels=function(x) sprintf('%.2f',x),expand = c(NA,0.1),limits = c(0,NA))+ #expand = c(NA,0.1),limits = c(0,NA)
+    scale_y_continuous(expand = c(0,0),limits = c(0,NA))+ #expand = c(NA,0.1),limits = c(0,NA)
     #                    limits =  c(0, max(df$index[,'mean']/1000) + mean(df$index[,'mean'])/10000))+
-  theme(panel.grid.minor = element_line(linetype=2,color='grey90',),legend.key.width = unit(1.5, "lines"),#strip.background = element_rect(fill='white'),
-        legend.key.size = unit(15, 'points'),legend.direction = 'vertical',legend.text = element_text(size=11), #legend.position=c(.85,.19)
-        legend.title = element_text(size=12),legend.spacing = unit(2, "cm"),legend.box.spacing =  unit(0.01, "cm"), #,strip.text = element_text(size=12)
-        strip.background = element_blank(),legend.background = element_blank(),legend.box = 'horizontal',legend.position = 'bottom',#legend.justification = 'right',legend.position='bottom',#legend.position=c(.84,.05),
-        strip.text = element_blank(),axis.title.x = element_blank(),axis.text = element_text(size = 10),axis.text.x = element_blank())+
+  theme(panel.grid.minor = element_line(linetype=2, color='grey90'),
+        legend.key.width = unit(2.5, "lines"),
+        legend.key.size = unit(20, 'points'),
+        legend.direction = 'vertical',
+        legend.text = element_text(size=12),
+        legend.title = element_text(size=12),
+        legend.spacing = unit(1, "cm"),
+        legend.box.spacing = unit(0.01, "cm"),
+        strip.background = element_blank(),
+        legend.background = element_blank(),
+        legend.box = 'horizontal',
+        legend.position = 'bottom',
+        strip.text = element_blank(),
+        axis.title.x = element_blank(),
+        axis.text.x = element_blank(),
+        axis.text = element_text(size = 10)) +
   expand_limits(y = 0)+
-    geom_text(data=y_scale,aes(label = common, y = text),x = Inf, vjust = 'inward', hjust = 1.1,size=4, lineheight = 0.8) + #,fontface='italic'
-    geom_text(data=df1,aes(label = paste0(label,'      ')),x = 'scnbase', y = Inf, vjust = 1.5,size=5) + #,fontface='italic'
+    geom_text(data=y_scale,aes(label = common, y = text),x = Inf, vjust = 1.2, hjust = 1.1,size=4, lineheight = 0.8) + #,fontface='italic'
+    #geom_text(data=df1,aes(label = paste0(label,'         ')),x = 'scnbase', y = Inf, vjust = 1.5,size=5) + #,fontface='italic'
     #  geom_text(data=df1,aes(label = common),x = Inf, y = -Inf, hjust = 1.1, vjust = -0.8,size=4) + #,fontface='italic'
-  guides(fill=guide_legend(nrow=1,order = 1),color=guide_legend(nrow=1,order = 1),linetype=guide_legend(nrow=1,order = 2),shape='none')+
+  guides(
+    fill = guide_legend(nrow=1, order = 1, override.aes = list(size=4)),
+    color = guide_legend(nrow=1, order = 1, override.aes = list(size=4)), # Adjust linewidth here
+    linetype = guide_legend(nrow=1, order = 2, override.aes = list()), # Adjust linewidth here
+    shape = 'none') +  #facet_wrap(~com_sci,scales='free',dir='v',nrow = 3)
+  #guides(fill=guide_legend(nrow=1,order = 1),color=guide_legend(nrow=1,order = 1),linetype=guide_legend(nrow=1,order = 2),shape='none')+
   #facet_wrap(~com_sci,scales='free',dir='v',nrow = 3)
   geom_blank(data=y_scale,aes(x=scn,y=scale,fill=scn,group =interaction(scn,apr)))
   
 #save plot
-ragg::agg_png(paste0('./figures/ms_hist_indices_cv_box_v3.png'), width = 13, height = 8, units = "in", res = 300)
+ragg::agg_png(paste0('./figures/ms_hist_indices_cv_box_v5.png'), width = 13, height = 8, units = "in", res = 300)
+#ragg::agg_png(paste0('./figures/ms_hist_indices_cv_box_EBSNBS_suppl.png'), width = 13, height = 8, units = "in", res = 300)
 p
 dev.off()
 
@@ -780,20 +835,33 @@ p<-
   scale_shape_manual(values=c('true index'=21),name='')+
   scale_y_continuous(labels=function(x) sprintf('%.2f',x),expand = c(NA,0.1),limits = c(0,NA))+ #expand = c(NA,0.1),limits = c(0,NA)
   #                    limits =  c(0, max(df$index[,'mean']/1000) + mean(df$index[,'mean'])/10000))+
-  theme(panel.grid.minor = element_line(linetype=2,color='grey90',),legend.key.width = unit(1.5, "lines"),#strip.background = element_rect(fill='white'),
-        legend.key.size = unit(15, 'points'),legend.direction = 'vertical',legend.text = element_text(size=11), #legend.position=c(.85,.19)
-        legend.title = element_text(size=12),legend.spacing = unit(2, "cm"),legend.box.spacing =  unit(0.01, "cm"), #,strip.text = element_text(size=12)
-        strip.background = element_blank(),legend.background = element_blank(),legend.box = 'horizontal',legend.position = 'bottom',#legend.justification = 'right',legend.position='bottom',#legend.position=c(.84,.05),
-        strip.text = element_blank(),axis.title.x = element_blank(),axis.text = element_text(size = 10))+
+  theme(panel.grid.minor = element_line(linetype=2, color='grey90'),
+        legend.key.width = unit(2.5, "lines"),
+        legend.key.size = unit(20, 'points'),
+        legend.direction = 'vertical',
+        legend.text = element_text(size=12),
+        legend.title = element_text(size=12),
+        legend.spacing = unit(1, "cm"),
+        legend.box.spacing = unit(0.01, "cm"),
+        strip.background = element_blank(),
+        legend.background = element_blank(),
+        legend.box = 'horizontal',
+        legend.position = 'bottom',
+        strip.text = element_blank(),
+        axis.title.x = element_blank(),
+        axis.text = element_text(size = 10)) +
   expand_limits(y = 0)+
-  geom_text(data=y_scale,aes(label = common, y = text),x = Inf, vjust = 'inward', hjust = 1.1,size=4, lineheight = 0.8) + #,fontface='italic'
+  geom_text(data=y_scale,aes(label = common, y = text),x = Inf, vjust = 1.3, hjust = 1.1,size=4, lineheight = 0.8) + #,fontface='italic'
   geom_text(data=df,aes(label = label),x = 1984, y = Inf, vjust = 1.5,size=5) + #,fontface='italic'
-  #  geom_text(data=df1,aes(label = common),x = Inf, y = -Inf, hjust = 1.1, vjust = -0.8,size=4) + #,fontface='italic'
-  guides(fill=guide_legend(nrow=1,order = 1),color=guide_legend(nrow=1,order = 1),linetype=guide_legend(nrow=1,order = 2),shape='none')+
-  geom_blank(data=y_scale,aes(x=year,y=scale,fill=scn,group =interaction(scn,apr)))
+    #  geom_text(data=df1,aes(label = common),x = Inf, y = -Inf, hjust = 1.1, vjust = -0.8,size=4) + #,fontface='italic'
+  guides(
+    fill = guide_legend(nrow=1, order = 1, override.aes = list(size=4,linewidth=1.2)),
+    color = guide_legend(nrow=1, order = 1, override.aes = list(size=4,linewidth=1.2)), # Adjust linewidth here
+    linetype = guide_legend(nrow=1, order = 2, override.aes = list(linewidth=1.2)), # Adjust linewidth here
+    shape = 'none')  #facet_wrap(~com_sci,scales='free',dir='v',nrow = 3)  geom_blank(data=y_scale,aes(x=year,y=scale,fill=scn,group =interaction(scn,apr)))
 
 #save plot
-ragg::agg_png(paste0('./figures/ms_hist_cv_timeseries_v3.png'), width = 14, height = 8, units = "in", res = 300)
+ragg::agg_png(paste0('./figures/ms_hist_cv_timeseries_v5.png'), width = 14, height = 8, units = "in", res = 300)
 p
 dev.off()
 
@@ -836,7 +904,7 @@ p<-
   #geom_blank(data=y_scale,aes(x=scn,y=scale,fill=scn,group =interaction(scn,apr)))
 
   #save plot
-  ragg::agg_png(paste0('./figures/ms_hist_indices_cv_box_allspp_v3.png'), width = 6, height = 5, units = "in", res = 300)
+  ragg::agg_png(paste0('./figures/ms_hist_indices_cv_box_allspp_v5.png'), width = 6, height = 5, units = "in", res = 300)
   p
   dev.off()
   
@@ -1083,15 +1151,15 @@ all_df2$approach<-factor(all_df2$approach,levels=c('sys','sb','rand'))
 #save rrmse
 df3<-all_df2
 save(df3,file = './output/rrmse_cv_hist.RData')
-
+load('./output/rrmse_cv_hist.RData')
 #remove existing bis design and EBSNBS spp
 df3<-subset(df3,scn!='scnbase_bis')
 df3<-subset(df3,common %in% unique(df3$common)[!grepl("_EBSNBS", as.character(unique(df3$common)))])
 
 #for label purposes
 y_scale<-aggregate(rrmse ~ spp+common+label, df3,max)
-y_scale$scale<-y_scale$rrmse+y_scale$rrmse*0.2
-y_scale$text<-y_scale$rrmse+y_scale$rrmse*0.15
+y_scale$scale<-y_scale$rrmse+y_scale$rrmse*0.25
+y_scale$text<-y_scale$rrmse+y_scale$rrmse*0.20
 y_scale$apr<-'sys'
 y_scale$scn<-'scn1'
 y_scale$year<-2022
@@ -1118,26 +1186,42 @@ p<-
                           label=c('systematic','balanced random','random'),
                           name='station allocation')+
     scale_shape_manual(values=c('true index'=21),name='')+
-      scale_y_continuous(labels=function(x) sprintf('%.2f',x),expand = c(NA,0.1),limits = c(0,NA))+ #expand = c(NA,0.1),limits = c(0,NA)
+      scale_y_continuous(expand = c(NA,0.1),limits = c(0,NA),breaks = c(0,0.5,1,1.5))+ #expand = c(NA,0.1),limits = c(0,NA)
     #                    limits =  c(0, max(df$index[,'mean']/1000) + mean(df$index[,'mean'])/10000))+
-  theme(panel.grid.minor = element_line(linetype=2,color='grey90',),legend.key.width = unit(1.5, "lines"),#strip.background = element_rect(fill='white'),
-        legend.key.size = unit(15, 'points'),legend.direction = 'vertical',legend.text = element_text(size=11), #legend.position=c(.85,.19)
-        legend.title = element_text(size=12),legend.spacing = unit(2, "cm"),legend.box.spacing =  unit(0.01, "cm"), #,strip.text = element_text(size=12)
-        strip.background = element_blank(),legend.background = element_blank(),legend.box = 'horizontal',legend.position = 'bottom',#legend.justification = 'right',legend.position='bottom',#legend.position=c(.84,.05),
-        strip.text = element_blank(),axis.title.x = element_blank(),axis.text = element_text(size = 10),axis.text.x = element_blank())+
+  theme(panel.grid.minor = element_line(linetype=2, color='grey90'),
+        legend.key.width = unit(2.5, "lines"),
+        legend.key.size = unit(20, 'points'),
+        legend.direction = 'vertical',
+        legend.text = element_text(size=12),
+        legend.title = element_text(size=12),
+        legend.spacing = unit(1, "cm"),
+        legend.box.spacing = unit(0.01, "cm"),
+        strip.background = element_blank(),
+        legend.background = element_blank(),
+        legend.box = 'horizontal',
+        legend.position = 'bottom',
+        strip.text = element_blank(),
+        axis.title.x = element_blank(),
+        axis.text.x = element_blank(),
+        axis.text = element_text(size = 10)) +
+  guides(
+    fill = guide_legend(nrow=1, order = 1, override.aes = list(size=4)),
+    color = guide_legend(nrow=1, order = 1, override.aes = list(size=4)), # Adjust linewidth here
+    linetype = guide_legend(nrow=1, order = 2, override.aes = list()), # Adjust linewidth here
+    shape = 'none') +  #facet_wrap(~com_sci,scales='free',dir='v',nrow = 3)  geom_blank(data=y_scale,aes(x=year,y=scale,fill=scn,group =interaction(scn,apr)))
   expand_limits(y = 0)+
       geom_text(data=y_scale,aes(label = common, y = text),x = Inf, vjust = 'inward', hjust = 1.1,size=4, lineheight = 0.8) + #,fontface='italic'
-      geom_text(data=df3,aes(label = paste0(label,'      ')),x = 'scnbase', y = Inf, vjust = 1.5,size=5) + #,fontface='italic'
+      geom_text(data=df3,aes(label = paste0(label,'        ')),x = 'scnbase', y = Inf, vjust = 1.5,size=5) + #,fontface='italic'
       geom_blank(data=y_scale,aes(x=scn,y=scale,fill=scn,group =interaction(scn,apr)))+
       facet_wrap(~common,scales='free_y',dir='h',nrow = 5)+
     expand_limits(y = 0)+
-      labs(y=expression('RRMSE of '*widehat(CV)),x='')+
-    guides(fill=guide_legend(nrow=1,order=1),color=guide_legend(nrow=1,order=1),linetype=guide_legend(nrow=1,order = 2))#+
+      labs(y=expression('RRMSE of '*widehat(CV)),x='')#+
+    #guides(fill=guide_legend(nrow=1,order=1),color=guide_legend(nrow=1,order=1),linetype=guide_legend(nrow=1,order = 2))#+
 
   #geom_blank(data=y_scale,aes(x=scn,y=scale,fill=scn,group =interaction(scn,apr)))
   
   #save plot
-  ragg::agg_png(paste0('./figures/ms_hist_rrmse_cv_box_v3.png'), width = 13, height = 8, units = "in", res = 300)
+  ragg::agg_png(paste0('./figures/ms_hist_rrmse_cv_box_v5.png'), width = 13, height = 8, units = "in", res = 300)
   p
   dev.off()
   
@@ -1176,7 +1260,7 @@ p<-
   #geom_blank(data=y_scale,aes(x=scn,y=scale,fill=scn,group =interaction(scn,apr)))
   
   #save plot210notio
-  ragg::agg_png(paste0('./figures/ms_hist_indices_rrmse_box_allsp_v3.png'), width = 6, height = 5, units = "in", res = 300)
+  ragg::agg_png(paste0('./figures/ms_hist_indices_rrmse_box_allsp_v5.png'), width = 6, height = 5, units = "in", res = 300)
   p
   dev.off()
 
@@ -1632,21 +1716,34 @@ p<-
                        minor_breaks = c(2024,2026))+
     scale_y_continuous(expand = c(0,0),limits = c(0,NA))+
     #                    limits =  c(0, max(df$index[,'mean']/1000) + mean(df$index[,'mean'])/10000))+
-    theme(panel.grid.minor = element_line(linetype=2,color='grey90',),legend.key.width = unit(1.5, "lines"),#strip.background = element_rect(fill='white'),
-          legend.key.size = unit(15, 'points'),legend.direction = 'vertical',legend.text = element_text(size=11), #legend.position=c(.85,.19)
-          legend.title = element_text(size=12),legend.spacing = unit(2, "cm"),legend.box.spacing =  unit(0.01, "cm"), #,strip.text = element_text(size=12)
-          strip.background = element_blank(),legend.background = element_blank(),legend.box = 'horizontal',legend.position = 'bottom',#legend.justification = 'right',legend.position='bottom',#legend.position=c(.84,.05),
-          strip.text = element_blank(),axis.title.x = element_blank(),axis.text = element_text(size = 10))+
+    theme(
+      panel.grid.minor = element_line(linetype=2, color='grey90'),
+      legend.key.width = unit(2.5, "lines"),
+      legend.key.size = unit(20, 'points'),
+      legend.direction = 'vertical',plot.margin = margin(15,15,15,15),
+      legend.text = element_text(size=12),
+      legend.title = element_text(size=12),
+      legend.spacing = unit(1, "cm"),
+      legend.box.spacing = unit(0.01, "cm"),
+      strip.background = element_blank(),
+      legend.background = element_blank(),
+      legend.box = 'horizontal',
+      legend.position = 'bottom',
+      strip.text = element_blank(),
+      axis.title.x = element_blank(),
+      axis.text = element_text(size = 10))+
     expand_limits(y = 0)+
     geom_text(data=y_scale,aes(label = common, y = text),x = Inf, vjust = 'inward', hjust = 1.1,size=4, lineheight = 0.8) + #,fontface='italic'
     geom_text(data=df1,aes(label = label),x = 2023.2, y = Inf, vjust = 1.5,size=5) + #,fontface='italic'
-    guides(fill=guide_legend(nrow=1,order = 1),color=guide_legend(nrow=1,order = 1),linetype=guide_legend(nrow=1,order = 2),shape='none')+
+    guides(
+      fill = guide_legend(nrow=1, order = 1, override.aes = list(size=4, linewidth=1.2)),
+      color = guide_legend(nrow=1, order = 1, override.aes = list(size=4, linewidth=1.2)), # Adjust linewidth here
+      linetype = guide_legend(nrow=1, order = 2, override.aes = list( linewidth=1.2)), # Adjust linewidth here
+      shape = 'none')+
     #facet_wrap(~com_sci,scales='free',dir='v',nrow = 3)
     #pacific cod 
     geom_blank(data=y_scale,aes(x=year,y=scale,fill=scn,group =interaction(scn,apr)))+
     facet_wrap(~common,scales='free_y',dir='h',nrow = 5)
-  
-  
   
   # ggplot()+
   #   geom_ribbon(data=df,aes(x=year,ymax=index[,'q95']/1000,ymin=index[,'q5']/1000,group=interaction(scn,approach,common),fill=scn),alpha=0.05)+
@@ -1689,7 +1786,7 @@ p<-
   
   
 #save plot
-ragg::agg_png(paste0('./figures/SBT3_proj_indices_v3.png'), width = 14, height = 8, units = "in", res = 300)
+ragg::agg_png(paste0('./figures/SBT3_proj_indices_v5.png'), width = 14, height = 8, units = "in", res = 300)
 p
 dev.off()
 
@@ -1865,11 +1962,20 @@ ggplot()+
   scale_shape_manual(values=c('true index'=21),name='')+
   scale_y_continuous(labels=function(x) sprintf('%.2f',x),expand = c(NA,0.1),limits = c(0,NA))+ #expand = c(NA,0.1),limits = c(0,NA)
   #                    limits =  c(0, max(df$index[,'mean']/1000) + mean(df$index[,'mean'])/10000))+
-  theme(panel.grid.minor = element_line(linetype=2,color='grey90',),legend.key.width = unit(1.5, "lines"),#strip.background = element_rect(fill='white'),
-        legend.key.size = unit(15, 'points'),legend.direction = 'vertical',legend.text = element_text(size=11), #legend.position=c(.85,.19)
-        legend.title = element_text(size=12),legend.spacing = unit(2, "cm"),legend.box.spacing =  unit(0.01, "cm"), #,strip.text = element_text(size=12)
-        strip.background = element_blank(),legend.background = element_blank(),legend.box = 'horizontal',legend.position = 'bottom',#legend.justification = 'right',legend.position='bottom',#legend.position=c(.84,.05),
-        strip.text = element_blank(),axis.title.x = element_blank(),axis.text = element_text(size = 10),axis.text.x = element_blank())+
+  theme(panel.grid.minor = element_line(linetype=2, color='grey90'),
+        legend.key.width = unit(2.5, "lines"),
+        legend.key.size = unit(20, 'points'),
+        legend.direction = 'vertical',plot.margin = margin(15,15,15,15),
+        legend.text = element_text(size=12),
+        legend.title = element_text(size=12),
+        legend.spacing = unit(1, "cm"),
+        legend.box.spacing = unit(0.01, "cm"),
+        strip.background = element_blank(),
+        legend.background = element_blank(),
+        legend.box = 'horizontal',
+        legend.position = 'bottom',
+        strip.text = element_blank()
+        ,axis.title.x = element_blank(),axis.text = element_text(size = 10),axis.text.x = element_blank())+
   expand_limits(y = 0)+
   #geom_text(data=y_scale,aes(label = common, y = text),x = Inf, vjust = 'inward', hjust = 1.1,size=4, lineheight = 0.8) + #,fontface='italic'
   #geom_text(data=y_scale,aes(label = label),x = 'scn1', y = Inf, vjust = 1.5,size=5) + #,fontface='italic'
@@ -1878,13 +1984,38 @@ ggplot()+
   geom_text(data=y_scale,aes(label = sbt),x = Inf, hjust = 1.1,lineheight = 0.8,y = Inf, vjust = 1.5,size=5) + #,fontface='italic'
   #geom_text(data=y_scale,aes(label = label),x = 'scnbase', y = Inf, vjust = 1.5,size=5) + #,fontface='italic'
   geom_blank(data=y_scale,aes(x=scn,y=scale,fill=scn,group =interaction(scn,apr,sbt)))+
-  geom_text(data=y_scale,aes(label = paste0(label,'     ')),x = 'scnbase', y = Inf, vjust = 1.5,size=5) + #,fontface='italic'
+  geom_text(data=y_scale,aes(label = paste0(label,'        ')),x = 'scnbase', y = Inf, vjust = 1.5,size=5) + #,fontface='italic'
   guides(fill=guide_legend(nrow=1,order = 1),color=guide_legend(nrow=1,order = 1),linetype=guide_legend(nrow=1,order = 2),shape='none')+
   facet_wrap(~sbt,dir='h',nrow = 2)
 
+# theme(
+#   panel.grid.minor = element_line(linetype=2, color='grey90'),
+#   legend.key.width = unit(2.5, "lines"),
+#   legend.key.size = unit(20, 'points'),
+#   legend.direction = 'vertical',plot.margin = margin(15,15,15,15),
+#   legend.text = element_text(size=12),
+#   legend.title = element_text(size=12),
+#   legend.spacing = unit(1, "cm"),
+#   legend.box.spacing = unit(0.01, "cm"),
+#   strip.background = element_blank(),
+#   legend.background = element_blank(),
+#   legend.box = 'horizontal',
+#   legend.position = 'bottom',
+#   strip.text = element_blank(),
+#   axis.title.x = element_blank(),
+#   axis.text = element_text(size = 10))+
+#   expand_limits(y = 0)+
+#   geom_text(data=y_scale,aes(label = common, y = text),x = Inf, vjust = 'inward', hjust = 1.1,size=4, lineheight = 0.8) + #,fontface='italic'
+#   geom_text(data=df1,aes(label = label),x = 2023.2, y = Inf, vjust = 1.5,size=5) + #,fontface='italic'
+#   guides(
+#     fill = guide_legend(nrow=1, order = 1, override.aes = list(size=4, linewidth=1.2)),
+#     color = guide_legend(nrow=1, order = 1, override.aes = list(size=4, linewidth=1.2)), # Adjust linewidth here
+#     linetype = guide_legend(nrow=1, order = 2, override.aes = list( linewidth=1.2)), # Adjust linewidth here
+#     shape = 'none')
+  
 
 #save plot210notio
-ragg::agg_png(paste0('./figures/sbt_ms_cv_proj_box_v3.png'), width = 12, height = 6, units = "in", res = 300)
+ragg::agg_png(paste0('./figures/sbt_ms_cv_proj_box_v5.png'), width = 12, height = 6, units = "in", res = 300)
 p
 dev.off()
 
@@ -1978,14 +2109,23 @@ ggplot()+
   scale_shape_manual(values=c('true index'=21),name='')+
   scale_y_continuous(labels=function(x) sprintf('%.2f',x),expand = c(NA,0.1),limits = c(0,NA))+ #expand = c(NA,0.1),limits = c(0,NA)
   #                    limits =  c(0, max(df$index[,'mean']/1000) + mean(df$index[,'mean'])/10000))+
-  theme(panel.grid.minor = element_line(linetype=2,color='grey90',),legend.key.width = unit(1.5, "lines"),#strip.background = element_rect(fill='white'),
-        legend.key.size = unit(15, 'points'),legend.direction = 'vertical',legend.text = element_text(size=11), #legend.position=c(.85,.19)
-        legend.title = element_text(size=12),legend.spacing = unit(2, "cm"),legend.box.spacing =  unit(0.01, "cm"), #,strip.text = element_text(size=12)
-        strip.background = element_blank(),legend.background = element_blank(),legend.box = 'horizontal',legend.position = 'bottom',#legend.justification = 'right',legend.position='bottom',#legend.position=c(.84,.05),
-        strip.text = element_blank(),axis.title.x = element_blank(),axis.text = element_text(size = 10),axis.text.x = element_blank())+
+  theme(panel.grid.minor = element_line(linetype=2, color='grey90'),
+        legend.key.width = unit(2.5, "lines"),
+        legend.key.size = unit(20, 'points'),
+        legend.direction = 'vertical',plot.margin = margin(15,15,15,15),
+        legend.text = element_text(size=12),
+        legend.title = element_text(size=12),
+        legend.spacing = unit(1, "cm"),
+        legend.box.spacing = unit(0.01, "cm"),
+        strip.background = element_blank(),
+        legend.background = element_blank(),
+        legend.box = 'horizontal',
+        legend.position = 'bottom',
+        strip.text = element_blank()
+        ,axis.title.x = element_blank(),axis.text = element_text(size = 10),axis.text.x = element_blank())+
   expand_limits(y = 0)+
   geom_text(data=y_scale,aes(label = common, y = text),x = Inf, vjust = 'inward', hjust = 1.1,size=4, lineheight = 0.8) + #,fontface='italic'
-  geom_text(data=y_scale,aes(label = paste0(label,'     '),y=text),x = 'scnbase', vjust = 'inward',size=5) + #,fontface='italic'
+  geom_text(data=y_scale,aes(label = paste0(label,'        '),y=text),x = 'scnbase', vjust = 'inward',size=5) + #,fontface='italic'
   #facet_wrap(~com_sci,scales='free',dir='v',nrow = 3)
   #pacific cod 
   geom_blank(data=y_scale,aes(x=scn,y=scale,fill=scn,group =interaction(scn,apr,common)))+
@@ -1994,7 +2134,7 @@ ggplot()+
   facet_wrap(~common,scales='free_y',dir='h',nrow = 5)
   
 #save plot
-ragg::agg_png(paste0('./figures/spp_ms_proj_cv_box_v3.png'), width = 13, height = 8, units = "in", res = 300)
+ragg::agg_png(paste0('./figures/spp_ms_proj_cv_box_v5.png'), width = 13, height = 8, units = "in", res = 300)
 p
 dev.off()
 
@@ -2206,21 +2346,30 @@ p<-
   scale_shape_manual(values=c('true index'=21),name='')+
   scale_y_continuous(labels=function(x) sprintf('%.2f',x),expand = c(NA,0.1),limits = c(0,NA))+ #expand = c(NA,0.1),limits = c(0,NA)
   #                    limits =  c(0, max(df$index[,'mean']/1000) + mean(df$index[,'mean'])/10000))+
-  theme(panel.grid.minor = element_line(linetype=2,color='grey90',),legend.key.width = unit(1.5, "lines"),#strip.background = element_rect(fill='white'),
-        legend.key.size = unit(15, 'points'),legend.direction = 'vertical',legend.text = element_text(size=11), #legend.position=c(.85,.19)
-        legend.title = element_text(size=12),legend.spacing = unit(2, "cm"),legend.box.spacing =  unit(0.01, "cm"), #,strip.text = element_text(size=12)
-        strip.background = element_blank(),legend.background = element_blank(),legend.box = 'horizontal',legend.position = 'bottom',#legend.justification = 'right',legend.position='bottom',#legend.position=c(.84,.05),
-        strip.text = element_blank(),axis.title.x = element_blank(),axis.text = element_text(size = 10),axis.text.x = element_blank())+
+  theme(panel.grid.minor = element_line(linetype=2, color='grey90'),
+        legend.key.width = unit(2.5, "lines"),
+        legend.key.size = unit(20, 'points'),
+        legend.direction = 'vertical',plot.margin = margin(15,15,15,15),
+        legend.text = element_text(size=12),
+        legend.title = element_text(size=12),
+        legend.spacing = unit(1, "cm"),
+        legend.box.spacing = unit(0.01, "cm"),
+        strip.background = element_blank(),
+        legend.background = element_blank(),
+        legend.box = 'horizontal',
+        legend.position = 'bottom',
+        strip.text = element_blank()
+        ,axis.title.x = element_blank(),axis.text = element_text(size = 10),axis.text.x = element_blank())+
   expand_limits(y = 0)+
   geom_text(data=y_scale,aes(label = sbt),x = Inf, hjust = 1.1,lineheight = 0.8,y = Inf, vjust = 1.5,size=5) + #,fontface='italic'
   #geom_blank(data=y_scale,aes(x=scn,y=scale,fill=scn,group =interaction(scn,apr,sbt)))+
-  geom_text(data=y_scale,aes(label = paste0(label,'     ')),x = 'scnbase', y = Inf, vjust = 1.5,size=5) + #,fontface='italic'
+  geom_text(data=y_scale,aes(label = paste0(label,'       ')),x = 'scnbase', y = Inf, vjust = 1.5,size=5) + #,fontface='italic'
   guides(fill=guide_legend(nrow=1,order = 1),color=guide_legend(nrow=1,order = 1),linetype=guide_legend(nrow=1,order = 2),shape='none')+
   facet_wrap(~sbt,dir='h',scales = 'free_y',nrow = 2)
 
 
 #save plot210notio
-ragg::agg_png(paste0('./figures/sbt_ms_rrmse_proj_box_v3.png'), width = 12, height = 6, units = "in", res = 300)
+ragg::agg_png(paste0('./figures/sbt_ms_rrmse_proj_box_v5.png'), width = 12, height = 6, units = "in", res = 300)
 p
 dev.off()
 
@@ -2319,23 +2468,32 @@ p<-
   scale_shape_manual(values=c('true index'=21),name='')+
   scale_y_continuous(labels=function(x) sprintf('%.2f',x),expand = c(NA,0.1),limits = c(0,NA))+ #expand = c(NA,0.1),limits = c(0,NA)
   #                    limits =  c(0, max(df$index[,'mean']/1000) + mean(df$index[,'mean'])/10000))+
-  theme(panel.grid.minor = element_line(linetype=2,color='grey90',),legend.key.width = unit(1.5, "lines"),#strip.background = element_rect(fill='white'),
-        legend.key.size = unit(15, 'points'),legend.direction = 'vertical',legend.text = element_text(size=11), #legend.position=c(.85,.19)
-        legend.title = element_text(size=12),legend.spacing = unit(2, "cm"),legend.box.spacing =  unit(0.01, "cm"), #,strip.text = element_text(size=12)
-        strip.background = element_blank(),legend.background = element_blank(),legend.box = 'horizontal',legend.position = 'bottom',#legend.justification = 'right',legend.position='bottom',#legend.position=c(.84,.05),
-        strip.text = element_blank(),axis.title.x = element_blank(),axis.text = element_text(size = 10),axis.text.x = element_blank())+
+  theme(panel.grid.minor = element_line(linetype=2, color='grey90'),
+        legend.key.width = unit(2.5, "lines"),
+        legend.key.size = unit(20, 'points'),
+        legend.direction = 'vertical',plot.margin = margin(15,15,15,15),
+        legend.text = element_text(size=12),
+        legend.title = element_text(size=12),
+        legend.spacing = unit(1, "cm"),
+        legend.box.spacing = unit(0.01, "cm"),
+        strip.background = element_blank(),
+        legend.background = element_blank(),
+        legend.box = 'horizontal',
+        legend.position = 'bottom',
+        strip.text = element_blank()
+        ,axis.title.x = element_blank(),axis.text = element_text(size = 10),axis.text.x = element_blank())+
   expand_limits(y = 0)+
   #geom_text(data=y_scale,aes(label = common),x = Inf, hjust = 1.1,lineheight = 0.8,y = Inf, vjust = 1.5,size=5) + #,fontface='italic'
   geom_blank(data=y_scale,aes(x=scn,y=scale,fill=scn,group =interaction(scn,apr,common)))+
   #geom_text(data=y_scale,aes(label = paste0(label,'     ')),x = 'scnbase', y = Inf, vjust = 1.5,size=5) + #,fontface='italic'
   guides(fill=guide_legend(nrow=1,order = 1),color=guide_legend(nrow=1,order = 1),linetype=guide_legend(nrow=1,order = 2),shape='none')+
   geom_text(data=y_scale,aes(label = common, y = text),x = Inf, vjust = 'inward', hjust = 1.1,size=4, lineheight = 0.8) + #,fontface='italic'
-  geom_text(data=y_scale,aes(label = paste0(label,'     '),y=text),x = 'scnbase', vjust = 'inward',size=5) + #,fontface='italic'
+  geom_text(data=y_scale,aes(label = paste0(label,'       '),y=text),x = 'scnbase', vjust = 'inward',size=5) + #,fontface='italic'
   facet_wrap(~common,dir='h',scales = 'free_y',nrow = 4)
 
 
 #save plot
-ragg::agg_png(paste0('./figures/spp_ms_proj_rrmse_box_v3.png'), width = 13, height = 8, units = "in", res = 300)
+ragg::agg_png(paste0('./figures/spp_ms_proj_rrmse_box_v5.png'), width = 13, height = 8, units = "in", res = 300)
 p
 dev.off()
 

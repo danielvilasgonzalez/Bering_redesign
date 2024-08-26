@@ -265,6 +265,9 @@ for (y in 1982:2024) {
   #open netcdf
   nc<-nc_open(paste0('./bering 10k roms/',f))
   
+  nc<-nc_open('/Users/daniel/Downloads/B10K-K20P19_CORECFS_1970-1974_average_Cop_integrated.nc')
+  names(nc$var)
+  
   #dimensions netcdf files
   #258 rows
   #182 cols

@@ -122,8 +122,8 @@ coordinates(x1)=~x + y
 proj4string(x1)<-CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
 x2<-spTransform(x1,'+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs')
 x3<-data.frame(x2)
-#x3$x<-as.integer(x3$coords.x1)
-#x3$y<-as.integer(x3$coords.x2)
+x3$x<-as.integer(x3$coords.x1)
+x3$y<-as.integer(x3$coords.x2)
 lon<-sort(unique(x3$x),decreasing = FALSE) #1556
 lat<-sort(unique(x3$y),decreasing = TRUE) #1507
 lons<-data.frame(x=lon,col=1:length(lon))
