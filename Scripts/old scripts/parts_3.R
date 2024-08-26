@@ -17,7 +17,7 @@ rm(list = ls(all.names = TRUE))
 gc() 
 
 #libraries from cran to call or install/load
-pack_cran<-c('cowplot','ggspatial','raster','rasterVis','rgeos','scales','rnaturalearth','grid','ggplot2','lubridate','ragg','rgdal','dplyr','sp','ggtext','magick','shadowtext')
+pack_cran<-c('shadowtext','cowplot','ggspatial','raster','rasterVis','rgeos','scales','rnaturalearth','grid','ggplot2','lubridate','ragg','rgdal','dplyr','sp','ggtext','magick','shadowtext')
 
 #install pacman to use p_load function - call library and if not installed, then install
 if (!('pacman' %in% installed.packages())) {
@@ -267,11 +267,11 @@ dev.off()
 
 for (sp in sp_shelfslope) {
   
-  sp<-sp_shelfslope[2]
+  #sp<-sp_shelfslope[2]
   
-  #sp<-'Gadus macrocephalus'
+  sp<-'Gadus macrocephalus'
   
-  #read data_geostat_temp file
+    #read data_geostat_temp file
   df1<-readRDS(paste0('./data processed/species/',sp,'/data_geostat_temp.rds'))
 
   #for slope data
@@ -301,8 +301,8 @@ for (sp in sp_shelfslope) {
     fill = factor(c("warm", "cold", "warm"))
   )
   
-  df1$survey_name <- factor(df1$survey_name, levels = c("NBS", "upperEBSslope","lowerEBSslope","EBSshelf", "warm", "cold"))
   
+  df1$survey_name <- factor(df1$survey_name, levels = c("NBS", "upperEBSslope","lowerEBSslope","EBSshelf", "warm", "cold"))
   
   # Create the plot
   p1<-
@@ -732,7 +732,7 @@ custom_colors <- colorRampPalette(c("blue", "white", "darkred"))
 #loop over common spp in shelf and slope
 for (s in sp_shelfslope) {
 
-  s<-sp_shelfslope[1]
+  #s<-sp_shelfslope[1]
   
   #subset
   metrics_df2<-subset(metrics_df1,sp==s & region=='all')
@@ -757,25 +757,25 @@ for (s in sp_shelfslope) {
     theme(legend.position = 'none',aspect.ratio = 1)+
     scale_color_viridis_c(name = 'log(bio)')
   
-  p2a<-
-  ggplot()+
-    #geom_point(data=metrics_df2,aes(x=cog_depth,y=cog_lat,fill=temp),shape=21)+
-    geom_text(data=subset(metrics_df2,year %in% bold_years),aes(x=maxdepth,y=minlat),label='*',color='black',fontface='bold',nudge_x = 0.95,nudge_y = 0.02)+
-    geom_text(data=metrics_df2,aes(x=maxdepth,y=minlat,color=temp,label=year),fontface='bold')+
-    labs(x='max depth below P10 bio',y='min lat  below P10 bio')+
-    theme_bw()+
-    theme(aspect.ratio = 1)+
-    scale_color_gradientn(colors = custom_colors(100),name = 'SBT (°C)',guide = guide_colorbar(frame.colour = "black", ticks.colour = "black"))   
+  # p2a<-
+  # ggplot()+
+  #   #geom_point(data=metrics_df2,aes(x=cog_depth,y=cog_lat,fill=temp),shape=21)+
+  #   geom_text(data=subset(metrics_df2,year %in% bold_years),aes(x=maxdepth,y=minlat),label='*',color='black',fontface='bold',nudge_x = 0.95,nudge_y = 0.02)+
+  #   geom_text(data=metrics_df2,aes(x=maxdepth,y=minlat,color=temp,label=year),fontface='bold')+
+  #   labs(x='max depth below P10 bio',y='min lat  below P10 bio')+
+  #   theme_bw()+
+  #   theme(aspect.ratio = 1)+
+  #   scale_color_gradientn(colors = custom_colors(100),name = 'SBT (°C)',guide = guide_colorbar(frame.colour = "black", ticks.colour = "black"))   
   
-  p2b<-
-  ggplot()+
-    #geom_point(data=metrics_df2,aes(x=cog_depth,y=cog_lat,fill=temp),shape=21)+
-    geom_text(data=subset(metrics_df2,year %in% bold_years),aes(x=maxdepth,y=minlat),label='*',color='black',fontface='bold',nudge_x = 0.95,nudge_y = 0.02)+
-    geom_text(data=metrics_df2,aes(x=maxdepth,y=minlat,color=log(bio),label=year),fontface='bold')+
-    labs(x='max depth  below P10 bio',y='min lat below P10 bio')+
-    theme_bw()+
-    theme(aspect.ratio = 1)+
-    scale_color_viridis_c(name = 'log(bio)',guide = guide_colorbar(frame.colour = "black", ticks.colour = "black"))
+  # p2b<-
+  # ggplot()+
+  #   #geom_point(data=metrics_df2,aes(x=cog_depth,y=cog_lat,fill=temp),shape=21)+
+  #   geom_text(data=subset(metrics_df2,year %in% bold_years),aes(x=maxdepth,y=minlat),label='*',color='black',fontface='bold',nudge_x = 0.95,nudge_y = 0.02)+
+  #   geom_text(data=metrics_df2,aes(x=maxdepth,y=minlat,color=log(bio),label=year),fontface='bold')+
+  #   labs(x='max depth  below P10 bio',y='min lat below P10 bio')+
+  #   theme_bw()+
+  #   theme(aspect.ratio = 1)+
+  #   scale_color_viridis_c(name = 'log(bio)',guide = guide_colorbar(frame.colour = "black", ticks.colour = "black"))
   
   p3a<-
     ggplot()+
@@ -824,10 +824,14 @@ for (s in sp_shelfslope) {
 output_dir <- "frames/"
 dir.create(output_dir, showWarnings = FALSE)  # Create directory for frames
 
+#df
+depth_percentiles<-data.frame(matrix(NA,ncol = 7,nrow = 0))
+names(depth_percentiles)<-c('species','year','temp','depth_p10','depth_p20','depth_p80','depth_p90')
+
 # Loop over species
-for (s in sp_shelfslope) {
+for (s in sp_shelfslope[c(1,2,4,7)]) {
   
-  s<-sp_shelfslope[1]
+  #s<-sp_shelfslope[4]
   
   # Load shelf model
   load(paste0('./shelf EBS NBS VAST/', s, '/fit.RData'))
@@ -843,6 +847,8 @@ for (s in sp_shelfslope) {
   area_df<-data.frame(matrix(NA,nrow = 0,ncol=5))
   colnames(area_df)<-c('region','abundance','mean_dens','area_occupied','year')
   
+  plot_list<-list()
+  
   # Loop over years
   for (y in as.factor(2002:2016)) {
     
@@ -854,6 +860,139 @@ for (s in sp_shelfslope) {
     all_bio3 <- cbind(all_bio2, grid.ebs_year1)
     all_bio3$dens <- all_bio3$all_bio2 / all_bio3$Area_in_survey_km2
     all_bio4 <- subset(all_bio3, region %in% c('EBSshelf', 'EBSslope', 'NBS') & DepthGEBCO > 0)
+    
+    # Assuming your dataframe is named 'df'
+    # df <- read.csv("path_to_your_data.csv") # Uncomment if you need to load your data from a file
+    
+    # Example dataframe
+    # df <- data.frame(all_bio2 = c(10, 20, 30, 40, 50), DepthGEBCO = c(5, 15, 25, 35, 45))
+    
+    #temp region and year for label
+    alltemp_region <- subset(temp_region, region == 'all' & year %in% 2002:2016)
+    temp_min <- min(alltemp_region$temp)
+    temp_max <- max(alltemp_region$temp)
+    itemp_df <- subset(alltemp_region, year == y)
+    itemp <- itemp_df$temp
+    
+    
+    get_temp_color <- function(itemp, temp_min, temp_max) {
+      gradient <- colorRampPalette(c("blue", "white", "darkred"))(100)
+      temp_scaled <- scales::rescale(itemp, to = c(1, 100), from = c(temp_min, temp_max))
+      return(gradient[round(temp_scaled)])
+    }
+    
+    df<-all_bio4
+    # Sort the dataframe by DepthGEBCO
+    df <- df[order(df$DepthGEBCO), ]
+    
+    # Calculate cumulative biomass
+    df$cumulative_biomass <- cumsum(df$all_bio2)
+    
+    # Normalize the cumulative biomass to get a cumulative distribution (0 to 1)
+    df$cumulative_biomass_scale <- df$cumulative_biomass / max(df$cumulative_biomass)
+    
+    # Find the depths corresponding to the 10th and 90th percentiles
+    percentiles <- c(0.10, 0.90)
+    depth_10th <- df$DepthGEBCO[which.min(abs(df$cumulative_biomass_scale - percentiles[1]))]
+    depth_90th <- df$DepthGEBCO[which.min(abs(df$cumulative_biomass_scale - percentiles[2]))]
+    y_10th <- percentiles[1]
+    y_90th <- percentiles[2]
+    
+    # Find the depths corresponding to the 10th and 90th percentiles
+    percentiles2 <- c(0.20, 0.80)
+    depth_20th <- df$DepthGEBCO[which.min(abs(df$cumulative_biomass_scale - percentiles2[1]))]
+    depth_80th <- df$DepthGEBCO[which.min(abs(df$cumulative_biomass_scale - percentiles2[2]))]
+    #y_20th <- percentiles2[1]
+    #y_80th <- percentiles2[2]
+    
+    lims<-ifelse(s=='Reinhardtius hippoglossoides',1200,500)
+    
+    # Plot
+    p<-
+    ggplot()+  
+      geom_line(data=df, aes(x = DepthGEBCO, y = cumulative_biomass)) +
+        geom_vline(xintercept = c(depth_10th, depth_90th), linetype = "dashed", color = c('grey20')) +
+         geom_ribbon(data = df, aes(x = DepthGEBCO, ymin = cumulative_biomass, ymax = 1), fill = "grey80", alpha = 0.5) +
+        #geom_vline(xintercept = c(depth_10th, depth_90th), linetype = "dashed", color = c("red", "green")) +
+        #geom_hline(yintercept = percentile_10, linetype = "dashed", color = "red") +
+        #geom_hline(yintercept = percentile_90, linetype = "dashed", color = "blue") +
+        #labs(#title = "Cumulative Distribution of Biomass over Depth",
+        #     x = "Depth (m)",
+        #     y = "Cumulative Biomass") +
+        annotate("text", x = depth_10th, y = max(df$cumulative_biomass)/2, 
+                 label = paste("10th Percentile Depth:", round(depth_10th, 2)), 
+                 angle = 90, vjust = -0.5, color = "grey20",size=4) +
+        annotate("text", x = depth_90th, y = max(df$cumulative_biomass)/2, 
+                 label = paste("90th Percentile Depth:", round(depth_90th, 2)), 
+                 angle = 90, vjust = 1.5, color = "grey20",size=4) +
+        theme_bw()+
+        scale_x_continuous(limits = c(0,lims),expand = c(0,0))+
+        scale_y_continuous(expand = c(0,0))+
+      annotate("shadowtext",x=350,y=max(df$cumulative_biomass)/2,bg.color = "black",color = get_temp_color(itemp, temp_min, temp_max),label=y,
+               bg.r = 0.05,size=12)+
+      annotate("shadowtext",x=350,y=max(df$cumulative_biomass)/4,bg.color = "black",color = 'black',label=paste("P10-90 range depth:", (depth_90th - depth_10th)), 
+               bg.r = 0.00,size=6)+
+      # annotate("text", x = 300, y = max(df$cumulative_biomass)/4, 
+      #          label = paste("P10-90 range depth:", (depth_90th - depth_10th)), 
+      #          color = "black",size=4) +
+      theme(panel.grid.minor = element_line(linetype='dashed'),axis.title = element_blank(),axis.text.y = element_blank(),axis.text.x = element_text(vjust=5,margin=margin(-7,0,7,0,unit='points')),
+            axis.ticks.length = unit(-5,'points'),axis.text = element_text(size=10))
+    
+    #p
+    plot_list[[y]]<-p
+    
+    #append results
+    depth_percentiles<-rbind(depth_percentiles,
+                             data.frame(species=s,
+                               year=y,
+                               temp=itemp_df$temp,
+                               depth_p10=depth_10th,
+                               depth_p20=depth_20th,
+                               depth_p80=depth_80th,
+                               depth_p90=depth_90th))
+  }
+                                                                                       
+   plots<-plot_grid(plotlist = plot_list,ncol = 3) 
+    
+   #title
+   title <- ggdraw() + draw_label(s, fontface='bold',size = 20)
+   
+   #
+   agg_png(paste0('./figures slope/cumdist_',s,'.png'), width = 14, height = 13, units = "in", res = 300)
+   print(
+     plot_grid(title,plots,ncol=1, rel_heights=c(0.05, 1))
+   )
+   dev.off()
+   
+}
+
+# Define a custom color scale function
+custom_colors <- colorRampPalette(c("blue", "white", "darkred"))
+
+
+ggplot()+
+  geom_point(data=depth_percentiles,aes(x=depth_p10,y=depth_p90,fill=temp),shape=21,size=3)+
+  facet_wrap(~species,scales = 'free')+
+  scale_fill_gradientn(colors = custom_colors(100),name = 'SBT (°C)',
+                       guide = guide_colorbar(frame.colour = "black", ticks.colour = "black"))+
+  theme_bw()+
+  theme(
+    #axis.text.y = element_blank(),
+    #axis.ticks.y = element_blank(), 
+    #axis.title.y = element_blank(),
+    strip.background = element_blank(),strip.text = element_text(size=12))
+
+ggplot()+
+  geom_point(data=depth_percentiles,aes(x=depth_p90-depth_p10,y=species,fill=temp),shape=21,size=3)+
+  facet_wrap(~species,scales = 'free')+
+  scale_fill_gradientn(colors = custom_colors(100),name = 'SBT (°C)',
+                        guide = guide_colorbar(frame.colour = "black", ticks.colour = "black"))+
+  theme_bw()+
+  theme(
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(), 
+        axis.title.y = element_blank(),
+        strip.background = element_blank(),strip.text = element_text(size=12))
     
     ########################
     ########################
@@ -916,19 +1055,6 @@ for (s in sp_shelfslope) {
     r4a <- rasterToPolygons(r2$quantile, dissolve = TRUE, digits = 1)
     r4b <- rasterToPolygons(r2$Temp, dissolve = TRUE, digits = 1)
     #r4c <- rasterToPolygons(r2$all, dissolve = TRUE, digits = 1)
-    
-    get_temp_color <- function(itemp, temp_min, temp_max) {
-      gradient <- colorRampPalette(c("blue", "white", "darkred"))(100)
-      temp_scaled <- scales::rescale(itemp, to = c(1, 100), from = c(temp_min, temp_max))
-      return(gradient[round(temp_scaled)])
-    }
-    
-    alltemp_region <- subset(temp_region, region == 'all' & year %in% 2002:2016)
-    temp_min <- min(alltemp_region$temp)
-    temp_max <- max(alltemp_region$temp)
-    
-    itemp_df <- subset(alltemp_region, year == y)
-    itemp <- itemp_df$temp
     
     # Generate plot
     p <- 
@@ -999,4 +1125,247 @@ for (s in sp_shelfslope) {
 }
 
 
+########################
+########################
+# check variance on residuals for EBSNBS vs EBSslope vs EBSslope_ST
+########################
+########################
 
+
+########################
+########################
+# grid depth + lat
+########################
+########################
+
+#plot
+ggplot()+
+  geom_point(data=grid.ebs_year1,aes(x=Lon,y=Lat,color=Lat))
+
+ggplot()+
+  #geom_histogram(data=grid.ebs_year1,aes(x=Lat))+
+  geom_line(data=grid.ebs_year1,aes(x=Lat),stat = "density")
+
+#plot
+ggplot()+
+  geom_point(data=grid.ebs_year1,aes(x=Lon,y=Lat,color=DepthGEBCO))
+
+#plot
+ggplot()+
+  geom_point(data=subset(grid.ebs_year1,region %in% c('EBSshelf', 'NBS')),aes(x=Lon,y=Lat,color=DepthGEBCO))
+
+ggplot()+
+  geom_line(data=grid.ebs_year1,aes(x=DepthGEBCO),stat='density')+
+  scale_x_continuous(limits = c(0,NA))
+
+
+#plot
+ggplot()+
+  geom_point(data=grid.ebs_year1,aes(x=Lon,y=Lat,color=log(Lat*DepthGEBCO)))
+
+ggplot()+
+  geom_line(data=grid.ebs_year1,aes(x=log(Lat*DepthGEBCO)),stat='density')#+
+  #scale_x_continuous(limits = c(0,NA))
+
+df<-grid.ebs_year1
+df$scaledepth<-scale(df$DepthGEBCO)
+df$scalelat<-scale(df$Lat)
+
+
+#plot
+ggplot()+
+  geom_point(data=df,aes(x=Lon,y=Lat,color=(scalelat*scaledepth)))
+
+
+
+########################
+########################
+# COG vs prey
+########################
+########################
+
+load(file='./output/metrics_df.RData') #metrics_df
+metrics_df1<-subset(metrics_df,region=='all')
+
+
+
+load(file = './data processed/grid_EBS_NBS_envs.RData') #xx
+data_preys<-aggregate(cbind(Cop,EupS,EupO,NCaS,NCaO,PhL) ~ Year,xx,FUN='mean')
+
+cog_prey<-merge(metrics_df1,data_preys,by.x='year',by.y='Year')
+cog_prey1<-merge(cog_prey,temp_region,by=c('region','year'))
+
+
+cog_prey2<-subset(cog_prey1,sp %in% spp1)
+cog_prey3<-subset(cog_prey2,sp %in% spp1[1])
+names(cog_prey3)
+
+ggplot()+
+  #geom_point(data=metrics_df2,aes(x=cog_depth,y=cog_lat,fill=temp),shape=21)+
+  geom_text(data=subset(cog_prey3,year %in% bold_years),aes(x=cog_depth,y=EupS),label='*',color='black',fontface='bold',nudge_x = 0.95,nudge_y = 0.02)+
+  geom_text(data=cog_prey3,aes(x=cog_depth,y=EupS,color=temp,label=year),fontface='bold')+
+  theme_bw()+
+  xlab('x')+
+  labs(title = unique(cog_prey3$sp),x='bathymetrical COG',y='concentration of copepods')+
+  theme(legend.position = 'none',aspect.ratio = 1)+
+  scale_color_gradientn(colors = custom_colors(100),name = 'SBT (°C)')
+
+
+
+
+########################
+########################
+# metrics using predicted biomass from OM with ST in slope
+########################
+########################
+
+#df to store results
+metrics_df<-data.frame(matrix(NA,nrow = 0,ncol=10))
+names(metrics_df)<-c('sp','year','bio','cog_lat','cog_lon','cog_depth','cog_temp','maxdepth','minlat','region')
+
+#loop over common spp in shelf and slope
+for (s in sp_shelfslope[+6]) { #[-6] no anoplopoma fimbria
+  
+  #s<-sp_shelfslope[1];#y<-colnames(dens_slope)[1]
+  
+  cat(paste('#################### ',s," - ",'\n'))
+  
+  #EBS+NBS model fit and density
+  load(paste0('./shelf EBS NBS VAST/',s,'/fit.RData'))
+  fit_shelf<-fit
+  bio_shelf<-fit_shelf$Report$Index_gctl[,,,1] #biomass
+  dens_shelf<-fit_shelf$Report$D_gct[,1,] #dens
+  
+  #CHECK units
+  #dim(fit_shelf$Report$D_gct[,1,])
+  #dim(fit_shelf$Report$Index_gctl[,,,1])
+  #x<-fit_shelf$Report$D_gct[,1,] #dens
+  #xx<-x*fit_shelf$data_list$a_gl[,1] #bio
+  #y<-fit_shelf$Report$Index_gctl[,,,1] #bio
+  
+  #slope model fit ande density
+  load(paste0('./slope EBS VAST/',s,'/fit_st.RData'))
+  fit_slope<-fit
+  bio_slope<-fit_slope$Report$Index_gctl[,,,1] #biomass
+  #if adding catchability
+  #bio_slope<-bio_slope*2 #biomass
+  dens_slope<-fit_slope$Report$D_gct[,1,] #dens
+  #dens_slope<-dens_slope*2 #dens
+  
+  #loop over years
+  for (y in colnames(bio_slope)) {
+    
+    grid.ebs_year1<-subset(grid.ebs_year,Year==y)
+    all_bio2<-c(bio_shelf[,y],bio_slope[,y])
+    all_dens2<-c(dens_shelf[,y],dens_slope[,y])
+    
+    #loop over regions
+    for (r in c('EBSshelf','NBS','EBS+NBS','EBSslope','all')) {
+      
+      if (r=='EBSshelf') {
+        c<-which(grid.ebs_year1$region=='EBSshelf')
+      } else if (r=='NBS') {
+        c<-which(grid.ebs_year1$region=='NBS')
+      } else if (r == 'EBS+NBS') {
+        c <- which(grid.ebs_year1$region %in% c('NBS','EBSshelf'))
+      } else if (r=="EBSslope") {
+        c<-which(grid.ebs_year1$region=='EBSslope')
+      } else if (r=='all') {
+        c<-which(!is.na(grid.ebs_year1$region))
+      }
+      
+      #subset grid and dens by grid
+      igrid<-grid.ebs_year1[c,]
+      all_bio3<-all_bio2[c]
+      all_dens3<-all_dens2[c]
+      
+      #merge dens and grid
+      dens_df<-drop_units(cbind(igrid,'dens'=all_dens3))
+      
+      #only positive
+      #dens_df<-dens_df[which(dens_df$dens!=0),]
+      
+      #percentile
+      ipercentile<-t(quantile(dens_df$dens, probs = c(0.10),na.rm=TRUE))[1,]
+      
+      #data from grid below the percentile
+      below_ipercentile<-dens_df[which(dens_df$dens < ipercentile),]
+      
+      ggplot()+
+        geom_density(data=below_ipercentile,aes(x=DepthGEBCO))
+      
+      
+      #max depth and min lat at below density percentile
+      maxdepth<-max(below_ipercentile$DepthGEBCO,na.rm = TRUE)
+      minlat<-min(below_ipercentile$Lat,na.rm = TRUE)
+      
+      
+      
+      #append
+      metrics_df<-rbind(metrics_df,
+                        data.frame('sp'=s,
+                                   'year'=y,
+                                   'bio'=sum(all_bio3,na.rm = TRUE),
+                                   'cog_lat'=sum(all_dens3*igrid$Lat,na.rm = TRUE)/sum(all_dens3,na.rm = TRUE),
+                                   'cog_lon'=sum(all_dens3*igrid$Lon,na.rm = TRUE)/sum(all_dens3,na.rm = TRUE),
+                                   'cog_depth'=sum(all_dens3*igrid$DepthGEBCO,na.rm = TRUE)/sum(all_dens3,na.rm = TRUE),
+                                   'cog_temp'=sum(all_dens3*igrid$Temp,na.rm = TRUE)/sum(all_dens3,na.rm = TRUE),
+                                   'maxdepth'=maxdepth,
+                                   'minlat'=minlat,
+                                   'region'=r,
+                                   'percentiles'=data.frame(t(quantile(dens_df$dens[dens_df$dens!=0], probs = c(0.05, 0.10,0.20,0.80, 0.90, 0.95),na.rm=TRUE))))) # Calculate percentiles)))  
+      
+    }
+  }
+}
+
+#save table
+save(metrics_df,file='./output/metrics_df_st.RData')
+
+
+########################
+########################
+# COG vs prey
+########################
+########################
+
+load(file='./output/metrics_df_st.RData') #metrics_df
+metrics_df1<-subset(metrics_df,region=='all')
+
+load(file = './data processed/grid_EBS_NBS_envs.RData') #xx
+data_preys<-aggregate(cbind(Cop,EupS,EupO,NCaS,NCaO,PhL) ~ Year,xx,FUN='mean')
+
+cog_prey<-merge(metrics_df1,data_preys,by.x='year',by.y='Year')
+cog_prey1<-merge(cog_prey,temp_region,by=c('region','year'))
+cog_prey<-drop_units(cog_prey1)
+
+#save table
+save(cog_prey,file='./output/cog_prey.RData')
+
+
+cog_prey2<-subset(cog_prey1,sp %in% spp1)
+cog_prey3<-subset(cog_prey2,sp %in% spp1[1])
+names(cog_prey3)
+str(cog_prey3)
+cog_prey3<-drop_units(cog_prey3)
+
+
+#we would need only to select juveniles
+
+ggplot()+
+  #geom_point(data=metrics_df2,aes(x=cog_depth,y=cog_lat,fill=temp),shape=21)+
+  #geom_text(data=subset(cog_prey3,year %in% bold_years),aes(x=cog_depth,y=EupS),label='*',color='black',fontface='bold',nudge_x = 0.95,nudge_y = 0.02)+
+  geom_shadowtext(data=cog_prey3,aes(x=cog_depth,y=NCaO,color=temp,label=year),fontface='bold',bg.r = 0.05)+
+  #geom_text(data=cog_prey3,aes(x=cog_depth,y=NCaO,fill=temp,label=year),fontface='bold')+
+  #annotate("shadowtext",x=350,y=max(df$cumulative_biomass)/2,bg.color = "black",color = get_temp_color(itemp, temp_min, temp_max),label=y,
+  #         bg.r = 0.05,size=12)+
+  theme_bw()+
+  xlab('x')+
+  labs(title = unique(cog_prey3$sp),x='bathymetrical COG (m)',y='concentration of large zoopl.')+
+  theme(legend.position = 'none',aspect.ratio = 1)+
+  scale_color_gradientn(colors = custom_colors(100),name = 'SBT (°C)')
+
+
+######################
+# proportion NBS and EBSshelf
+#######################
