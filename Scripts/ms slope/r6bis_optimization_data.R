@@ -97,9 +97,9 @@ spp1<-c('Yellowfin sole',
 
 df_conv<-read.csv('./tables/slope_ebsnbs_convspp.csv')
 
-spp_conv_slope<-c(
-  df_conv[which(df_conv$slope=='There is no evidence that the model is not converged'),'spp'],
-  'Bathyraja aleutica')
+# spp_conv_slope<-c(
+#   df_conv[which(df_conv$slope=='There is no evidence that the model is not converged'),'spp'],
+#   'Bathyraja aleutica')
 
 spp_conv_ebsnbs<-c(
   df_conv[which(df_conv$EBS_NBS=='There is no evidence that the model is not converged'),'spp'])
@@ -126,6 +126,13 @@ grid$cell<-1:nrow(grid)
 grid.ebs_year1<-grid.ebs_year[which(grid.ebs_year$region!='EBSslope'),]
 ncells<-nrow(grid.ebs_year1[which(grid.ebs_year1$Year==1982),])
 yrs<-c(1982:2019,2021:2022)
+
+#classify cold and warm years
+#sel years (2002:2016)
+cyrs<-c(2006:2013)
+wyrs<-c(2002:2005,2014:2016)
+n_yrs<-length(c(cyrs,wyrs))
+yrs<-sort(c(cyrs,wyrs))
 
 #build array for temporal array to store results
 temp_dens_vals <- array(NA,
@@ -154,7 +161,7 @@ true_index<-array(NA,
 #loop over species
 for (sp in spp) {
   
-  #sp<-spp[17]
+  #sp<-spp[1]
   
   #print scenario to check progress
   cat(paste(" #############   Species", sp, match(sp,spp), 'out of',length(spp),  "  #############\n"))
@@ -183,11 +190,11 @@ for (sp in spp) {
     # ARRANGE PREDICTED DENSITIES FROM OM
     #################################################
     
-    if (sp %in% c('Atheresthes stomias','Atheresthes evermanni')){
-      yrs<-c(1991:2019,2021:2022)
-    } else{
-      yrs<-c(1982:2019,2021:2022)
-    }
+    # if (sp %in% c('Atheresthes stomias','Atheresthes evermanni')){
+    #   yrs<-c(1991:2019,2021:2022)
+    # } else{
+    #   yrs<-c(1982:2019,2021:2022)
+    # }
     
     #get predicted densities for sp
     temp_dens_vals[,as.character(yrs),sp] <- unlist(fit$Report$D_gct[, 1, as.character(yrs)]) #[kg/km2]
@@ -241,6 +248,25 @@ for (sp in spp) {
       D1<-subset(D1,Year %in% c(1991:2022))
     }
     
+    #add regime based on year
+    D1$regime<-ifelse(D1$Year %in% cyrs,'cold','warm')
+ 
+    #DYNAMIC
+    #static sampling so, we want to aggregate annual predictions: mean density, mean temp, and temp var
+    D2dyn<-aggregate(cbind(Temp,Density) ~ Lat+Lon+cell+Depth+regime, data = D1, FUN = mean, na.rm = TRUE)
+    D3dyn<-aggregate(cbind(Temp,Density) ~ Lat+Lon+cell+Depth+regime, data = D1, FUN = var, na.rm = TRUE)
+    D4dyn<-aggregate(cbind(Density) ~ Lat+Lon+cell+Depth+regime, data = D1, FUN = sum, na.rm = TRUE)
+    D41dyn<-aggregate(cbind(Density_sq) ~ Lat+Lon+cell+Depth+regime, data = D1, FUN = sum, na.rm = TRUE)
+    colnames(D2dyn)[6:7]<-paste0('mean',colnames(D2dyn)[6:7])
+    colnames(D3dyn)[6:7]<-paste0('var',colnames(D3dyn)[6:7])
+    colnames(D4dyn)[6]<-paste0('sum',colnames(D4dyn)[6])
+    colnames(D41dyn)[6]<-paste0('sum',colnames(D41dyn)[6])
+    #merge aggregate values
+    D5dyn<-merge(D2dyn,D3dyn,by=c('Lat','Lon','cell','Depth','regime'))
+    D51dyn<-merge(D5dyn,D41dyn,by=c('Lat','Lon','cell','Depth','regime'))
+    D6dyn<-merge(D51dyn,D4dyn,by=c('Lat','Lon','cell','Depth','regime'))
+    
+    #STATIC
     #static sampling so, we want to aggregate annual predictions: mean density, mean temp, and temp var
     D2<-aggregate(cbind(Temp,Density) ~ Lat+Lon+cell+Depth, data = D1, FUN = mean, na.rm = TRUE)
     D3<-aggregate(cbind(Temp,Density) ~ Lat+Lon+cell+Depth, data = D1, FUN = var, na.rm = TRUE)
@@ -250,19 +276,21 @@ for (sp in spp) {
     colnames(D3)[5:6]<-paste0('var',colnames(D3)[5:6])
     colnames(D4)[5]<-paste0('sum',colnames(D4)[5])
     colnames(D41)[5]<-paste0('sum',colnames(D41)[5])
-    
     #merge aggregate values
     D5<-merge(D2,D3,by=c('Lat','Lon','cell','Depth'))
     D51<-merge(D5,D41,by=c('Lat','Lon','cell','Depth'))
     D6<-merge(D51,D4,by=c('Lat','Lon','cell','Depth'))
     
     #keep only cells with positive cells
+    D6dyn$include<-ifelse(D6dyn$Depth>0,TRUE,FALSE)
     D6$include<-ifelse(D6$Depth>0,TRUE,FALSE)
     
     #convert SBT into F to get positive values only
+    D6dyn$meanTempF<-(9/5)*D6dyn$meanTemp + 32
     D6$meanTempF<-(9/5)*D6$meanTemp + 32
     
     #add longitude on eastings to get positive values
+    D6dyn$LonE<-D6dyn$Lon+180+180
     D6$LonE<-D6$Lon+180+180
     
     #get predictions for sp
@@ -274,10 +302,8 @@ for (sp in spp) {
     #list OM true CPUE and true index
     CPUE_index<-list('CPUE'=D1,
                      'true_index'=true_index[,,sp])
-  
     
   } else {
-
     
     D1<-grid.ebs_year1
     D1$Biomass<-0
@@ -291,12 +317,14 @@ for (sp in spp) {
     #list OM true CPUE and true index
     CPUE_index<-list('CPUE'=D1,
                      'true_index'=true_index[,,sp])
- 
-  
   }
   
+  #create a list of static df (static and dynamic)
+  input_optim<-list('dynamic'=D6dyn,
+                    'static'=D6)
+  
   #save results list
-  save(D6,file=paste0('./output/species/',sp,'/optimization data/optimization_static_data_ebsnbs.RData'))
+  save(input_optim,file=paste0('./output/species/',sp,'/optimization data/optimization_static_data_ebsnbs.RData'))
   
   #save results list
   save(CPUE_index,file=paste0('./output/species/',sp,'/optimization data/OM_CPUE_index_ebsnbs.RData'))
@@ -305,29 +333,40 @@ for (sp in spp) {
   save(tdf,file=paste0('./output/species/',sp,'/optimization data/fit_temporal_data_ebsnbs.RData'))
 }
 
-#join optimmization data into a one single 
+#join optimmization data into a one single for STATIC AND DYNAMIC
 for (sp in spp) {
   
   #sp<-spp[2]
   
   if (sp==spp[1]) {
     load(paste0('./output/species/',sp,'/optimization data/optimization_static_data_ebsnbs.RData'))
-    df<-D6[,c("Lat","Lon","cell","Depth","meanTemp","varTemp","sumDensity_sq","sumDensity","include","meanTempF","LonE")]  
+    st<-input_optim[['static']]
+    dyn<-input_optim[['dynamic']]
+    dfst<-st[,c("Lat","Lon","cell","Depth","meanTemp","varTemp","include","meanTempF","LonE")]  
+    dfdyn<-dyn[,c("Lat","Lon","cell","Depth","meanTemp","varTemp","include","meanTempF","LonE",'regime')]  
   }
   
   if (sp %in% setdiff(spp,spp_conv_ebsnbs)){
     load(paste0('./output/species/',sp,'/optimization data/optimization_static_data_ebsnbs.RData'))
     dens<-data.frame(rep(0,ncells),rep(0,ncells))
     names(dens)<-c(paste0(sp,'_sumDensity'),paste0(sp,'_sumDensity_sq'))
-    df<-cbind(df,dens)
+    dfst<-cbind(dfst,dens)
+    #dens1<-rbind(cbind(dens),cbind(dens,'regime'='warm'))
+    dfdyn<-cbind(dfdyn,dens)
     
   } else {
   
     load(paste0('./output/species/',sp,'/optimization data/optimization_static_data_ebsnbs.RData'))
-    dens<-data.frame(D6$sumDensity,D6$sumDensity_sq)
-    names(dens)<-c(paste0(sp,'_sumDensity'),paste0(sp,'_sumDensity_sq'))
-    df<-cbind(df,dens)
+    st<-input_optim[['static']]
+    dyn<-input_optim[['dynamic']]
+    densst<-data.frame(st$sumDensity,st$sumDensity_sq)
+    densdyn<-data.frame(dyn$sumDensity,dyn$sumDensity_sq)
+    names(densst)<-c(paste0(sp,'_sumDensity'),paste0(sp,'_sumDensity_sq'))
+    names(densdyn)<-c(paste0(sp,'_sumDensity'),paste0(sp,'_sumDensity_sq'))
+    dfst<-cbind(dfst,densst)
+    dfdyn<-cbind(dfdyn,densdyn)
   }
 }
 
-save(df,file=paste0('./output/multisp_optimization_static_data_ebsnbs.RData'))
+save(dfst,file=paste0('./output/multisp_optimization_static_data_ebsnbs_st.RData'))
+save(dfdyn,file=paste0('./output/multisp_optimization_static_data_ebsnbs_dyn.RData'))
