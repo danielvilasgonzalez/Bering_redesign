@@ -136,7 +136,7 @@ yrs_region<-unique(df3$Year)
 df3<-df3[complete.cases(df3$CPUE_kg),]
 
 
-#selected species
+#selected species - remove spp without observations in the slope
 spp<-c(#'Limanda aspera',
        'Gadus chalcogrammus',
        'Gadus macrocephalus',
@@ -175,7 +175,7 @@ n_sim_hist<-100
 for (sp in spp) { #[c(10,12:15)]
 
 #example
-sp<-spp[1]  
+#sp<-spp[1]  
   
 #filter by sp
 data_geostat<-subset(df3,Species==sp)
@@ -437,9 +437,19 @@ fit <- tryCatch( {fit_model(settings=settings,
                    return(NULL)
                  })
 
-  drop_units(fit$Report$D_gct[,1,])
+  #drop_units(fit$Report$D_gct[,1,])
 
-  check_fit(fit$parameter_estimates)
+  #check_fit(fit$parameter_estimates)
+  
+  if (class(fit)=='fit_model') {
+    
+    save(list = 'fit',file=paste(out_dir,fol_region,sp,'fit_st.RData',sep = '/'))}
+}
+  
+  
+  
+  
+  
   
   #load('./slope EBS VAST/Gadus chalcogrammus/fit.RData')
   
