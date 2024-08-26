@@ -91,6 +91,13 @@ spp1<-c('Yellowfin sole',
         'Rex sole',
         'Aleutian skate')
 
+#classify cold and warm years
+#sel years (2002:2016)
+cyrs<-c(2006:2013)
+wyrs<-c(2002:2005,2014:2016)
+n_yrs<-length(c(cyrs,wyrs))
+yrs<-sort(c(cyrs,wyrs))
+
 #####################
 # check the slope model that converged
 #####################
@@ -101,6 +108,7 @@ df_conv<-data.frame(spp=c(spp))
 
 #prepare dataframe optimization
 df_conv$slope<-NA
+df_conv$slope_st<-NA
 df_conv$EBS_NBS<-NA
 
 for (sp in spp) {
@@ -110,19 +118,40 @@ for (sp in spp) {
   cat(paste0('#####  ',sp,'  #######\n'))
   
   #f<-fitfiles[1]
-  if (length(list.files(paste0('./slope EBS VAST/',sp,'/'),pattern = 'fit.RData'))!=0) {
-    load(paste0('./slope EBS VAST/',sp,'/fit.RData'))
+  if (length(list.files(paste0('./slope EBS VAST/',sp,'/'),pattern = 'fit_st.RData'))!=0) {
+    load(paste0('./slope EBS VAST/',sp,'/fit_st.RData'))
   }
   
-  if (length(list.files(paste0('./slope EBS VAST/',sp,'/'),pattern = 'fit.RData'))==0) {
-    df_conv[which(df_conv$spp==sp),'slope']<-'non convergence'
+  if (length(list.files(paste0('./slope EBS VAST/',sp,'/'),pattern = 'fit_st.RData'))==0) {
+    df_conv[which(df_conv$spp==sp),'slope_st']<-'non convergence'
   } else if (is.null(fit)) {
-    df_conv[which(df_conv$spp==sp),'slope']<-'non convergence'
+    df_conv[which(df_conv$spp==sp),'slope_st']<-'non convergence'
   } else if (is.null(fit$parameter_estimates$Convergence_check)) {
-    df_conv[which(df_conv$spp==sp),'slope']<-fit$Report
+    df_conv[which(df_conv$spp==sp),'slope_st']<-fit$Report
   }else{
-    df_conv[which(df_conv$spp==sp),'slope']<-fit$parameter_estimates$Convergence_check
+    df_conv[which(df_conv$spp==sp),'slope_st']<-fit$parameter_estimates$Convergence_check
   }
+  
+  #non ST if nonconvergence in st
+ # if ( df_conv[which(df_conv$spp==sp),'slope']!='There is no evidence that the model is not converged') {
+    
+    if (length(list.files(paste0('./slope EBS VAST/',sp,'/'),pattern = 'fit.RData'))!=0) {
+      load(paste0('./slope EBS VAST/',sp,'/fit.RData'))
+    }
+    
+    if (length(list.files(paste0('./slope EBS VAST/',sp,'/'),pattern = 'fit.RData'))==0) {
+      df_conv[which(df_conv$spp==sp),'slope']<-'non convergence'
+    } else if (is.null(fit)) {
+      df_conv[which(df_conv$spp==sp),'slope']<-'non convergence'
+    } else if (is.null(fit$parameter_estimates$Convergence_check)) {
+      df_conv[which(df_conv$spp==sp),'slope']<-fit$Report
+    }else{
+      df_conv[which(df_conv$spp==sp),'slope']<-fit$parameter_estimates$Convergence_check
+    }
+    
+ # }
+  
+  
   
   #EBS+NBS fit
   if (file.exists(paste0('./shelf EBS NBS VAST//',sp,'/fit.RData'))) {
@@ -152,14 +181,34 @@ for (sp in spp) {
 
 #write table
 write.csv(df_conv,'./tables/slope_ebsnbs_convspp.csv')
-#df_conv<-read.csv('./tables/slope_ebsnbs_convspp.csv')
+ 
+#ss<-read.csv(file = './tables/slope_ebsnbs_convspp.csv')
+df_conv<-read.csv('./tables/slope_ebsnbs_convspp.csv')
 
 spp_conv_slope<-c(
-      df_conv[which(df_conv$slope=='There is no evidence that the model is not converged'),'spp'],
-      'Bathyraja aleutica')
+      df_conv[which(df_conv$slope=='There is no evidence that the model is not converged'),'spp'])
+
+spp_conv_slope_st<-c(
+  df_conv[which(df_conv$slope_st=='There is no evidence that the model is not converged'),'spp'])
+
+spp_conv_slope_st1<-setdiff(spp_conv_slope,spp_conv_slope_st)
+
+for (spp_conv_slope_st1 in s) {
+  
+  #s<-spp_conv_slope_st1[6] #2,4,5
+  load(paste0('./slope EBS VAST/',s,'/fit_st.RData'))
+  print(check_fit(fit$parameter_estimates))
+}
+
+spp_conv_slope_st1 #species that we need to get the non_ST sloep structure
 
 spp_conv_ebsnbs<-c(
-  df_conv[which(df_conv$EBS_NBS=='There is no evidence that the model is not converged'),'spp'])
+  df_conv[which(df_conv$EBS_NBS=='There is no evidence that the model is not converged' ),'spp'])
+
+spp_both<-
+c(
+  df_conv[which(df_conv$EBS_NBS=='There is no evidence that the model is not converged' & df_conv$slope=='There is no evidence that the model is not converged'),'spp'])
+
 
 list.files('./output/species/',pattern = 'sim_dens_slope',recursive = TRUE)
 list.files('./output/species/',pattern = 'sim_dens.RData',recursive = TRUE)
@@ -234,23 +283,24 @@ ggplot()+
 
 #converged species by region
 spp_conv_ebsnbs<-df_conv[which(df_conv$EBS_NBS=='There is no evidence that the model is not converged'),'spp']
-spp_conv_slope<-df_conv[which(df_conv$slope=='There is no evidence that the model is not converged'),'spp']
+spp_conv_slope<-df_conv[which(df_conv$slope=='There is no evidence that the model is not converged' | 
+                                df_conv$slope_st=='There is no evidence that the model is not converged'),'spp']
 
 #years by region
 yrs_slope<-c(2002,2004,2008,2010,2012,2016)
-yrs<-c(1982:2019,2021:2022)
+#yrs<-c(1982:2019,2021:2022)
 
 #build array for temporal array to store results
 temp_dens_vals <- array(NA,
                         dim = c(nrow(gridslope),
-                                length(yrs_slope),
+                                length(yrs),
                                 length(spp)),
-                        dimnames = list(1:nrow(gridslope),yrs_slope,spp))
+                        dimnames = list(1:nrow(gridslope),yrs,spp))
 
 #array to store indices
 true_index<-array(NA,
-                  dim = list(length(yrs_slope),1,length(spp)),
-                  dimnames = list(yrs_slope,'slope',spp))
+                  dim = list(length(yrs),1,length(spp)),
+                  dimnames = list(yrs,'slope',spp))
 
 
 # ###################################
@@ -260,28 +310,35 @@ true_index<-array(NA,
 #loop over species
 for (sp in spp) {
   
+  sp<-spp[23]
+  #sp<-'Anoplopoma fimbria'
   cat(paste('#######################',sp,'#######################\n'))
   
   dir.create(paste0('./output/species/',sp),showWarnings = FALSE)
   dir.create(paste0('./output/species/',sp,'/optimization data/'),showWarnings = FALSE)
-
-  
   
   if (sp %in% spp_conv_slope) {
     
-    
     #load slope fit
-    load(paste0('./slope EBS VAST/',sp,'/fit.RData'))
+    if (sp %in% spp_conv_slope_st1) {
+      
+      load(paste0('./slope EBS VAST/',sp,'/fit.RData'))
+    } else {
+      
+      load(paste0('./slope EBS VAST/',sp,'/fit_st.RData'))
+    }
+    
+
     
     #get predicted densities for sp
-    temp_dens_vals[,,sp] <- unlist(fit$Report$D_gct[, 1, as.character(yrs_slope)]) #[kg/km2]
+    temp_dens_vals[,,sp] <- unlist(fit$Report$D_gct[, 1, as.character(yrs)]) #[kg/km2]
     
     #density_input<-temp_dens_vals
-    D_gt<-unlist(fit$Report$D_gct[, 1, as.character(yrs_slope)])
+    D_gt<-unlist(fit$Report$D_gct[, 1, as.character(yrs)])
     
     
     #get true index for NBS_EBS, NBS and EBS
-    true_index[,,sp]<-fit$Report$Index_ctl[1,paste0(yrs_slope),1 ]
+    true_index[,,sp]<-fit$Report$Index_ctl[1,paste0(yrs),1 ]
     
     #get map info
     mdl <- make_map_info(Region = fit$settings$Region, 
@@ -291,14 +348,14 @@ for (sp in spp) {
     
   } else {
     
-    D_gt<-data.frame(matrix(0,nrow = nrow(gridslope),ncol = length(yrs_slope)))
-    names(D_gt)<-as.character(yrs_slope)
+    D_gt<-data.frame(matrix(0,nrow = nrow(gridslope),ncol = length(yrs)))
+    names(D_gt)<-as.character(yrs)
     
     #get true index for NBS_EBS, NBS and EBS
     true_index[,,sp]<-0
     
     #load slope fit
-    load(paste0('./slope EBS VAST/',spp_conv_slope[1],'/fit.RData'))
+    load(paste0('./slope EBS VAST/',spp_conv_slope[1],'/fit_st.RData'))
     
     #get map info
     mdl <- make_map_info(Region = fit$settings$Region, 
@@ -317,7 +374,7 @@ for (sp in spp) {
   #yrs<-as.numeric(yrs)
   
   #rename years predictions 
-  colnames(D_gt)<-c('cell',yrs_slope) #,project_yrs
+  colnames(D_gt)<-c('cell',yrs) #,project_yrs
   
   #reshape
   D_gt1<-reshape2::melt(D_gt,id=c('cell'))
@@ -339,7 +396,7 @@ for (sp in spp) {
   }
   
   #get grid data for yrs in the simulation
-  grid.ebs_year1<-grid.ebs_year[which(grid.ebs_year$Year %in% yrs_slope & grid.ebs_year$region =='EBSslope'),]
+  grid.ebs_year1<-grid.ebs_year[which(grid.ebs_year$Year %in% yrs & grid.ebs_year$region =='EBSslope'),]
   grid.ebs_year1<-grid.ebs_year1[,c("Lat","Lon","Area_in_survey_km2","DepthGEBCO","Temp","Year")]
   names(grid.ebs_year1)[4]<-'Depth'
   
@@ -353,7 +410,25 @@ for (sp in spp) {
     D1<-subset(D1,Year %in% c(1991:2022))
   }
   
+  #add regime based on year
+  D1$regime<-ifelse(D1$Year %in% cyrs,'cold','warm')
   
+  #DYNAMIC
+  #static sampling so, we want to aggregate annual predictions: mean density, mean temp, and temp var
+  D2dyn<-aggregate(cbind(Temp,Density) ~ Lat+Lon+cell+Depth+regime, data = D1, FUN = mean, na.rm = TRUE)
+  D3dyn<-aggregate(cbind(Temp,Density) ~ Lat+Lon+cell+Depth+regime, data = D1, FUN = var, na.rm = TRUE)
+  D4dyn<-aggregate(cbind(Density) ~ Lat+Lon+cell+Depth+regime, data = D1, FUN = sum, na.rm = TRUE)
+  D41dyn<-aggregate(cbind(Density_sq) ~ Lat+Lon+cell+Depth+regime, data = D1, FUN = sum, na.rm = TRUE)
+  colnames(D2dyn)[6:7]<-paste0('mean',colnames(D2dyn)[6:7])
+  colnames(D3dyn)[6:7]<-paste0('var',colnames(D3dyn)[6:7])
+  colnames(D4dyn)[6]<-paste0('sum',colnames(D4dyn)[6])
+  colnames(D41dyn)[6]<-paste0('sum',colnames(D41dyn)[6])
+  #merge aggregate values
+  D5dyn<-merge(D2dyn,D3dyn,by=c('Lat','Lon','cell','Depth','regime'))
+  D51dyn<-merge(D5dyn,D41dyn,by=c('Lat','Lon','cell','Depth','regime'))
+  D6dyn<-merge(D51dyn,D4dyn,by=c('Lat','Lon','cell','Depth','regime'))
+  
+  #STATIC
   #static sampling so, we want to aggregate annual predictions: mean density, mean temp, and temp var
   D2<-aggregate(cbind(Temp,Density) ~ Lat+Lon+cell+Depth, data = D1, FUN = mean, na.rm = TRUE)
   D3<-aggregate(cbind(Temp,Density) ~ Lat+Lon+cell+Depth, data = D1, FUN = var, na.rm = TRUE)
@@ -363,19 +438,21 @@ for (sp in spp) {
   colnames(D3)[5:6]<-paste0('var',colnames(D3)[5:6])
   colnames(D4)[5]<-paste0('sum',colnames(D4)[5])
   colnames(D41)[5]<-paste0('sum',colnames(D41)[5])
-  
   #merge aggregate values
   D5<-merge(D2,D3,by=c('Lat','Lon','cell','Depth'))
   D51<-merge(D5,D41,by=c('Lat','Lon','cell','Depth'))
   D6<-merge(D51,D4,by=c('Lat','Lon','cell','Depth'))
   
   #keep only cells with positive cells
+  D6dyn$include<-ifelse(D6dyn$Depth>0,TRUE,FALSE)
   D6$include<-ifelse(D6$Depth>0,TRUE,FALSE)
   
   #convert SBT into F to get positive values only
+  D6dyn$meanTempF<-(9/5)*D6dyn$meanTemp + 32
   D6$meanTempF<-(9/5)*D6$meanTemp + 32
   
   #add longitude on eastings to get positive values
+  D6dyn$LonE<-D6dyn$Lon+180+180
   D6$LonE<-D6$Lon+180+180
   
   #get predictions for sp
@@ -389,8 +466,12 @@ for (sp in spp) {
   CPUE_index<-list('CPUE'=D1,
                    'true_index'=true_index[,,sp])
   
+  #create a list of static df (static and dynamic)
+  input_optim<-list('dynamic'=D6dyn,
+                    'static'=D6)
+  
   #save results list
-  save(D6,file=paste0('./output/species/',sp,'/optimization data/optimization_static_data_slope.RData'))
+  save(input_optim,file=paste0('./output/species/',sp,'/optimization data/optimization_static_data_slope.RData'))
   
   #save results list
   save(CPUE_index,file=paste0('./output/species/',sp,'/optimization data/OM_CPUE_index_slope.RData'))
@@ -404,39 +485,65 @@ for (sp in spp) {
 #join optimmization data into a one single 
 for (sp in spp) {
   
-  #sp<-spp_conv[2]
+  #sp<-spp[23]
   
   if (sp==spp[1]) {
     load(paste0('./output/species/',sp,'/optimization data/optimization_static_data_slope.RData'))
-    df<-D6[,c("Lat","Lon","cell","Depth","meanTemp","varTemp","sumDensity_sq","sumDensity","include","meanTempF","LonE")]  
+    st<-input_optim[['static']]
+    dyn<-input_optim[['dynamic']]
+    dfst<-st[,c("Lat","Lon","cell","Depth","meanTemp","varTemp","include","meanTempF","LonE")]  
+    dfdyn<-dyn[,c("Lat","Lon","cell","Depth","meanTemp","varTemp","include","meanTempF","LonE",'regime')]  
   }
   
   load(paste0('./output/species/',sp,'/optimization data/optimization_static_data_slope.RData'))
-  dens<-data.frame(D6$sumDensity,D6$sumDensity_sq)
-  names(dens)<-c(paste0(sp,'_sumDensity'),paste0(sp,'_sumDensity_sq'))
-  df<-cbind(df,dens)
+  st<-input_optim[['static']]
+  dyn<-input_optim[['dynamic']]
+  densst<-data.frame(st$sumDensity,st$sumDensity_sq)
+  densdyn<-data.frame(dyn$sumDensity,dyn$sumDensity_sq)
+  names(densst)<-c(paste0(sp,'_sumDensity'),paste0(sp,'_sumDensity_sq'))
+  names(densdyn)<-c(paste0(sp,'_sumDensity'),paste0(sp,'_sumDensity_sq'))
+  dfst<-cbind(dfst,densst)
+  dfdyn<-cbind(dfdyn,densdyn)
 }
 
-save(df,file=paste0('./output/multisp_optimization_static_data_slope.RData'))
-load(file=paste0('./output/multisp_optimization_static_data_slope.RData'))
+save(dfst,file=paste0('./output/multisp_optimization_static_data_slope_st.RData'))
+save(dfdyn,file=paste0('./output/multisp_optimization_static_data_slope_dyn.RData'))
+load(file=paste0('./output/multisp_optimization_static_data_slope_dyn.RData'))
+#load(file=paste0('./output/multisp_optimization_static_data_slope.RData'))
 
 
 ######################
 # COMBINE DATA FROM SLOPE AND EBS_NBS FOR OPTIMIZATION
 #####################
 
-load(paste0('./output/multisp_optimization_static_data_ebsnbs.RData'))
-head(df)
-dim(df)
-df_ebs_nbs<-df
+#DYNAMIC
+load(paste0('./output/multisp_optimization_static_data_ebsnbs_dyn.RData'))
+head(dfdyn)
+dim(dfdyn)
+df_ebs_nbs<-dfdyn
 df_ebs_nbs<-df_ebs_nbs[order(df_ebs_nbs$cell),]
-load(paste0('./output/multisp_optimization_static_data_slope.RData'))
-head(df)
-dim(df)
-df_slope<-df
+load(paste0('./output/multisp_optimization_static_data_slope_dyn.RData'))
+head(dfdyn)
+dim(dfdyn)
+df_slope<-dfdyn
+df_slope<-df_slope[order(df_slope$cell),]
+
+df<-rbind(df_ebs_nbs,df_slope)
+save(df,file=paste0('./output/multisp_optimization_static_data_ebsnbs_slope_dyn.RData'))
+load(paste0('./output/multisp_optimization_static_data_ebsnbs_slope_dyn.RData'))
+
+#STATIC
+load(paste0('./output/multisp_optimization_static_data_ebsnbs_st.RData'))
+head(dfst)
+dim(dfst)
+df_ebs_nbs<-dfst
+df_ebs_nbs<-df_ebs_nbs[order(df_ebs_nbs$cell),]
+load(paste0('./output/multisp_optimization_static_data_slope_st.RData'))
+head(dfst)
+dim(dfst)
+df_slope<-dfst
 df_slope<-df_slope[order(df_slope$cell),]
 df<-rbind(df_ebs_nbs,df_slope)
-
-save(df,file=paste0('./output/multisp_optimization_static_data_ebsnbs_slope.RData'))
-load(paste0('./output/multisp_optimization_static_data_ebsnbs_slope.RData'))
+save(df,file=paste0('./output/multisp_optimization_static_data_ebsnbs_slope_st.RData'))
+load(paste0('./output/multisp_optimization_static_data_ebsnbs_slope_st.RData'))
 
