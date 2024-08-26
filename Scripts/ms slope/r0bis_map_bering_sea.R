@@ -348,7 +348,7 @@ slopesub4<-c(41:45)
 xx<-slop_sppoly['STRATUM']
 xx_sf <- st_as_sf(xx)
 xx1<-xx[xx$STRATUM %in% slope200_400,] 
-xx1<-xx[xx$STRATUM %in% slopesub4,] #min y 1010033 = 57.5
+#xx1<-xx[xx$STRATUM %in% slopesub4,] #min y 1010033 = 57.5
 #xxx1<-spTransform(xx1,CRSobj = CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"))
 xx2<-as(xx1, "sf")
 
@@ -389,13 +389,13 @@ seg2<-as.data.frame(seg1)
 #zoomin plot
 zoomin<-
     ggplot()+
-    geom_sf(data=ebs_layers$survey.strata,fill=NA,color='grey30')+
+    #geom_sf(data=ebs_layers$survey.strata,fill=NA,color='grey30')+
     geom_polygon(data=ak_sppoly,aes(x=long,y=lat,group=group),color='black',linewidth=0.2,fill = 'grey80')+
     geom_segment(aes(x = seg2[1,'x'], y = seg2[1,'y'], xend = seg2[2,'x'], yend = seg2[2,'y']), colour = "black")+
     geom_segment(aes(x = seg2[3,'x'], y = seg2[3,'y'], xend = seg2[4,'x'], yend = seg2[4,'y']), colour = "black")+
     geom_segment(aes(x = seg2[7,'x'], y = seg2[7,'y'], xend = seg2[8,'x'], yend = seg2[8,'y']), colour = "black")+
-    geom_point(data=pts,aes(x=Lon,y=Lat),shape=4,size=1)+
-    geom_point(data=subset(pts,corner==TRUE),aes(x=Lon,y=Lat),shape=4,size=1,color='red')+
+    #geom_point(data=pts,aes(x=Lon,y=Lat),shape=4,size=1)+
+    #geom_point(data=subset(pts,corner==TRUE),aes(x=Lon,y=Lat),shape=4,size=1,color='red')+
     geom_sf(data = xx2_single,fill='#00b159',color='#00b159')+
     scale_x_continuous(expand = c(0,0),position = 'bottom',
                        breaks = c(-180,-175,-170,-165,-160,-155),sec.axis = dup_axis())+
@@ -425,8 +425,8 @@ zoomin<-
     annotate("text", x = -256559, y = 1354909, label = "Alaska",parse=TRUE,size=7)+
     annotate("text", x = -1376559, y = 2049090, label = "Russia",parse=TRUE,size=7)+
     annotate("text", x = -816559, y = 1454909, label = "NBS",parse=TRUE,size=7)+
-    annotate("text", x = -806559, y = 1024909, label = "EBSshelf",size=7)+
-      annotate("text", x = -1520559, y = 1239909, label = "EBSslope",size=7)+
+    annotate("text", x = -806559, y = 1024909, label = "EBS",size=7)+
+      annotate("text", x = -1460559, y = 1239909, label = "SBS",size=7)+
     annotate("text", x = seg2[5,'x'], y = seg2[5,'y'], label = "St. Matthew\nIsland",size=5,lineheight = 0.9)+
       annotate("text", x = seg2[6,'x'], y = seg2[6,'y'], label = "Pribilof\nIslands",size=5,lineheight = 0.9)+
     annotate("text", x = seg2[9,'x'], y = seg2[9,'y'], label = "St. Lawrence\nIsland",size=5,lineheight = 0.9)+
@@ -460,7 +460,7 @@ zoomout<-
     theme(panel.grid.major = element_line(color = rgb(0, 0, 0,20, maxColorValue = 285), linetype = 'dashed', linewidth =  0.5),
           panel.ontop = TRUE,text = element_text(size=10),
           legend.background =  element_rect(fill = "transparent", colour = "transparent"),legend.key.height= unit(20, 'points'),
-          legend.key.width= unit(20, 'points'),axis.title = element_blank(),legend.margin = zoomoutposition = c(0.12,0.155),
+          legend.key.width= unit(20, 'points'),axis.title = element_blank(),#legend.margin = zoomoutposition = c(0.12,0.155),
           panel.border = element_rect(fill = NA, colour = 'black'),
           axis.text = element_blank(),axis.ticks.length = unit(-3, "points"),
           panel.background = element_rect(fill = NA),plot.margin=grid::unit(c(0,0,0,0), "mm"))+
@@ -472,8 +472,8 @@ zoomout<-
     annotate("text", x = +3000000, y = 0, label = "USA",parse=TRUE,size=4)
 
 #save plot
-dir.create('./figures/')
-agg_png(paste0('./figures slope/map_bering.png'), width = 7, height = 7, units = "in", res = 300)
+dir.create('./figures slope/')
+agg_png(paste0('./figures slope/map_bering1.png'), width = 7, height = 7, units = "in", res = 300)
 grid.newpage()
 vp_b <- viewport(width = 1, height = 1, x = 0.5, y = 0.5)  # the larger map
 vp_a <- viewport(width = 0.4, height = 0.3, x = 0.217, y = 0.846)  # the inset in upper left
@@ -490,13 +490,14 @@ ggplot()+
                      breaks = c(-180,-175,-170,-165,-160,-155),sec.axis = dup_axis())+
   geom_polygon(data=NBS_sh,aes(x=long,y=lat,group=group),linewidth=0.3,fill=NA,col='black')+
   geom_polygon(data=EBSshelf_sh,aes(x=long,y=lat,group=group),linewidth=0.3,fill=NA,col='black')+
+  geom_polygon(data=EBSslope_sh,aes(x=long,y=lat,group=group),fill=NA,col='black')+
   coord_sf(crs = '+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs',
            xlim = panel_extent$x,
            ylim = c(panel_extent$y[1],panel_extent$y[2]-300000),
            label_axes = "-NE-")+
-  scale_fill_gradient2(high = '#10715e',mid='#1ABC9C',low = 'white',midpoint = 100,#'#007c9b',
-                       limits=c(5,200),oob = scales::squish,breaks=c(5,50,100,200),
-                       labels=c('0','50','100',paste0('200')), #round(maxValue(ak_bathy_4))
+  scale_fill_gradient2(high = '#10715e',low = 'grey80',#midpoint = 200,#'#007c9b',
+                       limits=c(0,400),oob = scales::squish,breaks=c(0,100,200,400),
+                       labels=c('0','100','200',paste0('+','400')), #round(maxValue(ak_bathy_4))
                        na.value = 'white',
                        name='depth (m)',
                        guide = guide_colorbar(frame.colour = 'black',ticks.colour = 'black'))+
@@ -513,7 +514,7 @@ ggplot()+
 
 
 #load optim file (in script #6 to get meanTemp and varSBT)
-load('./output/multisp_optimization_static_data_ebsnbs.RData')
+load('./output/multisp_optimization_static_data_ebsnbs_slope_st.RData')
 head(df)
 coordinates(df) <- ~ Lon + Lat
 proj4string(df)<-CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
@@ -524,12 +525,13 @@ df1<-as.data.frame(df1,xy=TRUE)
 #varSBT miniplot
 pv<-
 ggplot()+
-  geom_point(data=df1,aes(x=Lon,y=Lat,color=varTemp),size=0.3)+
+  geom_point(data=df1,aes(x=Lon,y=Lat,color=varTemp),size=0.1)+
   geom_polygon(data=ak_sppoly,aes(x=long,y=lat,group=group),color='black',linewidth=0.2,fill = 'grey80')+
   scale_x_continuous(expand = c(0,0),position = 'bottom',
                      breaks = c(-180,-175,-170,-165,-160,-155),sec.axis = dup_axis())+
   geom_polygon(data=NBS_sh,aes(x=long,y=lat,group=group),linewidth=0.3,fill=NA,col='black')+
   geom_polygon(data=EBSshelf_sh,aes(x=long,y=lat,group=group),linewidth=0.3,fill=NA,col='black')+
+  geom_polygon(data=EBSslope_sh,aes(x=long,y=lat,group=group),fill=NA,col='black')+
   coord_sf(crs = '+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs',
            xlim = panel_extent$x,
            ylim = c(panel_extent$y[1],panel_extent$y[2]-300000),
@@ -580,7 +582,7 @@ pt<-
 pp<-plot_grid(pd,pv,ncol=1)
 
 #save env plot
-agg_png(paste0('./figures/env_map.png'), width = 4, height = 7, units = "in", res = 300)
+agg_png(paste0('./figures slope/env_map.png'), width = 4, height = 7, units = "in", res = 300)
 print(pp)
 dev.off()
 
@@ -593,7 +595,7 @@ dev.off()
 load('./extrapolation grids/northern_bering_sea_grid.rda')
 load('./extrapolation grids/eastern_bering_sea_grid.rda')
 grid<-as.data.frame(rbind(data.frame(northern_bering_sea_grid,region='NBS'),data.frame(eastern_bering_sea_grid,region='EBS')))
-grid$cell<-1:nrow(grid)
+grid$cell<-1:nrow(grid)vv  
 #df to spatialpoint df
 coordinates(grid) <- ~ Lon + Lat
 crs(grid)<-c(crs='+proj=longlat +ellps=WGS84 +towgs84=0,0,0,0,0,0,0 +no_defs')
