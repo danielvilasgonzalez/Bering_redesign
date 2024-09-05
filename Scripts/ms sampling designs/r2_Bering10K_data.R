@@ -216,7 +216,7 @@ colnames(grid.ebs_year)<-c(colnames(EBSgrid),
 #loop over years to incorporate values into the Bering Sea grid
 for (y in 1982:2024) {
   
-  #y<-2019
+  #y<-1982
   
   #print year to check progress
   cat(paste("    ----- year", y, "-----\n"))  
@@ -265,8 +265,8 @@ for (y in 1982:2024) {
   #open netcdf
   nc<-nc_open(paste0('./bering 10k roms/',f))
   
-  nc<-nc_open('/Users/daniel/Downloads/B10K-K20P19_CORECFS_1970-1974_average_Cop_integrated.nc')
-  names(nc$var)
+  #nc<-nc_open('/Users/daniel/Downloads/B10K-K20P19_CORECFS_1970-1974_average_Cop_integrated.nc')
+  #names(nc$var)
   
   #dimensions netcdf files
   #258 rows
@@ -344,7 +344,7 @@ save(grid.ebs_year,file = './data processed/grid_EBS_NBS.RData')
 #loop over species to add SBT to data_geostat
 for (sp in spp) {
   
-  #sp<-spp[16]
+  #sp<-spp[3]
   
   #print species to check progress
   cat(paste(" ############# ", sp, " #############\n"))
