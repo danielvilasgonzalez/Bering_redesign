@@ -297,11 +297,11 @@ for (s in c(1:nrow(samp_df))) { #nrow(samp_df)
 
   if (samp_df[s,'type']=='static') {
     #load multispecies data
-    load(paste0('./output/multisp_optimization_static_data_ebsnbs_slope_st.RData')) #df
+    load(paste0('./output slope/multisp_optimization_static_data_ebsnbs_slope_st.RData')) #df
     regime<-c('all')
   } else {
     #load multispecies data
-    load(paste0('./output/multisp_optimization_static_data_ebsnbs_slope_dyn.RData')) #df
+    load(paste0('./output slope/multisp_optimization_static_data_ebsnbs_slope_dyn.RData')) #df
     regime<-c('cold','warm')
   }
   
@@ -884,7 +884,7 @@ for (s in c(1:nrow(samp_df))) { #nrow(samp_df)
       
       #save list
         save(all,
-             file = paste0("./output/ms_optim_allocations_ebsnbs_slope_",samp_df[s,'samp_scn'],'_',r,".RData"))
+             file = paste0("./output slope/ms_optim_allocations_ebsnbs_slope_",samp_df[s,'samp_scn'],'_',r,".RData"))
         
         #strata to plot
         dd<-all$result_list$solution$framenew
@@ -987,11 +987,11 @@ for (s in c(1:nrow(samp_df))) { #nrow(samp_df)
   
    if (samp_df[s,'type']=='static') {
     #load multispecies data
-    #load(paste0('./output/multisp_optimization_static_data_ebsnbs_slope_st.RData')) #df
+    #load(paste0('./output slope/multisp_optimization_static_data_ebsnbs_slope_st.RData')) #df
     regime<-c('all')
   } else {
     #load multispecies data
-    #load(paste0('./output/multisp_optimization_static_data_ebsnbs_slope_dyn.RData')) #df
+    #load(paste0('./output slope/multisp_optimization_static_data_ebsnbs_slope_dyn.RData')) #df
     regime<-c('cold','warm')
   }
   
@@ -1034,7 +1034,7 @@ for (s in c(1:nrow(samp_df))) { #nrow(samp_df)
     
     #save list
     load(
-         file = paste0("./output/ms_optim_allocations_ebsnbs_slope_",samp_df[s,'samp_scn'],'_',r,".RData")) #all
+         file = paste0("./output slope/ms_optim_allocations_ebsnbs_slope_",samp_df[s,'samp_scn'],'_',r,".RData")) #all
     
     #strata to plot
     dd<-all$result_list$solution$framenew
@@ -1209,11 +1209,11 @@ for (s in c(1:nrow(samp_df))) { #nrow(samp_df)
   
   if (samp_df[s,'type']=='static') {
     #load multispecies data
-    #load(paste0('./output/multisp_optimization_static_data_ebsnbs_slope_st.RData')) #df
+    #load(paste0('./output slope/multisp_optimization_static_data_ebsnbs_slope_st.RData')) #df
     regime<-c('all')
   } else {
     #load multispecies data
-    #load(paste0('./output/multisp_optimization_static_data_ebsnbs_slope_dyn.RData')) #df
+    #load(paste0('./output slope/multisp_optimization_static_data_ebsnbs_slope_dyn.RData')) #df
     regime<-c('cold','warm')
   }
   
@@ -1221,7 +1221,7 @@ for (s in c(1:nrow(samp_df))) { #nrow(samp_df)
     
     #load list
     load(
-      file = paste0("./output/ms_optim_allocations_ebsnbs_slope_",samp_df[s,'samp_scn'],'_',r,".RData")) #all
+      file = paste0("./output slope/ms_optim_allocations_ebsnbs_slope_",samp_df[s,'samp_scn'],'_',r,".RData")) #all
     
     #strata to plot
     dd<-all$result_list$solution$framenew
@@ -1284,570 +1284,4 @@ for (s in c(1:nrow(samp_df))) { #nrow(samp_df)
 #plots
 plot_grid(plotlist = plot_list,nrow = 4)
 
-
-
-
 1
-
-
-#how many samples in the slope and in the NBS???
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-   for (s in c(2,4,6)) { #nrow(samp_df)
-  # 
-  #   #2,4,6
-  #   
-  #   #s<-6
-    
-    dom<-samp_df[s,'domain']
-    
-    
-    #load list
-    load(
-      file = paste0("./output/ms_optim_allocations_ebsnbs_slope_",samp_df[s,'samp_scn'],".RData")) #all
-    
-    #strata to plot
-    dd<-all$result_list$solution$framenew
-    #all$ms_sample_allocations
-    effort<-all$ms_sample_allocations[,colnames(all$ms_sample_allocations)[grepl(pattern = 'Str',colnames(all$ms_sample_allocations))]]
-    effort1<-reshape2::melt(effort)
-    names(effort1)<-c('STRATO','effort')
-    effort1$STRATO<-gsub('Str_','',effort1$STRATO)
- 
-    
-    # if (dom==2) {
-    #   
-    #   effort1$STRATO<-paste0(c(1,2,1,2,1,2,1,2,1,2),'_',effort1$STRATO)
-    #   names(effort1)[1]<-'strata'
-    #   dd1<-merge(dd[,c('DOMAINVALUE','STRATO','ID')],grid,by.x='ID',by.y='cell')
-    #   dd1$strata<-paste0(dd1$DOMAINVALUE,'_',dd1$STRATO)
-    #   dd2<-merge(dd1,effort1,by='strata')
-    #   #dd2$strata<-paste0(dd2$DOMAINVALUE,'_',dd2$STRATO)
-    #   
-    # } else {
-    #   
-    dd1<-merge(dd[,c('DOMAINVALUE','STRATO','ID')],grid,by.x='ID',by.y='cell')
-    dd2<-merge(dd1,effort1,by='STRATO')
-    dd2$strata<-dd2$STRATO
-    
-    #}
-    
-    # if (dom==2) {
-    #   
-    # nbs_effort<-aggregate(ID ~ X1,all$result_list$sol_by_cell[1:15180,],FUN=length)
-    # nbs_effort$X1<-paste0('1_',nbs_effort$X1)
-    # 
-    # ebs_effort<-aggregate(ID ~ X1,all$result_list$sol_by_cell[15181:nrow(all$result_list$sol_by_cell),],FUN=length)
-    # ebs_effort$X1<-paste0('2_',ebs_effort$X1)
-    # 
-    # all_effort<-rbind(nbs_effort,ebs_effort)
-    # names(all_effort)<-c('strata','effort_area')
-    # dd2<-merge(dd2,all_effort,by=('strata'))
-    # dd2$effort_area<-dd2$effort_area/dd2$effort
-    # 
-    # } else {
-      
-      all_effort<- aggregate(ID ~ X1,all$result_list$sol_by_cell,FUN=length)
-      names(all_effort)<-c('strata','effort_area')
-      #all_effort$strata<-paste0('1_',all_effort$strata)
-      dd2<-merge(dd2,all_effort,by=('strata'))
-      dd2$effort_area<-dd2$effort_area/dd2$effort
-      dd2$strata<-factor(dd2$strata,levels=c(1:10))
-      
-    #}
-  #save plot
-  #ragg::agg_png(paste0('./figures slope/',"ms_optim_allocations_ebsnbs_slope_",samp_df[s,'samp_scn'],'.png'),  width = 7, height = 7, units = "in", res = 300)
-  # print(
-  #   ggplot()+
-  #     geom_point(data=dd2,aes(x=Lon,y=Lat,color=strata),size=0.3)+
-  #     geom_polygon(data=NBS_sh,aes(x=long,y=lat,group=group),fill=NA,col='black')+
-  #     geom_polygon(data=EBSshelf_sh,aes(x=long,y=lat,group=group),fill=NA,col='black')+
-  #     geom_polygon(data=EBSslope_sh,aes(x=long,y=lat,group=group),fill=NA,col='black')+
-  #     ggtitle(samp_df[s,'strat_var'])#+
-  #   
-    ggplot()+
-      geom_point(data=dd2,aes(x=Lon,y=Lat,color=strata),size=0.3)+
-      geom_polygon(data=NBS_sh,aes(x=long,y=lat,group=group),fill=NA,col='black')+
-      geom_polygon(data=EBSshelf_sh,aes(x=long,y=lat,group=group),fill=NA,col='black')+
-      geom_polygon(data=EBSslope_sh,aes(x=long,y=lat,group=group),fill=NA,col='black')+
-      ggtitle(paste(samp_df[s,'region'],samp_df[s,'strat_var'],samp_df[s,'type']))+
-      theme_minimal()+
-      scale_color_tableau()+
-      guides(color = guide_legend(override.aes = list(size = 3)))
-    #scale_color_discrete(type='viridis')
-  #)
-  #dev.off()
-  
-  #save plot
-  #ragg::agg_png(paste0('./figures slope/',"ms_optim_allocations_ebsnbs_slope_",samp_df[s,'samp_scn'],'_effort.png'),  width = 7, height = 7, units = "in", res = 300)
-  #print(
-    ggplot()+
-      geom_point(data=dd2,aes(x=Lon,y=Lat,color=effort_area),size=0.3)+
-      geom_polygon(data=NBS_sh,aes(x=long,y=lat,group=group),fill=NA,col='black')+
-      geom_polygon(data=EBSshelf_sh,aes(x=long,y=lat,group=group),fill=NA,col='black')+
-      geom_polygon(data=EBSslope_sh,aes(x=long,y=lat,group=group),fill=NA,col='black')+
-      ggtitle(samp_df[s,'strat_var'])+
-      theme_minimal()+
-      #theme(text = element_blank())+
-      #scale_color_continuous(type='viridis',name='stations/area')
-       ggtitle(paste(samp_df[s,'region'],samp_df[s,'strat_var'],samp_df[s,'type']))+
-      scale_color_gradientn(colours = pal,name='stations/area')
-  #)
-  #dev.off()
-  }
-  
-  
-  
-  ###################
-  # Plot comparison sampling effort x strata for each species under singlesp or multisp allocation of samples
-  ###################
-    
-  cvs<-data.frame(matrix(NA,nrow = 0,ncol = 4))
-  names(cvs)<-c('sp','samp','ss','ms')
-  
-  for (s in 1:nrow(samp_df)) {
-    
-    #s<-1
-    
-    samp<-samp_df[s,'samp_scn']
-    
-    #load multispecies data
-    load(paste0('./output/multisp_optimization_static_data_ebsnbs_slope.RData')) #df
-    
-    #load optimized stratification
-    #load(file = paste0("./output/ms_optim_allocations_ebsnbs_slope_",samp_df[s,'samp_scn'],".RData")) #all
-    load(paste0("./output/ms_optim_allocations_ebsnbs_slope_",samp_df[s,'samp_scn'],'_','DOM',samp_df[s,'domain'],".RData"))
-    
-    strata<-rbind(all$result_list$solution$indices,
-                  data.frame(ID=rem_cells,X1=NA))
-    colnames(strata)<-c('cell','Strata')
-    
-    #n cells by strata to calculate proportion of sampling effort as n samples/total cells
-    strata_sum<-aggregate(cell ~ Strata, data = strata, FUN = length)
-    names(strata_sum)[2]<-'total_cell'
-    
-    #merge with ss data
-    ss<-all$ss_sample_allocations
-    ss1<-data.frame(ss[,c(paste0('Str_',1:samp_df$n_strata[s]))],row.names = ss$species)
-    colnames(ss1)<-1:samp_df$n_strata[s]
-    ss2<-reshape2::melt(as.matrix(ss1))
-    names(ss2)<-c('species','Strata','ss_samples')
-    strata1<-merge(strata,ss2,by='Strata')
-    
-    #merge with ms data
-    ms<-all$ms_sample_allocations
-    ms_strata<-data.frame('Strata'=1:samp_df$n_strata[s],
-                          'ms_samples'=as.numeric(ms[1,20:(20+samp_df$n_strata[s]-1)]))
-    
-    
-    strata2<-merge(strata1,ms_strata,by='Strata')
-    strata2<-merge(strata2,strata_sum,by='Strata')
-    #strata2$prop<-strata2$n_samples/strata2$total_cell
-    strata2$ratio<-log(strata2$ss_samples/strata2$ms_samples)
-    dim(strata2)
-    
-    df1<-df[,c('Lat','Lon','cell')]
-    df1<-merge(df1,strata2,by='cell')
-    df1$Strata[is.na(df1$Strata)]<-999
-    
-    #to store plots
-    plot_list_n<-list()
-    plot_list_d<-list()
-    
-    for (isp in spp) {
-      
-    #isp<-spp[1]
-    
-    df2<-subset(df1,species==isp)
-    
-    #ms CV
-    ms_cv<-
-      ms[,paste0('CV',match(isp,spp))]
-    
-    #ms SCV
-    ms_scv<-(ms_cv*100)^2
-    
-    #ss CV
-    ss_cv<-
-      ss$CV[match(isp,spp)]
-    
-    #ss SCV
-    ss_scv<-(ss_cv*100)^2
-    
-    icvs<-data.frame('sp'=isp,
-                     'samp'=samp,
-                     'ss'=ss_cv,
-                     'ms'=ms_cv)
-    
-    #append
-    cvs<-rbind(cvs,icvs)
-    
-    #df to spatialpoint df
-    coordinates(df2) <- ~ Lon + Lat
-    proj4string(df2)<-CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
-    
-    #reproject coordinates for plotting purposes
-    df_1<-spTransform(df2,'+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs')
-    df_2<-data.frame(df_1)
-    
-    #x and y cells
-    xycells<-as.integer(sqrt(dim(df_1)[1]))
-    
-    # create a template raster
-    r1 <- raster(ext=extent(df_1),ncol=xycells, nrow=xycells) #c(15800,15800) 7000
-    
-    #create raster
-    r2<-rasterize(df_1, r1 ,field=c('Strata','ms_samples','ss_samples','ratio'))
-    crs(r2) <- CRS('+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs')
-    r2[r2==999]<-NA
-    
-    #create polygon to get boundaries of each strata
-    r3<-as.data.frame(r2,xy=TRUE)
-    r4<-rasterToPolygons(r2$Strata,dissolve=TRUE,digits = 1)
-    
-    #color palette
-    pal <- wes_palette("Zissou1", length(sort(unique(r3$ss_samples))), type = "continuous")
-    color_scale_ss <- setNames(as.character(pal), sort(unique(r3$ss_samples)))
-    r3<-r3[complete.cases(r3$Strata),] 
-    
-    #as factors
-    r3$ss_samples<-as.factor(r3$ss_samples)
-    #r3$ratio<-as.factor(r3$ratio)
-  
-    #common name
-    com<-spp_name[which(spp_name$spp==isp),'common']
-    
-    #plot by number of samples
-    pn<-
-    ggplot()+
-      geom_raster(data=r3,aes(x=x,y=y,fill=ss_samples))+
-      geom_polygon(data=r4,aes(x=long,y=lat,group=group), colour="black", fill=NA)+
-      scale_fill_manual(values = color_scale_ss,name='sampling effort')+
-      guides(fill=guide_colorbar(title.position = 'top', title.hjust = 0.5,ticks.colour = NA,frame.colour = 'black'))+
-      scale_x_continuous(expand = c(0,0),position = 'bottom',
-                         breaks = c(-175,-170,-165,-160,-155),sec.axis = dup_axis())+
-      coord_sf(crs = '+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs',
-               xlim = panel_extent$x-c(000000,100000),
-               ylim = panel_extent$y-c(0,300000),
-               label_axes = "-NE-")+
-      theme(aspect.ratio = 1,panel.grid.major = element_blank(),
-            panel.background = element_rect(fill = NA),panel.ontop = TRUE,
-            legend.background =  element_rect(fill = "transparent", colour = "transparent"),legend.key.height= unit(20, 'points'),
-            legend.key.width= unit(20, 'points'),axis.title = element_blank(),legend.position = 'none',
-            panel.border = element_rect(fill = NA, colour = NA),legend.key = element_rect(color="black"),
-            legend.spacing.y = unit(8, 'points'),
-            axis.text=element_blank(),axis.ticks = element_blank(),
-            plot.margin = margin(0.01,0.01,0.01,0.01), 
-            axis.ticks.length = unit(-5,"points"),plot.title = element_text(size=12,hjust = 0.5,vjust=-5, face="bold"))+
-      scale_y_continuous(expand = c(0,0),position = 'right',sec.axis = dup_axis())+
-      #labs(title=paste0(com,'\n(msSCV=',round(ms_scv,digits = 3),'; ssSCV=',round(ss_scv,digits = 3),')'),fill='')
-      labs(title=paste0(com,'\n(msCV=',round(ms_cv,digits = 3),'; ssCV=',round(ss_cv,digits = 3),')'),fill='')
-    
-    #plot by number of samples
-    pd<-
-    ggplot()+
-      geom_raster(data=r3,aes(x=x,y=y,fill=ratio))+
-      geom_polygon(data=r4,aes(x=long,y=lat,group=group), colour="black", fill=NA)+
-      scale_fill_gradient2(midpoint = 0, low = "red", mid = "white",
-                             high = "blue",name='ss samples - ms samples')+
-      guides(fill=guide_colorbar(title.position = 'top', title.hjust = 0.5,ticks.colour = NA,frame.colour = 'black'))+
-      scale_x_continuous(expand = c(0,0),position = 'bottom',
-                         breaks = c(-175,-170,-165,-160,-155),sec.axis = dup_axis())+
-      coord_sf(crs = '+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs',
-               xlim = panel_extent$x-c(000000,100000),
-               ylim = panel_extent$y-c(0,300000),
-               label_axes = "-NE-")+
-      theme(aspect.ratio = 1,panel.grid.major = element_blank(),
-            panel.background = element_rect(fill = NA),panel.ontop = TRUE,
-            legend.background =  element_rect(fill = "transparent", colour = "transparent"),legend.key.height= unit(20, 'points'),
-            legend.key.width= unit(20, 'points'),axis.title = element_blank(),legend.position = 'none',
-            panel.border = element_rect(fill = NA, colour = NA),legend.key = element_rect(color="black"),
-            legend.spacing.y = unit(8, 'points'),
-            axis.text=element_blank(),axis.ticks = element_blank(),
-            plot.margin = margin(0.01,0.01,0.01,0.01), 
-            axis.ticks.length = unit(-5,"points"),plot.title = element_text(size=12,hjust = 0.5,vjust=-5, face="bold"))+
-      scale_y_continuous(expand = c(0,0),position = 'right',sec.axis = dup_axis())+
-      #labs(title=paste0(com,'\n(msSCV=',round(ms_scv,digits = 3),'; ssSCV=',round(ss_scv,digits = 3),')'),fill='')
-      labs(title=paste0(com,'\n(msCV=',round(ms_cv,digits = 3),'; ssCV=',round(ss_cv,digits = 3),')'),fill='')
-    
-    plot_list_n[[isp]]<-pn
-    plot_list_d[[isp]]<-pd
-    }
-  
-    
-    #color palette
-    pal <- wes_palette("Zissou1", length(sort(unique(r3$ms_samples))), type = "continuous")
-    color_scale_ms <- setNames(as.character(pal), sort(unique(r3$ms_samples)))
-    
-    #as factors
-    r3$ms_samples<-as.factor(r3$ms_samples)
-    #r3$ratio<-as.factor(r3$ratio)
-    
-    #plot by number of samples
-    pm<-
-      ggplot()+
-      geom_raster(data=r3,aes(x=x,y=y,fill=ms_samples))+
-      geom_polygon(data=r4,aes(x=long,y=lat,group=group), colour="black", fill=NA)+
-      scale_fill_manual(values = color_scale_ms,name='sampling effort')+
-      guides(fill=guide_colorbar(title.position = 'top', title.hjust = 0.5,ticks.colour = NA,frame.colour = 'black'))+
-      scale_x_continuous(expand = c(0,0),position = 'bottom',
-                         breaks = c(-175,-170,-165,-160,-155),sec.axis = dup_axis())+
-      coord_sf(crs = '+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs',
-               xlim = panel_extent$x-c(000000,100000),
-               ylim = panel_extent$y-c(0,300000),
-               label_axes = "-NE-")+
-      theme(aspect.ratio = 1,panel.grid.major = element_blank(),
-            panel.background = element_rect(fill = NA),panel.ontop = TRUE,
-            legend.background =  element_rect(fill = "transparent", colour = "transparent"),legend.key.height= unit(20, 'points'),
-            legend.key.width= unit(20, 'points'),axis.title = element_blank(),legend.position = 'none',
-            panel.border = element_rect(fill = NA, colour = NA),legend.key = element_rect(color="black"),
-            legend.spacing.y = unit(8, 'points'),
-            axis.text=element_blank(),axis.ticks = element_blank(),
-            plot.margin = margin(0.01,0.01,0.01,0.01), 
-            axis.ticks.length = unit(-5,"points"),plot.title = element_text(size=14,hjust = 0.5,vjust=-5, face="bold"))+
-      scale_y_continuous(expand = c(0,0),position = 'right',sec.axis = dup_axis())+
-      labs(title=paste0('multispecies\n',gsub('_',' + ',samp_df[s,'strat_var'])),fill='')  
-      
-  #create legends
-  legend_d<-
-    ggplot()+
-    geom_raster(data=r3,aes(x=x,y=y,fill=as.numeric(ratio)))+
-    scale_fill_gradient2(midpoint = mean(range(r3$ratio)), low = "red", mid = "white",
-                         high = "blue",breaks=range(as.numeric(r3$ratio)),labels=c("Lower","Higher"),name='log(ss/ms samples)')+
-    guides(fill=guide_colorbar(title.position = 'top', title.hjust = 0.5,ticks.colour = NA,frame.colour = 'black'))+
-    theme(legend.position = 'bottom')+
-    labs(fill='')
-  
-  legend_n<-
-    ggplot()+
-    geom_raster(data=r3,aes(x=x,y=y,fill=as.numeric(ss_samples)))+
-    scale_fill_gradientn(colours = pal,breaks=range(as.numeric(r3$ss_samples)),labels=c("Low","High"),name='sampling effort (n samples)')+
-    guides(fill=guide_colorbar(title.position = 'top', title.hjust = 0.5,ticks.colour = NA,frame.colour = 'black'))+
-    theme(legend.position = 'bottom')+
-    labs(fill='')
-  
-  legend1 <- cowplot::get_legend( 
-    legend_d + 
-      theme(legend.position = "bottom") 
-  ) 
-  
-  legend2 <- cowplot::get_legend( 
-    legend_n + 
-      theme(legend.position = "bottom") 
-  ) 
-  
-  pgrid1<-cowplot::plot_grid(plotlist = plot_list_d, nrow = 2)
-  pgrid2<-cowplot::plot_grid(plotlist = plot_list_n, nrow = 2)
-  
-  #save plots
-  ragg::agg_png(paste0('./figures/sampling designs ss ratio_',samp_df[s,'strat_var'],'.png'), width = 20, height = 7, units = "in", res = 300)
-  print(cowplot::plot_grid(pgrid1, legend1, nrow = 2, rel_heights = c(1, .1)))
-  dev.off()
-  
-  ragg::agg_png(paste0('./figures/sampling designs ss n_',samp_df[s,'strat_var'],'.png'), width = 20, height = 7, units = "in", res = 300)
-  print(cowplot::plot_grid(pgrid2, legend2, nrow = 2, rel_heights = c(1, .1)))
-  dev.off()
-  
-  ragg::agg_png(paste0('./figures/sampling designs ms_',samp_df[s,'strat_var'],'.png'), width = 5, height = 5, units = "in", res = 300)
-  print(pm)
-  dev.off()
-  
-}  
-  
-  save(cvs,file = './output/ss_ms_slope.RData')
-  load(file = './output/ss_ms_slope.RData')
-  spp_name$common<-gsub('_EBSNBS','',spp_name$common)
-  cvs1<-merge(cvs,spp_name,by.x='sp',by.y='spp')
-  cvs1<-cvs1[order(cvs1$common,decreasing = FALSE),]
-  cvs1$common<-factor(cvs1$common,levels = rev(sort(unique(cvs1$common))))
-  #cvs1$samp<-factor(cvs1$samp,
-  #               levels = c('scn3','scn2','scn1'))
-  
-  levels(cvs1$samp)
-  
-  p1<-
-  ggplot()+
-    geom_linerange(data=cvs1,aes(xmin=ss,xmax=ms,x=ms,y=common,color=samp),linewidth=1,stat = "identity", position = position_dodge(width = 0.7))+ 
-    geom_point(data=cvs1,aes(x=ss,y=common,group=samp),shape=4,stat = "identity", position = position_dodge(width = 0.7),size=2)+
-    geom_point(data=cvs1,aes(x=ms,y=common,group=samp),shape=16,stat = "identity", position = position_dodge(width = 0.7),size=2)+
-    scale_color_manual(values=c('scn1'='#4b7a99','scn2'='#679bc3','scn3'='#8db6c3'),
-                      labels = c('opt depth','opt varSBT','opt depth + varSBT'),
-                      limits=c('scn3','scn2','scn1'),
-                      name='stratification')+
-    # scale_color_manual(values=c('scn1'='#4b7a99','scn2'='#679bc3','scn3'='#8db6c3'),
-    #                   labels = c('opt depth','opt varSBT','opt depth + varSBT'),name='stratification')+
-    theme_bw()+
-    theme(panel.grid.minor = element_line(linetype=2,color='grey90',),#strip.background = element_rect(fill='white'),
-          legend.key.size = unit(12, 'points'),legend.direction = 'vertical',legend.text = element_text(size=9),legend.position=c(.78,.925),
-          legend.title = element_text(size=10),legend.spacing.x = unit(0.05, "cm"),legend.box.spacing =  unit(0.01, "cm"), #,strip.text = element_text(size=12)
-          strip.background = element_blank(), legend.box.background = element_rect(fill = "white", color = "black"),#legend.background = element_blank(),legend.box = 'horizontal',#legend.justification = 'right',legend.position='bottom',#
-          strip.text = element_blank())+ #axis.text.x = element_text(angle=90,vjust=0.5),
-    expand_limits(x = 0)+
-    labs(y='',x='CV')+
-    scale_x_continuous(limits = c(0,max(cvs1$ms)+max(cvs1$ms)*0.1),expand = c(NA,0)) #expand = c(NA,0.1),limits = c(0,NA)
-  
-  cvs1$samp<-factor(cvs1$samp,
-                    levels = c('scn3','scn2','scn1'))
-  
-  p<- 
-  ggplot()+
-    #geom_linerange(data=cvs1,aes(xmin=ss,xmax=ms,x=ms,y=common,color=samp),linewidth=1,stat = "identity", position = position_dodge(width = 0.7))+ 
-    geom_point(data=cvs1,aes(x=log(ms/ss),y=rev(common),group=samp,fill=samp),stat = "identity", position = position_dodge(width = 0.5),size=3,shape=21)+
-    #geom_point(data=cvs1,aes(x=ms,y=common,group=samp),shape=16,stat = "identity", position = position_dodge(width = 0.7),size=2)+
-      scale_fill_manual(values=c('scn1'='#4b7a99','scn2'='#679bc3','scn3'='#8db6c3'),
-                        labels = c('opt depth','opt varSBT','opt depth + varSBT'),
-                        limits=c('scn3','scn2','scn1'),
-                        name='stratification')+
-    # scale_color_manual(values=c('scn1'='#4b7a99','scn2'='#679bc3','scn3'='#8db6c3'),
-    #                   labels = c('opt depth','opt varSBT','opt depth + varSBT'),name='stratification')+
-    theme_bw()+
-    theme(panel.grid.minor = element_line(linetype=2,color='grey90',),#strip.background = element_rect(fill='white'),
-          legend.key.size = unit(12, 'points'),legend.direction = 'vertical',legend.text = element_text(size=9),legend.position=c(.78,.925),
-          legend.title = element_text(size=10),legend.spacing.x = unit(0.05, "cm"),legend.box.spacing =  unit(0.01, "cm"), #,strip.text = element_text(size=12)
-          strip.background = element_blank(), legend.box.background = element_rect(fill = "white", color = "black"),#legend.background = element_blank(),legend.box = 'horizontal',#legend.justification = 'right',legend.position='bottom',#
-          strip.text = element_blank())+ #axis.text.x = element_text(angle=90,vjust=0.5),
-    expand_limits(x = 0)+
-    labs(y='',x='log(CVms/CVss)')+
-    scale_x_continuous(limits = c(0,max(log(cvs1$ms/cvs1$ss))+max(log(cvs1$ms/cvs1$ss))*0.1),expand = c(NA,0)) #expand = c(NA,0.1),limits = c(0,NA)
-  
-  #save plot
-  ragg::agg_png(paste0('./figures/CVss_CVms_ratio.png'),  width = 5, height = 7, units = "in", res = 300)
-  p
-  dev.off()
-  
-  #save plot
-  ragg::agg_png(paste0('./figures/CVss_CVms.png'),  width = 5, height = 7, units = "in", res = 300)
-  p1
-  dev.off()
-  
-  
-  ###################
-  # Plot spatial random fields
-  ###################
-  plot_list_rf<-list()
-  
-  for (isp in spp) {
-    
-    #isp<-'Gadus macrocephalus'
-    cat(paste(" #############  ",isp ," #############\n"))
-    
-    #common name
-    com<-spp_name[which(spp_name$spp==isp),'common']
-    
-    #fit file
-    ff<-list.files(paste0('./shelf EBS NBS VAST/',isp,'/'),'fit',recursive=TRUE)
-    
-    #load fit file
-    load(paste0('./shelf EBS NBS VAST/',isp,'/',ff)) #fit
-    
-    #get spatial random fields
-    spf<-fit$Report$Omega1_gc
-    
-    #get dataframe
-    D_gt <- spf
-    D_gt<-data.frame('cell'=c(1:fit$spatial_list$n_g),D_gt,check.names = FALSE)
-    
-    #merge with grid
-    D_gt1<-merge(D_gt,grid,by='cell')
-    
-    #df to spatialpoint df
-    coordinates(D_gt1) <- ~ Lon + Lat
-    crs(D_gt1)<-c(crs='+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs')
-    
-    #reproject coordinates for plotting purposes
-    #df_1<-spTransform(D_gt1,'+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs')
-    df_2<-data.frame(D_gt1)
-    
-    #x and y cells
-    xycells<-as.integer(sqrt(dim(D_gt1)[1]))
-    
-    # create a template raster
-    r1 <- raster(ext=extent(df_1),ncol=xycells, nrow=xycells) #c(15800,15800) 7000
-    
-    #create raster
-    r2<-rasterize(D_gt1, r1 ,field=c('1'))
-    crs(r2) <- CRS('+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs')
-    r2[r2==999]<-NA
-    
-    #create polygon to get boundaries of each strata
-    r3<-as.data.frame(r2,xy=TRUE)
-    
-    #Alaska layer
-    ebs_layers <- akgfmaps::get_base_layers(select.region = "ebs", set.crs = "EPSG:3338")
-    ak_sppoly<-as(ebs_layers$akland, 'Spatial')
-    
-    #plot
-    prf<-
-    ggplot() +
-      geom_raster(data=r3,aes(x=x,y=y,fill=layer))+
-      #geom_polygon(data=r4,aes(x=long,y=lat,group=group), colour="black", fill=NA)+
-      guides(fill=guide_colorbar(title.position = 'top', title.hjust = 0.5,ticks.colour = NA,frame.colour = 'black'))+
-      scale_x_continuous(expand = c(0,0),position = 'bottom',
-                         breaks = c(-175,-170,-165,-160,-155),sec.axis = dup_axis())+
-      coord_sf(crs = '+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs',
-               xlim = panel_extent$x-c(000000,100000),
-               ylim = panel_extent$y-c(0,300000),
-               label_axes = "-NE-")+
-      scale_fill_viridis_c(option = 'A',name=('Spatial Random\nField deviations'),
-                           guide = guide_colorbar(  frame.colour = "black",ticks.colour = 'black'),na.value=rgb(1, 0, 0, 0))+
-      #scale_fill_gradientn(colours = wesanderson::wes_palette("Zissou1", 21, type = "continuous"),name=('Spatial Random\nField deviations'),
-      #                      guide = guide_colorbar(  frame.colour = "black",ticks.colour = 'black'),na.value=rgb(1, 0, 0, 0))+
-      theme(aspect.ratio = 1,panel.grid.major = element_blank(),
-            panel.background = element_rect(fill = NA),panel.ontop = TRUE,
-            legend.background =  element_rect(fill = "transparent", colour = "transparent"),legend.key.height= unit(20, 'points'),
-            legend.key.width= unit(20, 'points'),axis.title = element_blank(),legend.position = 'none',
-            panel.border = element_rect(fill = NA, colour = NA),legend.key = element_rect(color="black"),
-            legend.spacing.y = unit(8, 'points'),
-            axis.text=element_blank(),axis.ticks = element_blank(),
-            plot.margin = margin(0.01,0.01,0.01,0.01), 
-            axis.ticks.length = unit(-5,"points"),plot.title = element_text(size=12,hjust = 0.5,vjust=-5, face="bold"))+
-      scale_y_continuous(expand = c(0,0),position = 'right',sec.axis = dup_axis())+
-      labs(title=paste0(com),fill='')
-  
-    #store plot
-    plot_list_rf[[isp]]<-prf
-  } 
-  
-  #grid of plots
-  pgrid1<-cowplot::plot_grid(plotlist = plot_list_rf, nrow = 2)
-  
-  #plot for common legend
-  legend_rf<-
-    ggplot()+
-    geom_raster(data=r3,aes(x=x,y=y,fill=as.numeric(layer)))+
-    scale_fill_viridis_c(breaks=range(as.numeric(r3$layer),na.rm = TRUE),labels=c("Low","High"),option = 'A',name=('Spatial Random\nField deviations'),
-                         guide = guide_colorbar(  frame.colour = "black",ticks.colour = 'black'),na.value=rgb(1, 0, 0, 0))+
-    guides(fill=guide_colorbar(title.position = 'top', title.hjust = 0.5,ticks.colour = NA,frame.colour = 'black'))+
-    theme(legend.position = 'bottom')+
-    labs(fill='')
-  
-  #legend
-  legend1 <- cowplot::get_legend( 
-    legend_rf + 
-      theme(legend.position = "bottom") 
-  ) 
-  
-  #save plot
-  ragg::agg_png(paste0('./figures/SpatialRandomFields.png'),  width = 20, height = 7, units = "in", res = 300)
-  print(cowplot::plot_grid(pgrid1, legend1, nrow = 2, rel_heights = c(1, .15)))
-  dev.off()
-  

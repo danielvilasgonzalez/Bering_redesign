@@ -368,5 +368,5 @@ for (sp in spp) {
   }
 }
 
-save(dfst,file=paste0('./output/multisp_optimization_static_data_ebsnbs_st.RData'))
-save(dfdyn,file=paste0('./output/multisp_optimization_static_data_ebsnbs_dyn.RData'))
+save(dfst,file=paste0('./output slope/multisp_optimization_static_data_ebsnbs_st.RData'))
+save(dfdyn,file=paste0('./output slope/multisp_optimization_static_data_ebsnbs_dyn.RData'))
