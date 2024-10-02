@@ -9,7 +9,7 @@ author:
 - Lukas DeFilippo
 - Margaret C. Siple
 - Shannon Hennessey
-- Leah S Zacher
+- Leah S. Zacher
 - Stan Kotwicki
 date: "`r format(Sys.time(), '%Y-%m-%d')`"
 output:
