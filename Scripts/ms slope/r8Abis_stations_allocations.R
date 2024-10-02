@@ -156,7 +156,7 @@ samp_df<-expand.grid(type=c('static','dynamic'),#c('all','cold','warm'),
                      region=c('EBS','EBS+NBS','EBS+SLOPE','EBS+NBS+SLOPE'),
                      strat_var=c('varTemp','Depth'), #,'varTemp_forced','Depth_forced' #LonE and combinations
                      target_var=c('sumDensity'), #,'sqsumDensity'
-                     n_samples=c(520), #c(300,500) 520 (EBS+NBS+CRAB);26 (CRAB); 350 (EBS-CRAB); 494 (NBS-CRAB)
+                     n_samples=c(376), #c(300,500) 520 (EBS+NBS+CRAB);26 (CRAB); 350 (EBS-CRAB); 494 (NBS-CRAB)
                      n_strata=c(10),
                      domain=1) #c(5,10,15)
 
@@ -166,21 +166,12 @@ samp_df$samp_scn<-paste0(paste0('scn',1:nrow(samp_df)))
 #number of surveys
 n_sur<-100
 
-###################################
-# BASELINE STRATA - current sampling design
-###################################
-
-#load baseline strata
-load('./output/baseline_strata.RData')
-#add percent of total area per strata
-baseline_strata$strata_areas$pct<-baseline_strata$strata_areas$Area_in_survey_km2/sum(baseline_strata$strata_areas$Area_in_survey_km2)
-
 ###############
 # get simulated allocations - survey simulation
 ################
 
 #loop over sampling designs
-for (s in 4:nrow(samp_df)) { #sampling designs
+for (s in 1:nrow(samp_df)) { #sampling designs
   
   #s<-1
   
@@ -226,7 +217,7 @@ for (s in 4:nrow(samp_df)) { #sampling designs
     #r<-regime[1]
     
     #load results_optimization
-    load(file=paste0("./output slope/ms_optim_allocations_ebsnbs_slope_",samp_df[s,'samp_scn'],'_',r,".RData")) #list = c('result_list','ss_sample_allocations','ms_sample_allocations','samples_strata','cv_temp')
+    load(file=paste0("./output slope/ms_optim_allocations_ebsnbs_slope_",samp_df[s,'samp_scn'],'_',r,"_376.RData")) #list = c('result_list','ss_sample_allocations','ms_sample_allocations','samples_strata','cv_temp')
     #load(file=paste0('./output slope/multisp_optimization_static_data.RData')) #df
     df<-df[,c("Lat",'Lon','cell')]
     
@@ -471,6 +462,6 @@ for (s in 4:nrow(samp_df)) { #sampling designs
   rm(dfrandom,dfspb,str_alloc,rand,spb)
   
   #store station allocations
-  save(scn_allocations, file = paste0('./output slope/survey_allocations_',samp_df[s,'samp_scn'],'_',r,'.RData')) 
+  save(scn_allocations, file = paste0('./output slope/survey_allocations_',samp_df[s,'samp_scn'],'_',r,'_376.RData')) 
   }
 }
