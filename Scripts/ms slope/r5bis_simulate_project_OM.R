@@ -55,12 +55,17 @@ spp<-c('Limanda aspera',
        'Chionoecetes opilio',
        'Paralithodes platypus',
        'Paralithodes camtschaticus',
+       #'Lepidopsetta sp.',
        'Chionoecetes bairdi',
+       'Sebastes alutus',
+       'Sebastes melanostictus',
        'Atheresthes evermanni',
        'Sebastes borealis',
        'Sebastolobus alascanus',
        'Glyptocephalus zachirus',
        'Bathyraja aleutica')
+
+#selected species
 
 #read coinvergence and st slope
 df.conv<-read.csv('./tables/slope_ebsnbs_convspp.csv')
@@ -332,6 +337,8 @@ spp<-c(#'Limanda aspera',
        #'Paralithodes platypus',
        #'Paralithodes camtschaticus',
        #'Chionoecetes bairdi',
+       'Sebastes alutus',
+       'Sebastes melanostictus',
        #'Atheresthes evermanni',
        'Sebastes borealis',
        'Sebastolobus alascanus',
@@ -485,30 +492,33 @@ for (sp in spp) {
 ######################
 
 # #selected species not previously in the EBS - NBS
-# spp<-c('Limanda aspera',
-#   'Gadus chalcogrammus',
-#   'Gadus macrocephalus',
-#   'Atheresthes stomias',
-#   'Reinhardtius hippoglossoides',
-#   'Lepidopsetta polyxystra',
-#   'Hippoglossoides elassodon',
-#   'Pleuronectes quadrituberculatus',
-#   'Hippoglossoides robustus',
-#   'Boreogadus saida',
-#   'Eleginus gracilis',
-#   'Anoplopoma fimbria',
-#   'Chionoecetes opilio',
-#   'Paralithodes platypus',
-#   'Paralithodes camtschaticus',
-#   'Chionoecetes bairdi',
-#   'Atheresthes evermanni',
-#   'Sebastes borealis',
-#   'Sebastolobus alascanus',
-#   'Glyptocephalus zachirus',
-#   'Bathyraja aleutica')
+spp<-c('Limanda aspera',
+       'Gadus chalcogrammus',
+       'Gadus macrocephalus',
+       'Atheresthes stomias',
+       'Reinhardtius hippoglossoides',
+       'Lepidopsetta polyxystra',
+       'Hippoglossoides elassodon',
+       'Pleuronectes quadrituberculatus',
+       'Hippoglossoides robustus',
+       'Boreogadus saida',
+       'Eleginus gracilis',
+       'Anoplopoma fimbria',
+       'Chionoecetes opilio',
+       'Paralithodes platypus',
+       'Paralithodes camtschaticus',
+       #'Lepidopsetta sp.',
+       'Chionoecetes bairdi',
+       'Sebastes alutus',
+       'Sebastes melanostictus',
+       'Atheresthes evermanni',
+       'Sebastes borealis',
+       'Sebastolobus alascanus',
+       'Glyptocephalus zachirus',
+       'Bathyraja aleutica')
 
 # Initializing parallel backend
-cl <- makeCluster(detectCores()-1)  # Using all available cores
+cl <- makeCluster(2)  # Using all available cores
 registerDoParallel(cl)
 
 #n_sim
@@ -542,3 +552,82 @@ stopCluster(cl)
 
 #store HIST simulated data
 save(sim_dens1, file = paste0('./output slope//species/ms_sim_dens.RData'))  
+
+########################################################################################
+# JOIN EBS+NBS and SLP ARRAY
+########################################################################################
+
+#sim_dens1
+load(file = paste0('./output slope//species/ms_sim_dens.RData'))  
+ebsnbs_simdens<-sim_dens1
+
+#sim_dens1
+load(file = paste0('./output slope//species/ms_sim_dens_slope.RData'))  
+slp_simdens<-sim_dens1
+
+# Replace NAs with 0 in the 4D array
+ebsnbs_simdens[is.na(ebsnbs_simdens)] <- 0
+slp_simdens[is.na(slp_simdens)] <- 0
+
+#selected species not previously in the EBS - NBS
+spp<-c('Limanda aspera',
+       'Gadus chalcogrammus',
+       'Gadus macrocephalus',
+       'Atheresthes stomias',
+       'Reinhardtius hippoglossoides',
+       'Lepidopsetta polyxystra',
+       'Hippoglossoides elassodon',
+       'Pleuronectes quadrituberculatus',
+       'Hippoglossoides robustus',
+       'Boreogadus saida',
+       'Eleginus gracilis',
+       'Anoplopoma fimbria',
+       'Chionoecetes opilio',
+       'Paralithodes platypus',
+       'Paralithodes camtschaticus',
+       #'Lepidopsetta sp.',
+       'Chionoecetes bairdi',
+       'Sebastes alutus',
+       'Sebastes melanostictus',
+       'Atheresthes evermanni',
+       'Sebastes borealis',
+       'Sebastolobus alascanus',
+       'Glyptocephalus zachirus',
+       'Bathyraja aleutica')
+
+# # Initializing parallel backend
+# cl <- makeCluster(2)  # Using all available cores
+# registerDoParallel(cl)
+
+#n_sim
+n_sim<-100
+
+#array to store simulated densities/CPUE
+sim_dens1 <- array(NA,
+                   dim = c(56505, length(spp), length(1982:2022), n_sim),
+                   dimnames = list(1:56505, spp, 1982:2022, 1:n_sim))
+
+for (sp in spp) {
+  for (y in 1982:2022) {
+    
+    cat(paste(sp,y,'\n'))
+    
+    
+    for (sim in 1:n_sim) {
+      
+      
+      if (y %in% c(2002,2004,2008,2010,2012,2016)) {
+        #store results
+        sim_dens1[, sp, as.character(y), as.character(sim)] <-c(ebsnbs_simdens[,sp,as.character(y), as.character(sim)],
+                                                                    slp_simdens[,sp,as.character(y), as.character(sim)])
+      } else {
+        #store results
+        sim_dens1[, sp, as.character(y), as.character(sim)] <-c(ebsnbs_simdens[,sp,as.character(y), as.character(sim)],
+                                                                rep(NA,3041))}
+    }
+  }
+}
+
+#store HIST simulated data
+save(sim_dens1, file = paste0('./output slope//species/ms_sim_dens_all.RData'))  
+
