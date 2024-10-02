@@ -1,12 +1,7 @@
 ####################################################################
 ####################################################################
 ##
-##    Extract sea bottom temperature (SBT) from netcdf of Bering 10K ROMS
-##    Netcdf downloaded from https://data.pmel.noaa.gov/aclim/thredds/
-##    Incorporate Temp (SBT) to Bering Sea grid
-##    Incorporate Temp (SBT) to data_geostat file from Bering Sea 
-##    (shelf Eastern Bering Sea, slope Eastern Bering Sea, northern Bering Sea)
-##    Save data_geostat_temp file to fit VAST
+##    Catchability adjustment for the BS slope hauls
 ##    Daniel Vilas (danielvilasgonzalez@gmail.com/dvilasg@uw.edu/daniel.vilas@noaa.gov)
 ##    Lewis Barnett, Stan Kotwicki, Zack Oyafuso, Megsie Siple, Leah Zacher, Lukas Defilippo, Andre Punt
 ##
