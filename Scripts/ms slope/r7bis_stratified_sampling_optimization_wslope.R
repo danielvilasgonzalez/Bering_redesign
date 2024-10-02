@@ -22,6 +22,9 @@ rm(list = ls(all.names = TRUE))
 #free up memrory and report the memory usage
 gc() 
 
+#setseed
+set.seed(6)
+
 #libraries from cran to call or install/load
 pack_cran<-c("splines",'SamplingStrata','wesanderson','dplyr','sp',
              'sf','maptools','rgeos','scales','raster',
@@ -170,6 +173,7 @@ grid<-x5[,c('Lat','Lon','cell','col','row')]
 panel_extent <- data.frame(x = c(-1716559.21, -77636.05), #x = c(-1326559.21, -87636.05),
                            y = c(483099.5, 2194909.7)) #y = c(533099.5, 1894909.7))
 
+
 #####################################
 # Polygon regions shapefiles (EBS, NBS and slope)
 #####################################
@@ -232,6 +236,17 @@ calc_expected_CV <- function (strata) {
 }
 
 ###################################
+# FIND SLOPE CELLS DEEPER than 400m
+###################################
+
+load(file = './data processed/grid_EBS_NBS.RData') #grid.ebs_year$region
+grid_slp<-subset(grid.ebs_year,region=='EBSslope' & Year=='1982')
+dim(grid_slp)
+dim(grid_slp[which(grid_slp$DepthGEBCO<=400),])
+ok_slp_cells<-as.numeric(row.names(grid_slp)[which(grid_slp$DepthGEBCO<=400)])
+rem_slp_cells<-as.numeric(row.names(grid_slp)[which(grid_slp$DepthGEBCO>400)])
+
+###################################
 # Sampling designs
 ###################################
 
@@ -240,7 +255,7 @@ samp_df<-expand.grid(type=c('static','dynamic'),#c('all','cold','warm'),
                      region=c('EBS','EBS+NBS','EBS+SLOPE','EBS+NBS+SLOPE'),
                      strat_var=c('varTemp','Depth'), #,'varTemp_forced','Depth_forced' #LonE and combinations
                      target_var=c('sumDensity'), #,'sqsumDensity'
-                     n_samples=c(520), #c(300,500) 520 (EBS+NBS+CRAB);26 (CRAB); 350 (EBS-CRAB); 494 (NBS-CRAB)
+                     n_samples=c(376), #c(300,500) 520 (EBS+NBS+CRAB);26 (CRAB); 350 (EBS-CRAB); 494 (NBS-CRAB)
                      n_strata=c(10),
                      domain=1) #c(5,10,15)
 
@@ -282,7 +297,7 @@ samp_df$samp_scn<-paste0(paste0('scn',1:nrow(samp_df)))
 #loop through sampling designs
 for (s in c(1:nrow(samp_df))) { #nrow(samp_df)
   
-  #s<- 2
+  #s<- 7
   
   #print scenario to check progress
   cat(paste("\n #############  Sampling Scenario", samp_df[s,"samp_scn"], " #############\n"))
@@ -327,10 +342,13 @@ for (s in c(1:nrow(samp_df))) { #nrow(samp_df)
   names(df1)[((ncol(df1)-length(tar_var))+1):ncol(df1)]<-tar_var
   ispp<-n_spp
 
-  #removed cells because of depth
-  rem_cells<-df1[which(df1$include==FALSE | df1$Depth > 400),'cell']
-  #ok_cells<-df1[which(df1$include==TRUE | df1$Depth <= 400),'cell']
-  ok_cells <- df1[which(df1$include == TRUE | (df1$Depth <= 400 & df1$Depth > 0)), 'cell']
+  #removed cells because of depth - include with negative depth and slope>400m
+  ok_cells <- df1[which(df1$include == TRUE ), 'cell'] #cells with negative depth
+  length(ok_cells)
+  ok_cells<-setdiff(ok_cells,rem_slp_cells) #cells in the slope deeper than 400m
+  length(ok_cells)
+  #56437-(3041-1283)
+  
   #load data_geostat file
   #data_geostat<-readRDS(paste0('./data processed/species/',sp,'/','data_geostat_temp.rds')) 
   
@@ -401,7 +419,7 @@ for (s in c(1:nrow(samp_df))) { #nrow(samp_df)
     for (r in regime) {
   
       #subset cells with appropiate depth
-      static_df1<-subset(df1,cell %in% ok_cells & Depth <= 400)
+      static_df1<-subset(df1,cell %in% ok_cells)
       #dim(static_df1)
       #dim(df1)
       
@@ -494,10 +512,10 @@ for (s in c(1:nrow(samp_df))) { #nrow(samp_df)
       ###################################
       
       #for plot 
-      load('./data processed/grid_EBS_NBS.RData')
-      gridi<-
-        unique(grid.ebs_year[,c('Lat','Lon','DepthGEBCO')])
-      gridi1<-subset(gridi,DepthGEBCO <= 400)
+      #load('./data processed/grid_EBS_NBS.RData')
+      #gridi<-
+        #unique(grid.ebs_year[,c('Lat','Lon','DepthGEBCO')])
+      #gridi1<-subset(gridi,DepthGEBCO <= 400)
       
       #count
       count<-0
@@ -884,7 +902,7 @@ for (s in c(1:nrow(samp_df))) { #nrow(samp_df)
       
       #save list
         save(all,
-             file = paste0("./output slope/ms_optim_allocations_ebsnbs_slope_",samp_df[s,'samp_scn'],'_',r,".RData"))
+             file = paste0("./output slope/ms_optim_allocations_ebsnbs_slope_",samp_df[s,'samp_scn'],'_',r,"_376.RData"))
         
         #strata to plot
         dd<-all$result_list$solution$framenew
@@ -947,10 +965,10 @@ for (s in c(1:nrow(samp_df))) { #nrow(samp_df)
           p <- plot_grid(p1, p2) #labels=c('A', 'B')
           
           if (r=='all') {
-            namepng<-paste0('./figures slope/',"ms_optim_allocations_ebsnbs_slope_",samp_df[s,'samp_scn'],'_effort.png')
+            namepng<-paste0('./figures slope/',"ms_optim_allocations_ebsnbs_slope_",samp_df[s,'samp_scn'],'_effort376.png')
             title <- ggdraw() + draw_label(paste(samp_df[s,'region'],samp_df[s,'strat_var'],samp_df[s,'type']), fontface='bold')
           } else {
-            namepng<-paste0('./figures slope/',"ms_optim_allocations_ebsnbs_slope_",samp_df[s,'samp_scn'],'_',r,'_effort.png')
+            namepng<-paste0('./figures slope/',"ms_optim_allocations_ebsnbs_slope_",samp_df[s,'samp_scn'],'_',r,'_effort376.png')
             title <- ggdraw() + draw_label(paste(samp_df[s,'region'],samp_df[s,'strat_var'],samp_df[s,'type'],'-',r), fontface='bold')
           }
           
@@ -1034,7 +1052,7 @@ for (s in c(1:nrow(samp_df))) { #nrow(samp_df)
     
     #save list
     load(
-         file = paste0("./output slope/ms_optim_allocations_ebsnbs_slope_",samp_df[s,'samp_scn'],'_',r,".RData")) #all
+         file = paste0("./output slope/ms_optim_allocations_ebsnbs_slope_",samp_df[s,'samp_scn'],'_',r,"_376.RData")) #all
     
     #strata to plot
     dd<-all$result_list$solution$framenew
@@ -1151,49 +1169,49 @@ for (s in c(1:nrow(samp_df))) { #nrow(samp_df)
   }
 }
 
-samp_df2<-subset(samp_df1,region %in% c("EBS+SLOPE",'EBS+NBS+SLOPE'))
-samp_df21<-reshape2::melt(samp_df2,id.vars=c(names(samp_df2)[1:8]))
-samp_df21<-samp_df21[grepl("slp", samp_df21$variable), ]
-
-samp_df21$scn<-paste0(samp_df21$region,'\n',samp_df21$strat_var,'\n',samp_df21$type)
-
-samp_df21$strat_var<-factor(samp_df21$strat_var,levels = c('Depth','varTemp'))
-samp_df21$type<-factor(samp_df21$type,levels = c('static','dynamic'))
-
-# Convert 'scn' to a factor based on 'region'
-samp_df21$scn <- factor(samp_df21$scn, levels = unique(samp_df21$scn[order(samp_df21$strat_var,samp_df21$type)]))
-
-ggplot(data=samp_df21)+
-  geom_point(aes(x=scn,y=value,color=variable),size=3,alpha=0.7)+
-  scale_y_continuous('number of sampling stations in SLOPE')+
-  theme_minimal()+
-  theme(axis.title.x = element_blank())+
-  scale_color_manual(values = c('slp_effort_static'='black',
-                                'slp_effort_dynamic_warm'='red',
-                                'slp_effort_dynamic_cold'='blue'),
-                     labels=c('static','warm','cold'),name='regime')
-
-
-samp_df2<-subset(samp_df1,region %in% c("EBS+NBS",'EBS+NBS+SLOPE'))
-samp_df21<-reshape2::melt(samp_df2,id.vars=c(names(samp_df2)[1:8]))
-samp_df21<-samp_df21[grepl("nbs", samp_df21$variable), ]
-samp_df21$scn<-paste0(samp_df21$region,'\n',samp_df21$strat_var,'\n',samp_df21$type)
-
-samp_df21$strat_var<-factor(samp_df21$strat_var,levels = c('Depth','varTemp'))
-samp_df21$type<-factor(samp_df21$type,levels = c('static','dynamic'))
-
-# Convert 'scn' to a factor based on 'region'
-samp_df21$scn <- factor(samp_df21$scn, levels = unique(samp_df21$scn[order(samp_df21$strat_var,samp_df21$type)]))
-
-ggplot(data=subset(samp_df21,region %in% c("EBS+NBS",'EBS+NBS+SLOPE')))+
-  geom_point(aes(x=scn,y=value,color=variable),size=3,alpha=0.7)+
-  scale_y_continuous('number of sampling stations in NBS')+
-  theme_minimal()+
-  theme(axis.title.x = element_blank())+
-  scale_color_manual(values = c('nbs_effort_static'='black',
-                                'nbs_effort_dynamic_warm'='red',
-                                'nbs_effort_dynamic_cold'='blue'),
-                     labels=c('static','warm','cold'),name='regime')
+# samp_df2<-subset(samp_df1,region %in% c("EBS+SLOPE",'EBS+NBS+SLOPE'))
+# samp_df21<-reshape2::melt(samp_df2,id.vars=c(names(samp_df2)[1:8]))
+# samp_df21<-samp_df21[grepl("slp", samp_df21$variable), ]
+# 
+# samp_df21$scn<-paste0(samp_df21$region,'\n',samp_df21$strat_var,'\n',samp_df21$type)
+# 
+# samp_df21$strat_var<-factor(samp_df21$strat_var,levels = c('Depth','varTemp'))
+# samp_df21$type<-factor(samp_df21$type,levels = c('static','dynamic'))
+# 
+# # Convert 'scn' to a factor based on 'region'
+# samp_df21$scn <- factor(samp_df21$scn, levels = unique(samp_df21$scn[order(samp_df21$strat_var,samp_df21$type)]))
+# 
+# ggplot(data=samp_df21)+
+#   geom_point(aes(x=scn,y=value,color=variable),size=3,alpha=0.7)+
+#   scale_y_continuous('number of sampling stations in SLOPE')+
+#   theme_minimal()+
+#   theme(axis.title.x = element_blank())+
+#   scale_color_manual(values = c('slp_effort_static'='black',
+#                                 'slp_effort_dynamic_warm'='red',
+#                                 'slp_effort_dynamic_cold'='blue'),
+#                      labels=c('static','warm','cold'),name='regime')
+# 
+# 
+# samp_df2<-subset(samp_df1,region %in% c("EBS+NBS",'EBS+NBS+SLOPE'))
+# samp_df21<-reshape2::melt(samp_df2,id.vars=c(names(samp_df2)[1:8]))
+# samp_df21<-samp_df21[grepl("nbs", samp_df21$variable), ]
+# samp_df21$scn<-paste0(samp_df21$region,'\n',samp_df21$strat_var,'\n',samp_df21$type)
+# 
+# samp_df21$strat_var<-factor(samp_df21$strat_var,levels = c('Depth','varTemp'))
+# samp_df21$type<-factor(samp_df21$type,levels = c('static','dynamic'))
+# 
+# # Convert 'scn' to a factor based on 'region'
+# samp_df21$scn <- factor(samp_df21$scn, levels = unique(samp_df21$scn[order(samp_df21$strat_var,samp_df21$type)]))
+# 
+# ggplot(data=subset(samp_df21,region %in% c("EBS+NBS",'EBS+NBS+SLOPE')))+
+#   geom_point(aes(x=scn,y=value,color=variable),size=3,alpha=0.7)+
+#   scale_y_continuous('number of sampling stations in NBS')+
+#   theme_minimal()+
+#   theme(axis.title.x = element_blank())+
+#   scale_color_manual(values = c('nbs_effort_static'='black',
+#                                 'nbs_effort_dynamic_warm'='red',
+#                                 'nbs_effort_dynamic_cold'='blue'),
+#                      labels=c('static','warm','cold'),name='regime')
 
 
 
@@ -1221,7 +1239,7 @@ for (s in c(1:nrow(samp_df))) { #nrow(samp_df)
     
     #load list
     load(
-      file = paste0("./output slope/ms_optim_allocations_ebsnbs_slope_",samp_df[s,'samp_scn'],'_',r,".RData")) #all
+      file = paste0("./output slope/ms_optim_allocations_ebsnbs_slope_",samp_df[s,'samp_scn'],'_',r,"_376.RData")) #all
     
     #strata to plot
     dd<-all$result_list$solution$framenew
