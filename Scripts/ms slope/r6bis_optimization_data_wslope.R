@@ -310,7 +310,7 @@ true_index<-array(NA,
 #loop over species
 for (sp in spp) {
   
-  sp<-spp[23]
+  sp<-spp[2]
   #sp<-'Anoplopoma fimbria'
   cat(paste('#######################',sp,'#######################\n'))
   
