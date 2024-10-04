@@ -308,3 +308,43 @@ wc$WEIGHT<-wc$WEIGHT*1000
 #merge both to check how similar
 merge(wc,wl,by=c('scientific_name','YEAR','HAULJOIN'))
 
+#plot list
+plots<-list()
+
+#loop over species
+for (sp in unique(wl$scientific_name)) {
+  
+  #species
+  #sp<-'Gadus macrocephalus'
+  
+  #add new estimates per haul
+  data_geostat<-readRDS(paste0('./data processed/species/',sp,'/data_geostat_envs.rds'))
+  data_geostat1<-subset(data_geostat,survey_name=='Eastern Bering Sea Slope Bottom Trawl Survey')
+  #unique(data_geostat1$hauljoin)
+  #unique(wl$HAULJOIN)
+  
+  #weigth adjusted SR
+  wl1<-subset(wl,scientific_name==sp)[,c('scientific_name' ,'HAULJOIN' , 'ADJ_WEIGHT_FREQ')]
+  
+  #merge
+  names(data_geostat1);names(wl1)
+  data_geostat2<-merge(data_geostat1,wl1,by.x=c('hauljoin','scientific_name'),by.y=c('HAULJOIN','scientific_name'),all.x=TRUE)
+  data_geostat2$ADJ_WEIGHT_FREQ[is.na(data_geostat2$ADJ_WEIGHT_FREQ)] <- 0
+  
+  #convert grams to kg/ha
+  data_geostat2$ADJ_KG_HA<-data_geostat2$ADJ_WEIGHT_FREQ/data_geostat2$effort/1000
+  
+  #plot
+  p<-
+  ggplot() +
+    geom_point(data = subset(data_geostat2,cpue_kgha!=0), aes(x = ADJ_KG_HA, y = cpue_kgha)) +
+    geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "red") +
+    geom_smooth(data = subset(data_geostat2,cpue_kgha!=0), aes(x = ADJ_KG_HA, y = cpue_kgha), method = "lm", color = "blue", se = FALSE) +
+    theme_minimal() +
+    labs(title = sp)
+
+  plots[[sp]]<-p  
+}
+
+#multiplot
+cowplot::plot_grid(plotlist = plots,nrow=2)
