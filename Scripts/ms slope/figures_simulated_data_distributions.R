@@ -219,10 +219,11 @@ obs_df<-subset(obs_df,cpue_kgkm2!=0 &
                  species %in% sel_sp)
 
 #filter by cold and warm years
-obs_df1<-obs_df[which(obs_df$year %in% c(cyrs,wyrs)),]
+#obs_df1<-obs_df[which(obs_df$year %in% c(cyrs,wyrs)),]
+obs_df1<-obs_df[which(obs_df$year %in% bold_years),]
 
 #year type
-obs_df1$year_type<-ifelse(obs_df1$year %in% wyrs, "warm",'cold')
+obs_df1$year_type<-ifelse(obs_df1$year %in% c(2002,2004,2016), "warm",'cold')
 
 #filtered to <600m
 filt_obs_df1<-subset(obs_df1,depth_m<=600)
@@ -356,6 +357,116 @@ ggplot() +
 agg_png(paste0('./figures slope/abundance_fraction.png'), width = 7, height = 4, units = "in", res = 300)
 print(p)
 dev.off()
+
+#load files density slope and shelf data 
+load('./output slope/species/ms_sim_dens_all.RData')  #sim_dens1
+dimnames(sim_dens1)
+
+#subset years and species densities
+dens<-sim_dens1[,sel_sp,as.character(2002:2022),]
+dimnames(dens)
+
+#load grid of NBS and EBS
+load('./extrapolation grids/northern_bering_sea_grid.rda')
+load('./extrapolation grids/eastern_bering_sea_grid.rda')
+#load('./extrapolation grids/bering_sea_slope_grid.rda')
+#colnames(bering_sea_slope_grid)[4]<-'Stratum'
+#bering_sea_slope_grid$Stratum<-NA
+grid<-as.data.frame(rbind(data.frame(northern_bering_sea_grid,region='NBS'),
+                          data.frame(eastern_bering_sea_grid,region='EBS')))
+grid$cell<-1:nrow(grid)
+grid2<-grid
+grid<-grid2[,c('Area_in_survey_km2','region','cell')]
+
+#data input
+bio_df<-
+expand.grid('sp'=dimnames(dens)[[2]],
+            'year'=dimnames(dens)[[3]],
+            'sim'=dimnames(dens)[[4]])
+
+bio_df$EBSbio<-NA
+bio_df$EBSpct<-NA
+bio_df$NBSbio<-NA
+bio_df$NBSpct<-NA
+
+for (r in 1:nrow(bio_df)) {
+  
+  #r<-1
+  
+  cat(paste('#',r,"-",nrow(bio_df),'\n'))
+  
+  s<-bio_df[r,'sp']
+  y<-bio_df[r,'year']
+  sim<-bio_df[r,'sim']
+  region<-bio_df[r,'region']
+  
+  bio<-dens[1:53464,s,y,sim]*grid$Area_in_survey_km2
+  
+  bio_df[r,'EBSbio']<-sum(bio[15181:53464])
+  bio_df[r,'NBSbio']<-sum(bio[1:15180])
+  bio_df[r,'EBSpct']<-sum(bio[15181:53464])/(sum(bio[15181:53464])+sum(bio[1:15180]))
+  bio_df[r,'NBSpct']<-sum(bio[1:15180])/(sum(bio[15181:53464])+sum(bio[1:15180]))
+
+}
+
+#reshape
+bio_df1<-bio_df[,c('sp','year','sim','EBSpct','NBSpct')]
+bio_df2<-melt(bio_df1)
+
+#mean over region and simulated data
+sim_indmean<-aggregate(value ~ year + variable + sp,bio_df2,FUN=mean)
+sim_indsd<-aggregate(value ~ year + variable + sp,bio_df2,FUN=sd)
+
+#rename
+names(sim_indmean)[ncol(sim_indmean)]<-'mean'
+sim_indmean1<-cbind(sim_indmean,'sd'=sim_indsd$value)
+sim_indmean1$year<-as.numeric(sim_indmean1$year)+2001
+
+#sort levels
+sim_indmean1$sp<-factor(sim_indmean1$sp,
+                                levels=c("Chionoecetes opilio" ,"Gadus chalcogrammus","Gadus macrocephalus","Reinhardtius hippoglossoides" ))
+
+#plot
+p<-
+  ggplot() +
+  geom_rect(data = legend_rects, aes(xmin = xmin, xmax = xmax, 
+                                     ymin = ymin, ymax = ymax, fill = label), 
+            show.legend = TRUE,alpha=0.8) +
+  # annotate("rect", xmin = 2002, xmax = 2005.5, 
+  #          ymin = -Inf, ymax = Inf, alpha = 0.5, fill = 'red') +
+  # annotate("rect", xmin = 2013.5, xmax = 2022.5, 
+  #          ymin = -Inf, ymax = Inf, alpha = 0.5, fill = 'red') +
+  # annotate("rect", xmin = 2005.5, xmax = 2013.5, 
+  #          ymin = -Inf, ymax = Inf, alpha = 0.5, fill = 'blue') +
+  geom_bar(data = sim_indmean1, aes(x = year, y = mean, fill = variable), 
+           stat = 'identity',alpha=0.8) +
+  geom_errorbar(data = subset(sim_indmean1,variable=='NBSpct'), aes(x = year, ymin = mean-sd, ymax=mean+sd), 
+            stat = 'identity',alpha=0.5) +
+  scale_fill_manual(values = c('EBSpct' = '#046407', 
+                               'NBSpct' = '#B4AF46',
+                               'Period 1' = '#cc1d1f',
+                               'Period 2' = '#1675ac'),
+                    breaks = c('EBSpct', 'NBSpct', 'Period 2','Period 1'),
+                    labels = c('EBS', 'NBS', 'normal-cold', 'warm'),
+                    name = 'region and\nSBT regime') +
+  scale_x_continuous(breaks = seq(from = 1985, to = 2020, by = 5),limits = c(2001.5,2022.5),
+                     expand = c(0.01,0)) +
+  scale_y_continuous(expand = c(0.02,0))+
+  labs(y = 'abundance proportion') +
+  theme_bw() +
+  theme(strip.text = element_text(size = 12),
+        strip.background = element_blank(),
+        text = element_text(size = 12),
+        axis.text.x = element_text(angle = 45, hjust = 0.7, vjust = 0.8),
+        axis.title.x = element_blank()) +
+  facet_wrap(~ sp, scales = 'free_x', nrow = 2) +
+  guides(fill = guide_legend(override.aes = list(alpha = 1)))
+
+#save env plot
+agg_png(paste0('./figures slope/abundance_fraction_sim.png'), width = 7, height = 4, units = "in", res = 300)
+print(p)
+dev.off()
+
 
 ###########################
 # SIMULATED METRICS
@@ -541,18 +652,43 @@ dev.off()
 
 
 #plot using SBT color
+p<-
 ggplot(data = subset(metrics_df, species %in% sel_sp)) +
-  geom_shadowtext(aes(x = COG_depth, y = COG_lat, color = mean_temp, label = Year),
-                  fontface = 'bold', bg.r = 0.05) +
+  #geom_shadowtext(aes(x = COG_depth, y = COG_lat, color = mean_temp, label = Year),
+  #                fontface = 'bold', bg.r = 0.05) +
+  geom_point(aes(x = COG_depth, y = COG_lat, fill = mean_temp),shape=21,color=rgb(0, 0, 0, alpha = 0.2)) +
   theme_bw() +
-  labs(x = 'bathymetrical COG (m)', y = 'latitudinal COG') +
+  labs(x = 'bathymetrical COG (m)', y = 'latitudinal COG (°)') +
   theme(aspect.ratio = 1,
         strip.background = element_blank(),
         strip.text = element_text(size = 12)) +
-  scale_color_gradientn(colors = custom_colors(100), name = 'SBT (°C)',
+  scale_fill_gradientn(colors = custom_colors(100), name = 'SBT (°C)',
                         guide = guide_colorbar(frame.colour = "black", ticks.colour = "black")) +
   scale_x_continuous(expand = expansion(mult = 0.1)) +  # Add buffer on the x-axis
   scale_y_continuous(expand = expansion(mult = 0.1)) +  # Add buffer on the y-axis
+  facet_wrap(~species, scales = 'free')
+
+unique(metrics_df$Year)
+
+
+agg_png(paste0('./figures slope/cog_sim.png'), width = 6.5, height = 6.5, units = "in", res = 300)
+print(p)
+dev.off()
+
+ggplot(data = subset(metrics_df, species %in% sel_sp)) +
+  #geom_point(aes(x = COG_depth, y = COG_lat, color = mean_temp)) +
+  stat_density_2d(aes(x = COG_depth, y = COG_lat,group=Year,color=mean_temp), contour = TRUE) + 
+  theme_bw() +
+  labs(x = 'bathymetrical COG (m)', y = 'latitudinal COG (°)') +
+  theme(aspect.ratio = 1,
+        strip.background = element_blank(),
+        strip.text = element_text(size = 12)) +
+  scale_fill_gradientn(colors = custom_colors(100), name = 'SBT (°C)', 
+                       guide = guide_colorbar(frame.colour = "black", ticks.colour = "black")) +
+  scale_color_gradientn(colors = custom_colors(100), name = 'SBT (°C)', 
+                        guide = guide_colorbar(frame.colour = "black", ticks.colour = "black")) +
+  scale_x_continuous(expand = expansion(mult = 0.1)) +
+  scale_y_continuous(expand = expansion(mult = 0.1)) +
   facet_wrap(~species, scales = 'free')
 
 #scale to keep one legend
@@ -584,24 +720,29 @@ library(ggplot2)
 
 # Create a data frame for the rectangles
 rect_data <- data.frame(
-  xmin = c(2002, 2013.5, 2005.5),
+  xmin = c(-Inf, 2013.5, 2005.5),
   xmax = c(2005.5, Inf, 2013.5),
   ymin = rep(-Inf, 3),
   ymax = rep(Inf, 3),
   fill = c("warm", "warm", "normal-cold")  # Labels for the legend
 )
 
-p <- ggplot(data = metrics_df) + 
+p <- 
+  ggplot(data = metrics_df) + 
   # Use geom_rect to add rectangles with fill aesthetics
   geom_rect(data = rect_data, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax, fill = fill), alpha = 0.5) +
-  geom_line(aes(x = Year, y = total_bio / mean_dens / 1000, group = sim), color = 'black', alpha = 0.3) +  # Convert to thousands
+  #geom_line(aes(x = Year, y = total_bio / mean_dens / 1000, group = sim), color = 'black', alpha = 0.3) +  # Convert to thousands
+  #geom_point(aes(x = Year, y = total_bio / mean_dens / 1000, group = sim), color = 'black', alpha = 0.3) +  # Convert to thousands
+  geom_boxplot(aes(x = Year, y = total_bio / mean_dens / 1000, group = Year), color = 'black', alpha = 0.3) +  # Convert to thousands
+    
   labs(x = '', y = 'effective area occupied (thousands km²)') +  # Adjust y-axis label
   theme_bw() + 
-  scale_x_continuous(breaks = c(2002, 2006, 2010, 2014, 2016), expand = c(0, 0)) + 
+  scale_x_continuous(breaks = bold_years,minor_breaks = c(2002:2016), expand = c(0, 0.5)) + 
   scale_y_continuous(labels = comma) +  # Add commas to y-axis numbers
   theme(aspect.ratio = 1, 
         strip.background = element_blank(), 
         strip.text = element_text(size = 12), 
+        axis.text.x = element_text(angle = 45, hjust = 0.7, vjust = 0.8),
         text = element_text(size = 12)) +   
   facet_wrap(~species, nrow = 2, scales = 'free') + 
   scale_fill_manual(values = c("warm" = "#cc1d1f", "normal-cold" = "#1675ac"), 
@@ -610,7 +751,7 @@ p <- ggplot(data = metrics_df) +
 
 
 #save env plot
-agg_png(paste0('./figures slope/effective_area.png'), width = 7.5, height = 7.5, units = "in", res = 300)
+agg_png(paste0('./figures slope/effective_area_sim.png'), width = 7.5, height = 7, units = "in", res = 300)
 print(p)
 dev.off()
 
@@ -620,10 +761,12 @@ dev.off()
 
 #plot depth range
 p <- 
-ggplot(data = summary_stats) +
-  #geom_point(aes(x = depthq90-depthq10, y = species, fill = mean_temp),  # Correct placement of aes()
-  geom_point(aes(x = mean_depth90-mean_depth10, y = species, fill = mean_temp),  # Correct placement of aes()
-                    shape = 21, size = 3) + #,alpha=0.3
+ggplot(data = metrics_df) +
+  #geom_point(aes(x = COG_depth, y = COG_lat, fill = mean_temp),shape=21,color=rgb(0, 0, 0, alpha = 0.2)) +
+  
+  geom_point(aes(x = depthq90-depthq10, y = species, fill = mean_temp),alpha=0.5,  # Correct placement of aes()
+  #geom_point(aes(x = mean_depth90-mean_depth10, y = species, fill = mean_temp),  # Correct placement of aes()
+                    shape = 21, size = 3,color=rgb(0, 0, 0, alpha = 0.2)) + #,alpha=0.3
   facet_wrap(~species,scales = 'free')+
   scale_fill_gradientn(colors = custom_colors(20),name = 'SBT (°C)',
                        guide = guide_colorbar(frame.colour = "black", 
@@ -635,9 +778,9 @@ ggplot(data = summary_stats) +
     axis.title.y = element_blank(),
     strip.background = element_blank(),text = element_text(size=12),
     strip.text = element_text(size=12))+
-  labs(x = 'depth at 90th percentile - depth at 10th percentile')
+  labs(x = 'depth at 90th percentile - depth at 10th percentile (m)')
 
 #save env plot
-agg_png(paste0('./figures slope/interdecile_depth.png'), width = 7, height = 3, units = "in", res = 300)
+agg_png(paste0('./figures slope/interdecile_depth_sim.png'), width = 7, height = 3, units = "in", res = 300)
 print(p)
 dev.off()
