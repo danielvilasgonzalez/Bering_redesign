@@ -87,6 +87,13 @@ spp1<-c('Yellowfin sole',
         'Rex sole',
         'Aleutian skate')
 
+#read catchability data
+#s12 Selectivity ratio > 1 means the slope gear and protocol had higher selectivity
+#so, we need to divide slope data by the sr index
+#471 is for Alaska skate - while we are using Aleutian skate 472
+data_sratio<-readRDS('./data raw/shelf_slope_sratio_bootstrap.rds')
+unique(data_sratio$SPECIES_CODE)
+
 #read length raw data
 data_length<-readRDS('./data raw/ak_bts_ebs_nbs_slope.rds') #data_length
 head(data_length)
@@ -112,6 +119,19 @@ spp_code<-unique(data_length$species[,c('SPECIES_CODE',"REPORT_NAME_SCIENTIFIC")
 names(spp_code)<-c('species_code',"scientific_name")
 spp_code1<-spp_code[which(spp_code$scientific_name %in% 
                             spp),]
+#add Alaksa skate
+spp_code1<-rbind(spp_code1,c(471,'Bathyraja parmifera'))
+
+#merge sr data to species
+data_sratio<-merge(data_sratio,spp_code1,by.x='SPECIES_CODE',by.y='species_code')
+#1000 samples per size and species combination
+aggregate(SPECIES_CODE ~ SIZE_BIN +scientific_name,data_sratio,FUN=length)
+
+#get mean
+data_sratio1<-aggregate(s12 ~ SIZE_BIN +scientific_name,data_sratio,FUN=mean)
+
+#to convert cm to mm
+data_sratio1$LENGTH<-data_sratio1$SIZE_BIN*10
 
 #data input 
 coef_wl<-expand.grid('spp'=spp_code1$scientific_name,
@@ -170,7 +190,7 @@ for (r in 1:nrow(coef_wl)) {
 #remove species with no coeffs
 sp_data<-unique(coef_wl[complete.cases(coef_wl),'spp'])
 sp_rem<-setdiff(spp_code1$scientific_name,sp_data)
-  
+
 #get cruisejoin for the slope
 head(data_length$cruise)
 cruisejoin_bss<-subset(data_length$cruise,SURVEY=='BSS')[,'CRUISEJOIN']
@@ -193,9 +213,16 @@ length_bss<-length_bss[which(length_bss$scientific_name %in% sp_data),]
 #add weight
 length_bss$WEIGHT<-NA
 
+#add weight
+length_bss$SR<-NA
+
+#data s12
+data_sratio2<-data_sratio1[,c('s12','scientific_name','LENGTH')]
+
+#loop over combinations
 for (r in 1:nrow(length_bss)) {
   
-  #r<-1
+  r<-21000
   cat(paste('#',r,'-',nrow(length_bss),'\n'))
   
   #length
@@ -213,6 +240,7 @@ for (r in 1:nrow(length_bss)) {
   
   #filter
   coef_wl1<-coef_wl[which(coef_wl$spp==sp & coef_wl$sex==sex & coef_wl$year==y),]
+  data_sratio3<-data_sratio2[which(data_sratio2$scientific_name==sp),]
   
   #if no data, get the average
   if (is.na(coef_wl1$log_a)) {
@@ -222,16 +250,51 @@ for (r in 1:nrow(length_bss)) {
   
   #convert length to weight  
   length_bss[r,'WEIGHT'] <- exp(coef_wl1$log_a + coef_wl1$b * log(l))
+  
+  if (sp %in% unique(data_sratio3$scientific_name) & l %in% data_sratio3$LENGTH) {
+    sr<-data_sratio3[which(data_sratio3$scientific_name==sp & data_sratio3$LENGTH==l),'s12']
+    length_bss[r,'SR'] <-sr
+  } else if (sp %in% unique(data_sratio3$scientific_name) & (l+5) %in% data_sratio3$LENGTH) { #some species have different bins (X5 instead of X0)
+    sr<-data_sratio3[which(data_sratio3$scientific_name==sp & data_sratio3$LENGTH==(l+5)),'s12']
+    length_bss[r,'SR'] <-sr
+  } else if (sp %in% unique(data_sratio3$scientific_name) & (l-5) %in% data_sratio3$LENGTH) { #some species have different bins (X5 instead of X0)
+    sr<-data_sratio3[which(data_sratio3$scientific_name==sp & data_sratio3$LENGTH==(l-5)),'s12']
+    length_bss[r,'SR'] <-sr
+  } else if (sp %in% unique(data_sratio3$scientific_name) & l < min(data_sratio3$LENGTH)) { #if smaller than min, then get SR of min length
+    sr<-data_sratio3[which(data_sratio3$scientific_name==sp & data_sratio3$LENGTH==min(data_sratio3$LENGTH)),'s12']
+    length_bss[r,'SR'] <-sr
+  } else if (sp %in% unique(data_sratio3$scientific_name) & l > max(data_sratio3$LENGTH)) { #if bigger than min, then get SR of max length
+    sr<-data_sratio3[which(data_sratio3$scientific_name==sp & data_sratio3$LENGTH==max(data_sratio3$LENGTH)),'s12']
+    length_bss[r,'SR'] <-sr
+  } else {
+    next
+  }
 }
+
+#check NAs in SR
+length_bss[is.na(length_bss$SR),]
+unique(length_bss[is.na(length_bss$SR),'scientific_name'])
 
 #weight of all individuals at length bin
 length_bss$WEIGHT_FREQ<-length_bss$WEIGHT*length_bss$FREQUENCY
 
-#apply catchability ratio at length, sex and year to obtain the weight as it would be in the EBS
-2
+#apply catchability ratio at weight for each length bin
+length_bss$ADJ_WEIGHT_FREQ<-length_bss$WEIGHT_FREQ/length_bss$SR
 
 #weigth by species for each haul
-wl<-aggregate(WEIGHT_FREQ ~ scientific_name + YEAR + HAULJOIN,length_bss,FUN=sum)
+wl<-aggregate(cbind(WEIGHT_FREQ,ADJ_WEIGHT_FREQ) ~ scientific_name + YEAR + HAULJOIN,length_bss,FUN=sum)
+
+#total per year
+wl1<-aggregate(cbind(WEIGHT_FREQ,ADJ_WEIGHT_FREQ) ~ scientific_name + YEAR ,length_bss,FUN=sum)
+wl2<-reshape2::melt(wl1)
+
+#check how different these estimates are
+ggplot()+
+  geom_point(data=wl2,aes(x=YEAR,y=value/1000000,color=variable))+
+  facet_wrap(~scientific_name,scales='free_y')+
+  labs(y='total t',x='')+
+  theme_minimal()+
+  scale_color_discrete(labels=c('weigth','SR weight'),name='estimates')
 
 #check data_catch slope
 catch_bss<-data_length$catch[which(data_length$catch$HAULJOIN %in% unique(hauls_bss$HAULJOIN)),]
@@ -240,6 +303,7 @@ catch_bss<-merge(catch_bss,spp_code1,by.x='SPECIES_CODE',by.y='species_code')
 
 #weigth by species for each haul
 wc<-aggregate(WEIGHT ~ scientific_name + YEAR + HAULJOIN,catch_bss,FUN=sum)
+wc$WEIGHT<-wc$WEIGHT*1000
 
 #merge both to check how similar
 merge(wc,wl,by=c('scientific_name','YEAR','HAULJOIN'))
