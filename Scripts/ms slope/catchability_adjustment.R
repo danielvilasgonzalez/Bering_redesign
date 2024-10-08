@@ -222,7 +222,7 @@ data_sratio2<-data_sratio1[,c('s12','scientific_name','LENGTH')]
 #loop over combinations
 for (r in 1:nrow(length_bss)) {
   
-  r<-21000
+  #r<-21000
   cat(paste('#',r,'-',nrow(length_bss),'\n'))
   
   #length
@@ -280,6 +280,16 @@ length_bss$WEIGHT_FREQ<-length_bss$WEIGHT*length_bss$FREQUENCY
 
 #apply catchability ratio at weight for each length bin
 length_bss$ADJ_WEIGHT_FREQ<-length_bss$WEIGHT_FREQ/length_bss$SR
+View(length_bss)
+ggplot()+
+  geom_point(data=length_bss,aes(x=scientific_name,y=SR))+
+  geom_boxplot(data=length_bss,aes(x=scientific_name,y=SR))
+
+subset(length_bss,scientific_name=='Atheresthes evermanni' & SR>3)
+#'Reinhardtius hippoglossoides'
+
+#assign max SR=2
+length_bss$SR[length_bss$SR > 2] <- 2
 
 #weight by species for each haul
 wl<-aggregate(cbind(WEIGHT_FREQ,ADJ_WEIGHT_FREQ) ~ scientific_name + YEAR + HAULJOIN,length_bss,FUN=sum)
@@ -294,7 +304,7 @@ ggplot()+
   facet_wrap(~scientific_name,scales='free_y')+
   labs(y='total t',x='')+
   theme_minimal()+
-  scale_color_discrete(labels=c('weigth','SR weight'),name='estimates')
+  scale_color_discrete(labels=c('observed','adjusted'),name='estimates')
 
 #check data_catch slope
 catch_bss<-data_length$catch[which(data_length$catch$HAULJOIN %in% unique(hauls_bss$HAULJOIN)),]
@@ -311,8 +321,13 @@ merge(wc,wl,by=c('scientific_name','YEAR','HAULJOIN'))
 #plot list
 plots<-list()
 
+#species with SR data
+spp_vect<-c("Atheresthes evermanni","Atheresthes stomias",
+            "Gadus chalcogrammus","Gadus macrocephalus",
+            "Hippoglossoides elassodon","Reinhardtius hippoglossoides")
+
 #loop over species
-for (sp in unique(wl$scientific_name)) {
+for (sp in spp_vect) {
   
   #species
   #sp<-'Gadus macrocephalus'
@@ -334,17 +349,27 @@ for (sp in unique(wl$scientific_name)) {
   #convert grams to kg/ha
   data_geostat2$ADJ_KG_HA<-data_geostat2$ADJ_WEIGHT_FREQ/data_geostat2$effort/1000
   
+  #save data
+  saveRDS(data_geostat2,paste0('./data processed/species/',sp,'/data_geostat_slope_adj.rds'))
+  
   #plot
-  p<-
-  ggplot() +
-    geom_point(data = subset(data_geostat2,cpue_kgha!=0), aes(x = ADJ_KG_HA, y = cpue_kgha)) +
-    geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "red") +
-    geom_smooth(data = subset(data_geostat2,cpue_kgha!=0), aes(x = ADJ_KG_HA, y = cpue_kgha), method = "lm", color = "blue", se = FALSE) +
+  p <- ggplot() +
+    geom_point(data = subset(data_geostat2, cpue_kgha != 0), aes(x = cpue_kgha, y = ADJ_KG_HA)) +
+    #scale_x_continuous(limits = c(0, max(data_geostat2$cpue_kgha) * 0.9)) +
+    #scale_y_continuous(limits = c(0, max(data_geostat2$cpue_kgha) * 0.9)) +
+    geom_smooth(data = subset(data_geostat2, cpue_kgha != 0), aes(x = cpue_kgha, y = ADJ_KG_HA), method = "lm", color = "grey", se = FALSE) +
+    geom_segment(aes(x = 0, y = 0, 
+                     xend = max(data_geostat2$cpue_kgha), 
+                     yend = max(data_geostat2$cpue_kgha)), 
+                 linetype = "dashed", color = "red") +
+    coord_cartesian(xlim = c(0, max(data_geostat2$cpue_kgha) ), 
+                    ylim = c(0, max(data_geostat2$cpue_kgha) )) +
     theme_minimal() +
-    labs(title = sp)
+    labs(title = sp) + 
+    labs(title = sp,x='observed CPUE kgha',y='adjusted CPUE kgha')
   print(p)
   plots[[sp]]<-p  
 }
 
-#multiplot
+#multiplot (WHERE IS THE SECOND PLOT OBJECT?)
 #cowplot::plot_grid(plotlist = plots,nrow=2)
