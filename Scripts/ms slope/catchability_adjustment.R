@@ -92,10 +92,12 @@ spp1<-c('Yellowfin sole',
 #so, we need to divide slope data by the sr index
 #471 is for Alaska skate - while we are using Aleutian skate 472
 data_sratio<-readRDS('Data/data_raw/shelf_slope_sratio_bootstrap.rds')
+#data_sratio<-readRDS('./data raw/shelf_slope_sratio_bootstrap.rds')
 unique(data_sratio$SPECIES_CODE)
 
 #read length raw data
 data_length<-readRDS('Data/data_raw/ak_bts_ebs_nbs_slope.rds') #data_length
+#data_length<-readRDS('./data raw/ak_bts_ebs_nbs_slope.rds') #data_length
 head(data_length)
 head(data_length$specimen)
 dim(data_length$specimen)
@@ -333,7 +335,8 @@ for (sp in spp_vect) {
   #sp<-'Gadus macrocephalus'
   
   #add new estimates per haul
-  data_geostat<-readRDS(paste0('Data/data_processed/',sp,'/data_geostat_envs.rds'))
+  #data_geostat<-readRDS(paste0('./data processed/species/',sp,'/data_geostat.rds'))
+  data_geostat<-readRDS(paste0('Data/data_processed/',sp,'/data_geostat.rds'))
   data_geostat1<-subset(data_geostat,survey_name=='Eastern Bering Sea Slope Bottom Trawl Survey')
   #unique(data_geostat1$hauljoin)
   #unique(wl$HAULJOIN)
@@ -372,4 +375,4 @@ for (sp in spp_vect) {
 }
 
 #multiplot (WHERE IS THE SECOND PLOT OBJECT?)
-#cowplot::plot_grid(plotlist = plots,nrow=2)
+cowplot::plot_grid(plotlist = plots,nrow=2)
