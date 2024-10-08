@@ -91,11 +91,11 @@ spp1<-c('Yellowfin sole',
 #s12 Selectivity ratio > 1 means the slope gear and protocol had higher selectivity
 #so, we need to divide slope data by the sr index
 #471 is for Alaska skate - while we are using Aleutian skate 472
-data_sratio<-readRDS('./data raw/shelf_slope_sratio_bootstrap.rds')
+data_sratio<-readRDS('Data/data_raw/shelf_slope_sratio_bootstrap.rds')
 unique(data_sratio$SPECIES_CODE)
 
 #read length raw data
-data_length<-readRDS('./data raw/ak_bts_ebs_nbs_slope.rds') #data_length
+data_length<-readRDS('Data/data_raw/ak_bts_ebs_nbs_slope.rds') #data_length
 head(data_length)
 head(data_length$specimen)
 dim(data_length$specimen)
@@ -119,7 +119,7 @@ spp_code<-unique(data_length$species[,c('SPECIES_CODE',"REPORT_NAME_SCIENTIFIC")
 names(spp_code)<-c('species_code',"scientific_name")
 spp_code1<-spp_code[which(spp_code$scientific_name %in% 
                             spp),]
-#add Alaksa skate
+#add Alaska skate
 spp_code1<-rbind(spp_code1,c(471,'Bathyraja parmifera'))
 
 #merge sr data to species
@@ -281,7 +281,7 @@ length_bss$WEIGHT_FREQ<-length_bss$WEIGHT*length_bss$FREQUENCY
 #apply catchability ratio at weight for each length bin
 length_bss$ADJ_WEIGHT_FREQ<-length_bss$WEIGHT_FREQ/length_bss$SR
 
-#weigth by species for each haul
+#weight by species for each haul
 wl<-aggregate(cbind(WEIGHT_FREQ,ADJ_WEIGHT_FREQ) ~ scientific_name + YEAR + HAULJOIN,length_bss,FUN=sum)
 
 #total per year
@@ -318,7 +318,7 @@ for (sp in unique(wl$scientific_name)) {
   #sp<-'Gadus macrocephalus'
   
   #add new estimates per haul
-  data_geostat<-readRDS(paste0('./data processed/species/',sp,'/data_geostat_envs.rds'))
+  data_geostat<-readRDS(paste0('Data/data_processed/',sp,'/data_geostat_envs.rds'))
   data_geostat1<-subset(data_geostat,survey_name=='Eastern Bering Sea Slope Bottom Trawl Survey')
   #unique(data_geostat1$hauljoin)
   #unique(wl$HAULJOIN)
@@ -342,9 +342,9 @@ for (sp in unique(wl$scientific_name)) {
     geom_smooth(data = subset(data_geostat2,cpue_kgha!=0), aes(x = ADJ_KG_HA, y = cpue_kgha), method = "lm", color = "blue", se = FALSE) +
     theme_minimal() +
     labs(title = sp)
-
+  print(p)
   plots[[sp]]<-p  
 }
 
 #multiplot
-cowplot::plot_grid(plotlist = plots,nrow=2)
+#cowplot::plot_grid(plotlist = plots,nrow=2)
