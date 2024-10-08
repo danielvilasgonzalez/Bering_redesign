@@ -26,7 +26,6 @@ pacman::p_load(pack_cran,character.only = TRUE)
 #setwd - depends on computer using
 #out_dir<-'C:/Users/Daniel.Vilas/Work/Adapting Monitoring to a Changing Seascape/' #NOAA laptop  
 out_dir<-'/Users/daniel/Work/Adapting Monitoring to a Changing Seascape/' #mac
-#out_dir<-'/Users/daniel/Work/VM' #VM
 setwd(out_dir)
 
 #range years of data
@@ -277,16 +276,18 @@ for (r in 1:nrow(length_bss)) {
 length_bss[is.na(length_bss$SR),]
 unique(length_bss[is.na(length_bss$SR),'scientific_name'])
 
-#weight of all individuals at length bin
+#Adjusted frequency (frequency * SR)
+length_bss$FREQ_ADJ<-length_bss$FREQUENCY/length_bss$SR
 length_bss$WEIGHT_FREQ<-length_bss$WEIGHT*length_bss$FREQUENCY
 
-#apply catchability ratio at weight for each length bin
-length_bss$ADJ_WEIGHT_FREQ<-length_bss$WEIGHT_FREQ/length_bss$SR
-View(length_bss)
+#Adjusted frequency over weight to get adjusted WEIGHT
+length_bss$ADJ_WEIGHT_FREQ<-length_bss$FREQ_ADJ*length_bss$WEIGHT
+
+#check values of SR
+#View(length_bss)
 ggplot()+
   geom_point(data=length_bss,aes(x=scientific_name,y=SR))+
   geom_boxplot(data=length_bss,aes(x=scientific_name,y=SR))
-
 subset(length_bss,scientific_name=='Atheresthes evermanni' & SR>3)
 #'Reinhardtius hippoglossoides'
 
