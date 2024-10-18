@@ -350,7 +350,7 @@ spp_vect<-c("Atheresthes evermanni","Atheresthes stomias",
 for (sp in spp_vect) {
   
   #species
-  #sp<-'Gadus macrocephalus'
+  #sp<-'Reinhardtius hippoglossoides'
   
   #add new estimates per haul
   data_geostat<-readRDS(paste0('./data processed/species/',sp,'/data_geostat.rds'))
@@ -374,21 +374,23 @@ for (sp in spp_vect) {
   saveRDS(data_geostat2,paste0('./data processed/species/',sp,'/data_geostat_slope_adj.rds'))
   #saveRDS(data_geostat2,paste0('Data/data_processed/',sp,'/data_geostat_slope_adj.rds'))
   
+  #remove high value on greenland turbot for visualization purposes
+  if (sp=='Reinhardtius hippoglossoides') {
+    data_geostat2<-subset(data_geostat2,cpue_kgha<700)
+  }
+  
   #plot
   p <- ggplot() +
     geom_point(data = subset(data_geostat2, cpue_kgha != 0), aes(x = cpue_kgha, y = ADJ_KG_HA)) +
     #scale_x_continuous(limits = c(0, max(data_geostat2$cpue_kgha) * 0.9)) +
     #scale_y_continuous(limits = c(0, max(data_geostat2$cpue_kgha) * 0.9)) +
     geom_smooth(data = subset(data_geostat2, cpue_kgha != 0), aes(x = cpue_kgha, y = ADJ_KG_HA), method = "lm", color = "grey", se = FALSE) +
-    geom_segment(aes(x = 0, y = 0, 
-                     xend = max(data_geostat2$cpue_kgha), 
-                     yend = max(data_geostat2$cpue_kgha)), 
-                 linetype = "dashed", color = "red") +
-    coord_cartesian(xlim = c(0, max(data_geostat2$cpue_kgha) ), 
-                    ylim = c(0, max(data_geostat2$cpue_kgha) )) +
+    geom_abline(intercept = 0, slope = 1, linetype = "dashed", color = "red") +
+    coord_cartesian(xlim = c(0, max(data_geostat2$cpue_kgha)), 
+                    ylim = c(0, max(data_geostat2$cpue_kgha))) +
     theme_minimal() +
-    labs(title = sp) + 
-    labs(title = sp,x='observed CPUE kgha',y='adjusted CPUE kgha')
+    labs(title = sp, x = 'observed CPUE kgha', y = 'adjusted CPUE kgha')
+  
   plots[[sp]]<-p  
 }
 
