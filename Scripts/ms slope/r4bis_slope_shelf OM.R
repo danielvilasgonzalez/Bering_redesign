@@ -73,14 +73,29 @@ spp<-c('Limanda aspera',
  
 splist<-list() 
  
+spp_vect<-c("Atheresthes evermanni","Atheresthes stomias",
+            "Gadus chalcogrammus","Gadus macrocephalus",
+            "Hippoglossoides elassodon","Reinhardtius hippoglossoides")
+
+
 for (sp in spp) {
 
  #example
  #sp<-'Reinhardtius hippoglossoides'
  #sp<-'Atheresthes stomias'
- 
-#read data_geostat_temp file
-df1<-readRDS(paste0('./data processed/species/',sp,'/data_geostat.rds'))
+
+  #sp<-spp[1]
+   
+  
+  if (sp %in% spp_vect) {
+    df1<-readRDS(paste0('./data processed/species/',sp,'/data_geostat_slope_adj.rds'))
+    
+  } else {
+    
+    df1<-readRDS(paste0('./data processed/species/',sp,'/data_geostat.rds'))
+    df1<-cbind(df1,"ADJ_WEIGHT_FREQ"=NA,"ADJ_KG_HA"=NA)
+  }
+  
 
 #for slope data
 df11<-subset(df1,survey_name== "Eastern Bering Sea Slope Bottom Trawl Survey")
@@ -88,16 +103,16 @@ df11$survey_name[df11$survey_name == 'Eastern Bering Sea Slope Bottom Trawl Surv
 #yrs only for slope
 yrs<-unique(df11$year)
 
-#for shelf data
-df12<-subset(df1,survey_name== "Eastern Bering Sea Crab/Groundfish Bottom Trawl Survey")
-df12$survey_name[df12$survey_name == 'Eastern Bering Sea Crab/Groundfish Bottom Trawl Survey'] <- 'EBS shelf'
-
-#for shelf data deeper than 106 (3rd quartile)
-df13<-subset(df1,survey_name== "Eastern Bering Sea Crab/Groundfish Bottom Trawl Survey" & depth_m>=100)
-df13$survey_name[df13$survey_name == 'Eastern Bering Sea Crab/Groundfish Bottom Trawl Survey'] <- '>100 EBS shelf'
+# #for shelf data
+# df12<-subset(df1,survey_name== "Eastern Bering Sea Crab/Groundfish Bottom Trawl Survey")
+# df12$survey_name[df12$survey_name == 'Eastern Bering Sea Crab/Groundfish Bottom Trawl Survey'] <- 'EBS shelf'
+# 
+# #for shelf data deeper than 106 (3rd quartile)
+# df13<-subset(df1,survey_name== "Eastern Bering Sea Crab/Groundfish Bottom Trawl Survey" & depth_m>=100)
+# df13$survey_name[df13$survey_name == 'Eastern Bering Sea Crab/Groundfish Bottom Trawl Survey'] <- '>100 EBS shelf'
 
 #rbind region specific df
-df1<-rbind(df11,df12,df13)
+df1<-df11
 df1<-subset(df1, year %in% yrs)
 
 #store df
@@ -107,6 +122,9 @@ splist[[sp]]<-df1
  
 #rbind list dfs
 df2<-dplyr::bind_rows(splist, .id = "column_label")
+
+#check
+splist$`Gadus macrocephalus`
 
 ebs_layers <- akgfmaps::get_base_layers(select.region = "ebs", set.crs = "EPSG:3338")
 ebs_layers$survey.strata <- sf::st_transform(ebs_layers$survey.strata, crs = "+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")#'+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs')
@@ -127,13 +145,13 @@ ggplot()+
 
 #df1<-readRDS(paste0('./data processed/',sp,'/data_geostat_temp.rds'))
 #select rows and rename
-df2<-df2[,c("lat_start","lon_start","year",'scientific_name','weight_kg','effort','depth_m','survey_name')]
-colnames(df2)<-c('Lat','Lon','Year','Species','CPUE_kg','Effort','Depth','Region')
+df2<-df2[,c("lat_start","lon_start","year",'scientific_name','ADJ_KG_HA','effort','depth_m','survey_name')]
+colnames(df2)<-c('Lat','Lon','Year','Species','Weight_kg','Effort','Depth','Region')
 
 #data geostat
 df3<-subset(df2,Region %in%  c('slope'))
 yrs_region<-unique(df3$Year)
-df3<-df3[complete.cases(df3$CPUE_kg),]
+df3<-df3[complete.cases(df3$Weight_kg),]
 
 
 #selected species - remove spp without observations in the slope
@@ -172,10 +190,10 @@ n_sim_hist<-100
 #                          dimnames=list(1:nrow(bering_sea_slope_grid),unique(yrs_region),1:n_sim_hist,spp))
 
 
-for (sp in spp) { #[c(10,12:15)]
+for (sp in spp_vect) { #[c(10,12:15)]
 
 #example
-#sp<-spp[1]  
+sp<-spp_vect[4]  
   
 #filter by sp
 data_geostat<-subset(df3,Species==sp)
@@ -209,7 +227,7 @@ grids<-data.frame(Lat=grid_ebs$Lat,
                     Lon=grid_ebs$Lon,
                     Year=grid_ebs$Year,
                     Species=rep(sp,times=nrow(grid_ebs)),
-                    CPUE_kg=mean(data_geostat$CPUE_kg),
+                    Weight_kg=mean(data_geostat$Weight_kg),
                     Effort=grid_ebs$Area_in_survey_km2,
                     Depth=grid_ebs$DepthGEBCO,
                     #BotTemp=grid_ebs$Temp,
@@ -218,12 +236,13 @@ grids<-data.frame(Lat=grid_ebs$Lat,
 
 grids<-subset(grids,Year %in% unique(data_geostat$Year))
 summary(grids)
+
 #ha to km2 ------ so kg/km2
 data_geostat$Effort<-data_geostat$Effort/100
 
 # 
 # #rbind grid and data_geostat to get prediction into grid values when simulating data
-data_geostat1<-rbind(data_geostat[,c("Lat","Lon","Year","Species","CPUE_kg","Effort","Depth","Region")],
+data_geostat1<-rbind(data_geostat[,c("Lat","Lon","Year","Species","Weight_kg","Effort","Depth","Region")],
                       grids)
 
 #data_geostat1<-rbind(data_geostat[,c("Lat","Lon","Year","Species","CPUE_kg","Effort","Depth","Region")])
@@ -244,7 +263,7 @@ pred_TF[1:nrow(data_geostat)] <- 0
 dir.create(paste(out_dir,fol_region,sp,sep='/'),
            showWarnings = FALSE)
 #save data
-save(data_geostat1, file = paste(out_dir,fol_region,sp,'data_geostat_temp.RData',sep='/'))
+save(data_geostat1, file = paste(out_dir,fol_region,sp,'data_geostat_temp_adj.RData',sep='/'))
 ##################
 #explore data
 
@@ -267,7 +286,7 @@ save(data_geostat1, file = paste(out_dir,fol_region,sp,'data_geostat_temp.RData'
 # Calculate the percentage of zeros for each group
 percent_zeros <- data_geostat %>%
   group_by(Year) %>%
-  summarize(percentage_zeros = mean(CPUE_kg == 0) * 100)
+  summarize(percentage_zeros = mean(Weight_kg == 0) * 100)
 
 # Print the results
 print(percent_zeros)
@@ -311,13 +330,18 @@ settings <- make_settings(n_x=knots,#knots,
                           knot_method='grid',
                           use_anisotropy=FALSE, #TRUE
                           #RhoConfig=rho_c, 
-                          #RhoConfig=rho_c,#c("Beta1"=0,"Beta2"=0,"Epsilon1"=0,"Epsilon2"=0), 
+                          #RhoConfig=rho_c,
+                          #c("Beta1"=0,"Beta2"=0,"Epsilon1"=0,"Epsilon2"=0), 
+                          #RhoConfig=c("Beta1"=2,"Beta2"=2,"Epsilon1"=4,"Epsilon2"=4),
+                          #RhoConfig=c("Beta1"=1,"Beta2"=1,"Epsilon1"=4,"Epsilon2"=4),
+                          #RhoConfig=c("Beta1"=0,"Beta2"=0,"Epsilon1"=2,"Epsilon2"=2),
+                          RhoConfig=c("Beta1"=2,"Beta2"=2,"Epsilon1"=4,"Epsilon2"=4),
+                          
                           #FieldConfig = matrix( c("IID","IID",'IID',"Identity","IID","IID",'IID',"Identity"), #c("IID","IID",0,"Identity", "IID","IID",0,"Identity"), 
                           #                       ncol=2, 
                           #                       nrow=4, 
                           #                       dimnames=list(c("Omega","Epsilon","Beta","Epsilon_year"),c("Component_1","Component_2"))),
                           #FieldConfig = c("Omega1"="IID", "Epsilon1"="IID", "Omega2"="IID", "Epsilon2"="IID"),
-                          RhoConfig=c("Beta1"=2,"Beta2"=2,"Epsilon1"=4,"Epsilon2"=4),
                           Version = version,
                           #fine_scale=TRUE,
                           ObsModel = obs,#c(2,1), #c(1,1) #biomass
@@ -411,18 +435,21 @@ st<-Sys.time()
 
 #names(data_geostat1)[5]<-'CPUE_kg'
 
+ggplot()+
+  geom_point(data=data_geostat1,aes(y=Effort))
+
 fit <- tryCatch( {fit_model(settings=settings,
                             Lat_i=data_geostat1$Lat, 
                             Lon_i=data_geostat1$Lon,
                             t_i=data_geostat1$Year,
-                            b_i=data_geostat1$CPUE_kg,
+                            b_i=data_geostat1$Weight_kg,
                             c_iz = as.numeric(factor(data_geostat1$Species))-1,
                             a_i=data_geostat1$Effort,
                             input_grid=bering_sea_slope_grid,
                             getJointPrecision = TRUE,
                             test_fit=FALSE,
                             #create_strata_per_region = TRUE,  
-                            covariate_data = covariate_data[,c('Year',"Lat","Lon","ScaleLogDepth","Depth","CPUE_kg")], 
+                            covariate_data = covariate_data[,c('Year',"Lat","Lon","ScaleLogDepth","Depth","Weight_kg")], 
                             X1_formula =  X1_formula,
                             X2_formula = X2_formula, 
                             newtonsteps = 1,
@@ -438,8 +465,9 @@ fit <- tryCatch( {fit_model(settings=settings,
                  })
 
   #drop_units(fit$Report$D_gct[,1,])
-
-  #check_fit(fit$parameter_estimates)
+  fit$Report
+  check_fit(fit$parameter_estimates)
+  plot(fit)
   
   if (class(fit)=='fit_model') {
     
