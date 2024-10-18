@@ -90,16 +90,20 @@ spp1<-c('Yellowfin sole',
 #s12 Selectivity ratio > 1 means the slope gear and protocol had higher selectivity
 #so, we need to divide slope data by the sr index
 #471 is for Alaska skate - while we are using Aleutian skate 472
-data_sratio<-readRDS('Data/data_raw/shelf_slope_sratio_bootstrap.rds')
-#data_sratio<-readRDS('./data raw/shelf_slope_sratio_bootstrap.rds')
+#data_sratio<-readRDS('Data/data_raw/shelf_slope_sratio_bootstrap.rds')
+data_sratio<-readRDS('./data raw/shelf_slope_sratio_bootstrap.rds')
 unique(data_sratio$SPECIES_CODE)
 
 #read length raw data
-data_length<-readRDS('Data/data_raw/ak_bts_ebs_nbs_slope.rds') #data_length
-#data_length<-readRDS('./data raw/ak_bts_ebs_nbs_slope.rds') #data_length
+#data_length<-readRDS('Data/data_raw/ak_bts_ebs_nbs_slope.rds') #data_length
+data_length<-readRDS('./data raw/ak_bts_ebs_nbs_slope.rds') #data_length
 head(data_length)
 head(data_length$specimen)
 dim(data_length$specimen)
+head(data_length$catch)
+
+
+head(data_length$specimen)
 
 #get cruisejoin for the ebs
 head(data_length$cruise)
@@ -136,8 +140,8 @@ data_sratio1$LENGTH<-data_sratio1$SIZE_BIN*10
 
 #data input 
 coef_wl<-expand.grid('spp'=spp_code1$scientific_name,
-            'sex'=c('1','2','all'),
-            'year'=as.character(c(2002,2004,2008,2010,2012,2016)))
+                     'sex'=c('1','2','all'),
+                     'year'=as.character(c(2002,2004,2008,2010,2012,2016)))
 
 #to add values parms
 coef_wl$log_a<-NA
@@ -185,7 +189,7 @@ for (r in 1:nrow(coef_wl)) {
   #store parms
   coef_wl[r,'log_a']<-pars$log_a
   coef_wl[r,'b']<- pars$b 
-
+  
 }
 
 #remove species with no coeffs
@@ -276,9 +280,22 @@ for (r in 1:nrow(length_bss)) {
 length_bss[is.na(length_bss$SR),]
 unique(length_bss[is.na(length_bss$SR),'scientific_name'])
 
+
+#get subsample info
+freq_subsamp<-aggregate(FREQUENCY ~ HAULJOIN + SPECIES_CODE,length_bss,FUN=sum)
+freq_subsamp1<-merge(data_length$catch,freq_subsamp,by=c('SPECIES_CODE','HAULJOIN'))
+names(freq_subsamp1)[5]<-'FREQ_SUBSAMP'
+
+#merge total haul
+length_bss<-merge(length_bss,freq_subsamp1[,c(1,2,4,5)],by=c('HAULJOIN','SPECIES_CODE'))
+
+#expanded frequency
+length_bss$FREQ_EXP<-length_bss$FREQUENCY*length_bss$NUMBER_FISH/length_bss$FREQ_SUBSAMP
+
+
 #Adjusted frequency (frequency * SR)
-length_bss$FREQ_ADJ<-length_bss$FREQUENCY/length_bss$SR
-length_bss$WEIGHT_FREQ<-length_bss$WEIGHT*length_bss$FREQUENCY
+length_bss$FREQ_ADJ<-length_bss$FREQ_EXP/length_bss$SR
+length_bss$WEIGHT_FREQ<-length_bss$WEIGHT*length_bss$FREQ_EXP
 
 #Adjusted frequency over weight to get adjusted WEIGHT
 length_bss$ADJ_WEIGHT_FREQ<-length_bss$FREQ_ADJ*length_bss$WEIGHT
@@ -336,8 +353,8 @@ for (sp in spp_vect) {
   #sp<-'Gadus macrocephalus'
   
   #add new estimates per haul
-  #data_geostat<-readRDS(paste0('./data processed/species/',sp,'/data_geostat.rds'))
-  data_geostat<-readRDS(paste0('Data/data_processed/',sp,'/data_geostat.rds'))
+  data_geostat<-readRDS(paste0('./data processed/species/',sp,'/data_geostat.rds'))
+  #data_geostat<-readRDS(paste0('Data/data_processed/',sp,'/data_geostat.rds'))
   data_geostat1<-subset(data_geostat,survey_name=='Eastern Bering Sea Slope Bottom Trawl Survey')
   #unique(data_geostat1$hauljoin)
   #unique(wl$HAULJOIN)
@@ -355,6 +372,7 @@ for (sp in spp_vect) {
   
   #save data
   saveRDS(data_geostat2,paste0('./data processed/species/',sp,'/data_geostat_slope_adj.rds'))
+  #saveRDS(data_geostat2,paste0('Data/data_processed/',sp,'/data_geostat_slope_adj.rds'))
   
   #plot
   p <- ggplot() +
@@ -371,9 +389,9 @@ for (sp in spp_vect) {
     theme_minimal() +
     labs(title = sp) + 
     labs(title = sp,x='observed CPUE kgha',y='adjusted CPUE kgha')
-  print(p)
   plots[[sp]]<-p  
 }
 
-#multiplot (WHERE IS THE SECOND PLOT OBJECT?)
+#multiplot of all species cpue ratio by haul
 cowplot::plot_grid(plotlist = plots,nrow=2)
+
