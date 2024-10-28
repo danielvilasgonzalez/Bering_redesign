@@ -333,12 +333,7 @@ slop_sppoly<-as(slope$survey.strata, 'Spatial')
 plot(slop_sppoly['STRATUM'])
 length(unique(slop_sppoly$STRATUM))
 
-
-ggplot()+
-  geom_polygon(data=slop_sppoly, aes(x=long, y=lat, group=group,fill=STRATUM))
-
-  
-  #get stratums wfor 200-400m slope
+#get stratums wfor 200-400m slope
 slope200_400<-sort(unique(slop_sppoly$STRATUM))[c(1,6,11,16,21,26)]
 slopesub4<-c(41:45)
 
@@ -671,3 +666,26 @@ dir.create('./output/',showWarnings = FALSE)
 
 #save data
 save(baseline_strata,file='./output/baseline_strata.RData')
+
+# #######################
+# # calculate distance from shore
+# ######################
+# 
+# # Set up raster extent and resolution
+# raster_extent <- ext(ak_sppoly) # Use the extent of the polygon
+# raster_res <- 1000  # Set resolution in meters (adjust as needed)
+# 
+# # Create an empty raster with the specified extent and resolution
+# distance_raster <- rast(raster_extent, resolution = raster_res)
+# 
+# # Create a binary raster mask where land is 1, and water is NA
+# land_mask <- rasterize(vect(ak_sppoly), distance_raster, field = 1, background = NA)
+# 
+# # Calculate the distance to the nearest land cell
+# distance_raster <- distance(land_mask)
+# 
+# # Convert distances from meters to kilometers
+# distance_raster_km <- distance_raster / 1000
+# 
+# plot(distance_raster_km, main = "Distance from Shore (km)")
+# plot(ak_sppoly,add=TRUE)
