@@ -79,51 +79,39 @@ grid<-grid2[,c('Lat','Lon','region','cell')]
 #load file grid
 load('./grid_EBS_NBS.RData') #grid.ebs_year
 
-#average SBT by region and year
-temp_region<-aggregate(Temp ~ Year + region,grid.ebs_year,FUN=mean)
-names(temp_region)<-c('year','region','temp')
+# Define a custom function to calculate mean and SD
+calc_stats <- function(x) {
+  c(mean = mean(x, na.rm = TRUE),
+    SD = sd(x, na.rm = TRUE))
+}
 
-#get average SBT for all region (EBSshelf+NBS+EBSslope)
-alltemp<-aggregate(temp ~ year, temp_region,FUN=mean)
-alltemp$region<-'all'
-alltemp<-alltemp[,c("year","region","temp")]
+# Use aggregate to calculate statistics for Temp by Year and region
+temp_region <- aggregate(Temp ~ Year + region, data = grid.ebs_year, FUN = calc_stats)
 
-#rbind
-temp_region<-rbind(temp_region,alltemp)
+# Convert the output to a dataframe
+temp_region <- do.call(data.frame, temp_region)
+names(temp_region) <- c('year', 'region', 'mean_temp', 'SD')
+
+# Calculate the average for all regions
+alltemp <- aggregate(mean_temp ~ year, data = temp_region, FUN = mean)
+alltemp$region <- 'all'
+alltemp$SD <- aggregate(SD ~ year, data = temp_region, FUN = mean)$SD
+
+# Combine the datasets
+temp_region <- rbind(temp_region, alltemp)
 
 # Scaling values by group
-temp_region1 <- data.frame(temp_region %>%
-                             group_by(region) %>%
-                             mutate(scaledtemp = scale(temp)) %>%
-                             ungroup())
+temp_region1 <- temp_region %>%
+  group_by(region) %>%
+  mutate(scaledtemp = scale(mean_temp)) %>%
+  ungroup()
 
-#classify by cold/warm/normal years
+# Classify by cold/warm/normal years
 temp_region1$typeyear <- ifelse(temp_region1$scaledtemp > 1, 
                                 "warm", ifelse(temp_region1$scaledtemp < -1, 
                                                "cold", "normal"))
 
-#cold/warm years
-cyrs<-unique(temp_region1[which(temp_region1$typeyear == c('cold') & 
-                                  temp_region1$region=='all'),'year'])
-wyrs<-unique(temp_region1[which(temp_region1$typeyear == c('warm') & 
-                                  temp_region1$year %in% c(1982:2022) & 
-                                  temp_region1$region=='all'),'year'])
-
-# Define the years you want to bold
-bold_years <- c(2002, 2004, 2008, 2010, 2012, 2016)
-
-# Create custom labels function
-custom_labels <- function(x) {
-  sapply(x, function(year) {
-    if (year %in% bold_years) {
-      paste0("**", year, "**")
-    } else {
-      as.character(year)
-    }
-  })
-}
-
-#plot
+# Plot with SD
 p<-
   ggplot() +
     geom_rect(aes(xmin = 2001.5, xmax = 2005.5, ymin = -Inf, ymax = Inf, fill = "red"), 
@@ -132,11 +120,13 @@ p<-
               alpha = 0.5) +
     geom_rect(aes(xmin = 2005.5, xmax = 2013.5, ymin = -Inf, ymax = Inf, fill = "blue"), 
               alpha = 0.5) +
-    geom_hline(yintercept = mean(subset(temp_region1, region == 'all' & year %in% 1982:2022)[,'temp']), alpha = 0.5, linetype = 'dashed') +
+    geom_ribbon(data = subset(temp_region1, region == 'all' & year %in% c(1982:2022)),
+                aes(x = year, ymin = mean_temp - SD, ymax = mean_temp + SD), fill = 'gray', alpha = 0.4) +
+    geom_hline(yintercept = colMeans(subset(temp_region1, region == 'all' & year %in% 1982:2022)[,'mean_temp']), alpha = 0.5, linetype = 'dashed') +
     geom_line(data = subset(temp_region1, region == 'all' & year %in% 1982:2022),
-              aes(x = year, y = temp, color = region)) +
-    geom_point(data = subset(temp_region1, region == 'all' & year %in% 1982:2022),
-               aes(x = year, y = temp, color = region)) +
+              aes(x = year, y = mean_temp, color = region)) +
+    #geom_point(data = subset(temp_region1, region == 'all' & year %in% 1982:2022),
+    #           aes(x = year, y = mean_temp, color = region),size=.7) +
     scale_fill_manual(values = c("red" = "#cc1d1f", "blue" = "#1675ac"),
                       labels = c("normal-cold", "warm"),
                       name = "SBT regime") +
@@ -147,10 +137,11 @@ p<-
     scale_x_continuous(breaks = c(1985,1990,1995,2000,bold_years,2020),
                        minor_breaks = c(1982:2022), 
                        labels = custom_labels, limits = c(1982, 2022),
-                       expand = c(0.01,0)) +
+                       expand = c(0,0)) +
     theme(axis.text.x = element_markdown(angle = 45,hjust=1),
           axis.text.y = element_text(),text = element_text(size = 12)) +
     labs(x = '', y = 'mean SBT')
+
 
 #save env plot
 agg_png(paste0('./figures slope/temperature_regime1.png'), width = 7, height = 4, units = "in", res = 300)
@@ -601,6 +592,11 @@ sel_sp<-c("Gadus chalcogrammus", #Alaskan pollock
 # Load required package
 library(dplyr)
 
+#scale to keep one legend
+metrics_df <- metrics_df %>%
+  group_by(species) %>%
+  mutate(bio_scaled = scale(total_bio))
+
 # Calculate mean and SD for COG_lat and COG_depth grouped by Year
 summary_stats <- metrics_df %>%
   group_by(Year,species) %>%
@@ -612,6 +608,7 @@ summary_stats <- metrics_df %>%
     sd_COG_depth = sd(COG_depth, na.rm = TRUE),
     mean_depth10 = mean(depthq10, na.rm = TRUE),
     mean_depth90 = mean(depthq90, na.rm = TRUE),
+    mean_scaledbio = mean(bio_scaled,na.rm=TRUE)
   )
 
 # View the summary
@@ -622,7 +619,7 @@ print(summary_stats)
 ###########################
 
 #plot
-p<-
+#p<-
 ggplot(data = summary_stats) +
   #geom_errorbar(aes(xmin = mean_COG_depth - sd_COG_depth, xmax = mean_COG_depth + sd_COG_depth, 
   #                   y = mean_COG_lat, color = mean_temp)) +
@@ -645,18 +642,39 @@ ggplot(data = summary_stats) +
   scale_y_continuous(expand = expansion(mult = 0.1)) +  # Add buffer on the y-axis
   facet_wrap(~species, scales = 'free')
 
+p <- ggplot(data = summary_stats) +
+  # geom_errorbar code (if needed) +
+  geom_point(aes(x = mean_COG_depth, y = mean_COG_lat, fill = mean_temp, size = mean_scaledbio), shape = 21) +
+  theme_bw() +
+  labs(x = 'bathymetrical COG (m)', y = 'latitudinal COG') +
+  theme(
+    aspect.ratio = 1,
+    text = element_text(size = 12),
+    strip.background = element_blank(),
+    strip.text = element_text(size = 12)
+  ) +
+  scale_fill_gradientn(colors = custom_colors(20), name = 'SBT (°C)',
+                       guide = guide_colorbar(frame.colour = "black", ticks.colour = "black")) +
+  scale_size(name = 'abundance', breaks = c(min(summary_stats$mean_scaledbio), 
+                                            mean(summary_stats$mean_scaledbio), 
+                                            max(summary_stats$mean_scaledbio)),
+             labels = c('low', 'medium', 'high'),range = c(2, 10)) +
+  scale_x_continuous(expand = expansion(mult = 0.1)) +
+  scale_y_continuous(expand = expansion(mult = 0.1)) +
+  facet_wrap(~species, scales = 'free')
+
 #save env plot
-agg_png(paste0('./figures slope/cog.png'), width = 6.5, height = 6.5, units = "in", res = 300)
+agg_png(paste0('./figures slope/cog.tiff'), width = 7, height = 6.5, units = "in", res = 300)
 print(p)
 dev.off()
 
 
 #plot using SBT color
-p<-
+#p<-
 ggplot(data = subset(metrics_df, species %in% sel_sp)) +
   #geom_shadowtext(aes(x = COG_depth, y = COG_lat, color = mean_temp, label = Year),
   #                fontface = 'bold', bg.r = 0.05) +
-  geom_point(aes(x = COG_depth, y = COG_lat, fill = mean_temp),shape=21,color=rgb(0, 0, 0, alpha = 0.2)) +
+  geom_point(aes(x = COG_depth, y = COG_lat, fill = mean_temp,size=bio_scaled),shape=21,color=rgb(0, 0, 0, alpha = 0.2)) +
   theme_bw() +
   labs(x = 'bathymetrical COG (m)', y = 'latitudinal COG (°)') +
   theme(aspect.ratio = 1,
