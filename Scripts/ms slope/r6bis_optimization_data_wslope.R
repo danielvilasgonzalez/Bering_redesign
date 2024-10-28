@@ -179,6 +179,10 @@ for (sp in spp) {
   
 }
 
+
+df_conv[order(df_conv$spp),]
+
+
 #write table
 write.csv(df_conv,'./tables/slope_ebsnbs_convspp.csv')
  
