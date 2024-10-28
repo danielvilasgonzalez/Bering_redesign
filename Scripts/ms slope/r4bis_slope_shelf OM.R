@@ -9,6 +9,9 @@ rm(list = ls(all.names = TRUE))
 #free up memrory and report the memory usage
 gc() 
 
+#set seed
+set.seed(6)
+
 #libraries from cran to call or install/load
 pack_cran<-c("splines",'ggplot2','dplyr','doParallel')
 
@@ -130,12 +133,12 @@ ebs_layers <- akgfmaps::get_base_layers(select.region = "ebs", set.crs = "EPSG:3
 ebs_layers$survey.strata <- sf::st_transform(ebs_layers$survey.strata, crs = "+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")#'+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs')
 
 #plot colored deeper than 100 meters
-ggplot()+
-  geom_point(data=subset(df12,year==2016),aes(x=lon_start,y=lat_start,group=year))+
-  geom_point(data=subset(df11,year==2016),aes(x=lon_start,y=lat_start,group=year),col='blue',alpha=0.8)+
-  geom_sf(data=ebs_layers$survey.strata,fill = NA)+
-  geom_point(data=subset(df12,year==2016 & depth_m >100),aes(x=lon_start,y=lat_start,group=year),col='green',alpha=0.8)+
-  facet_wrap(~year)
+# ggplot()+
+#   geom_point(data=subset(df12,year==2016),aes(x=lon_start,y=lat_start,group=year))+
+#   geom_point(data=subset(df11,year==2016),aes(x=lon_start,y=lat_start,group=year),col='blue',alpha=0.8)+
+#   geom_sf(data=ebs_layers$survey.strata,fill = NA)+
+#   geom_point(data=subset(df12,year==2016 & depth_m >100),aes(x=lon_start,y=lat_start,group=year),col='green',alpha=0.8)+
+#   facet_wrap(~year)
 
 ##plot boxplot by region and species
 df2$survey_name <- factor(df2$survey_name, levels = c('EBS shelf','>100 EBS shelf','slope'))
@@ -146,8 +149,11 @@ ggplot()+
 #df1<-readRDS(paste0('./data processed/',sp,'/data_geostat_temp.rds'))
 #select rows and rename
 df2<-df2[,c("lat_start","lon_start","year",'scientific_name','ADJ_KG_HA','effort','depth_m','survey_name')]
-colnames(df2)<-c('Lat','Lon','Year','Species','Weight_kg','Effort','Depth','Region')
+colnames(df2)<-c('Lat','Lon','Year','Species','Cpue_kgha','Effort','Depth','Region')
 
+#get weight
+df2$Weight_kg<-df2$Cpue_kgha*df2$Effort
+  
 #data geostat
 df3<-subset(df2,Region %in%  c('slope'))
 yrs_region<-unique(df3$Year)
@@ -180,108 +186,66 @@ spp<-c(#'Limanda aspera',
        'Bathyraja aleutica')
 
 
-
+#number of simulations
 n_sim_hist<-100
+ 
+#fit with depth or CPE
+cov<-c('depth','cpe')[1]
 
-
-#array to store simulated densities/CPUE
-# sim_hist_dens_spp<-array(NA,
-#                          dim=c(nrow(bering_sea_slope_grid),length(yrs_region),n_sim_hist,length(spp)),
-#                          dimnames=list(1:nrow(bering_sea_slope_grid),unique(yrs_region),1:n_sim_hist,spp))
-
-
-for (sp in spp_vect) { #[c(10,12:15)]
+#loop over species
+for (sp in spp) { #[c(10,12:15)]
 
 #example
-sp<-spp_vect[4]  
+#sp<-spp[2]  
   
 #filter by sp
 data_geostat<-subset(df3,Species==sp)
 if (fol_region=='slope EBS VAST') {
   data_geostat<-subset(data_geostat,Region=='slope')}
 
-#add grid to get prediction for simulate data on each cell of the grid (sim$b_i)
+#ha to km2 ------ so kg/km2
+data_geostat$Effort<-data_geostat$Effort/100
 
-# load('./extrapolation grids/eastern_bering_sea_grid.rda')
-# head(eastern_bering_sea_grid)
-# dim(eastern_bering_sea_grid)
-# eastern_bering_sea_grid<-subset(as.data.frame(eastern_bering_sea_grid),Stratum %in% c(50,61))
+#get cpue
+data_geostat$CPUEkgkm<-data_geostat$Weight_kg/data_geostat$Effort
+
+#add grid to get prediction for simulate data on each cell of the grid (sim$b_i)
 load('./extrapolation grids/bering_sea_slope_grid.rda')
 names(bering_sea_slope_grid)[4]<-'Stratum'
 bering_sea_slope_grid$Stratum<-99
 
-# if (fol_region=='slope EBS VAST') {
-#   grids<-bering_sea_slope_grid
-# } else {
-#   grids<-rbind(eastern_bering_sea_grid,bering_sea_slope_grid)  
-# }
-# 
-# names(grids)[3]<-'Area_km2'
-# grids
-
+#load grid per year for all EBS
 load(file = './data processed/grid_EBS_NBS.RData') #grid.ebs_year$region
-grid_ebs<-subset(grid.ebs_year,region=='EBSslope')
+grid_ebs<-subset(grid.ebs_year,region=='EBSslope' & Year %in% sort(yrs)) #2002:2016
 
-#grid with info
+#grid with info to get prediction on each cell of the SBS grid
 grids<-data.frame(Lat=grid_ebs$Lat,
                     Lon=grid_ebs$Lon,
                     Year=grid_ebs$Year,
                     Species=rep(sp,times=nrow(grid_ebs)),
-                    Weight_kg=mean(data_geostat$Weight_kg),
+                    Weight_kg=mean(data_geostat$CPUEkgkm),
                     Effort=grid_ebs$Area_in_survey_km2,
                     Depth=grid_ebs$DepthGEBCO,
                     #BotTemp=grid_ebs$Temp,
                     Region=grid_ebs$region,
+                    CPUEkgkm=mean(data_geostat$CPUEkgkm),
                     stringsAsFactors = T)
 
-grids<-subset(grids,Year %in% unique(data_geostat$Year))
+#grids<-subset(grids,Year %in% unique(data_geostat$Year))
 summary(grids)
-
-#ha to km2 ------ so kg/km2
-data_geostat$Effort<-data_geostat$Effort/100
-
-# 
+ 
 # #rbind grid and data_geostat to get prediction into grid values when simulating data
-data_geostat1<-rbind(data_geostat[,c("Lat","Lon","Year","Species","Weight_kg","Effort","Depth","Region")],
+data_geostat1<-rbind(data_geostat[,c("Lat","Lon","Year","Species","Weight_kg","Effort","Depth","Region",'CPUEkgkm')],
                       grids)
 
-#data_geostat1<-rbind(data_geostat[,c("Lat","Lon","Year","Species","CPUE_kg","Effort","Depth","Region")])
+#scale depth
 data_geostat1$ScaleLogDepth<-scale(log(data_geostat1$Depth))
 
-#covariate data - filter by year and complete cases for env variables
-#covariate_data<-subset(df2,Year>=yrs_region[1] & Year<=yrs_region[2])
-covariate_data<-data_geostat1[complete.cases(data_geostat1[,c('Depth')]),]
-covariate_data$Year<-NA
-
-#to get predictions in locations but not influencing fit
-pred_TF <- rep(1, nrow(data_geostat1))
-pred_TF[1:nrow(data_geostat)] <- 0
-
-#create folder
-#dir.create(paste0('./',fol_region,'/',sp))
 #create folder to store results
 dir.create(paste(out_dir,fol_region,sp,sep='/'),
            showWarnings = FALSE)
 #save data
 save(data_geostat1, file = paste(out_dir,fol_region,sp,'data_geostat_temp_adj.RData',sep='/'))
-##################
-#explore data
-
-# ggplot()+
-#   geom_point(data=subset(data_geostat1,CPUE_kg!=0),aes(x=Lon,y=Lat,size=CPUE_kg,fill=CPUE_kg),color='transparent',shape=21)+
-#   facet_wrap(~Year)+
-#   theme_bw()
-# 
-# 
-# # check percent of zeros
-# ggplot(data = data_geostat, aes(CPUE_kg)) + 
-#   geom_histogram(bins =20,
-#                  aes(y = after_stat(density))) +
-#   facet_wrap(~Year) +
-#   #scale_y_continuous(labels = scales::percent_format()) +
-#   theme_bw()
-
-
 
 # Calculate the percentage of zeros for each group
 percent_zeros <- data_geostat %>%
@@ -291,153 +255,68 @@ percent_zeros <- data_geostat %>%
 # Print the results
 print(percent_zeros)
 
-
-###################
-
-#any year with 100%encounters or 0%encounters
-enc100<-ifelse(0 %in% percent_zeros$percentage_zeros,TRUE,FALSE)
-enc0<-ifelse(100 %in% percent_zeros$percentage_zeros,TRUE,FALSE)
-
-#set settings based on enc100
- if(enc100==TRUE){
-   obs <- c(2,3)
- }
- if(enc100==FALSE){
-   obs <- c(2,1)
- }
-#Specify observation model and config settings based on species encounter probability (i.e. presence of 100% or 0% encounter probability)
-if(enc0==TRUE){
-  rho_c <- c("Beta1"=1,"Beta2"=1,"Epsilon1"=1,"Epsilon2"=1)
-}
-if(enc0==FALSE){
-  rho_c <- c("Beta1"=0,"Beta2"=0,"Epsilon1"=0,"Epsilon2"=0)
-}
-
 #regions (predefined in VAST)
-if (fol_region=='slope EBS VAST') {
-  region<-'bering_sea_slope'#c("bering_sea_slope")
-} else{
-  region<-'User'  
-}
-#c("bering_sea_slope")
-#region<-'bering_sea_slope'#c("bering_sea_slope")
+region<-'bering_sea_slope'#c("bering_sea_slope")
 
 #VAST model settings
-settings <- make_settings(n_x=knots,#knots, 
+settings <- make_settings(n_x=knots,
                           Region=region, #c("bering_sea_slope","eastern_bering_sea",'northern_bering_sea'
                           purpose="index2", 
                           bias.correct=FALSE,
                           knot_method='grid',
-                          use_anisotropy=FALSE, #TRUE
-                          #RhoConfig=rho_c, 
-                          #RhoConfig=rho_c,
-                          #c("Beta1"=0,"Beta2"=0,"Epsilon1"=0,"Epsilon2"=0), 
-                          #RhoConfig=c("Beta1"=2,"Beta2"=2,"Epsilon1"=4,"Epsilon2"=4),
-                          #RhoConfig=c("Beta1"=1,"Beta2"=1,"Epsilon1"=4,"Epsilon2"=4),
-                          #RhoConfig=c("Beta1"=0,"Beta2"=0,"Epsilon1"=2,"Epsilon2"=2),
+                          use_anisotropy=TRUE, #FALSE
+                          FieldConfig = matrix( c("IID","IID",0,"Identity", "IID","IID",0,"Identity"), 
+                                                ncol=2, 
+                                                nrow=4, 
+                                                dimnames=list(c("Omega","Epsilon","Beta","Epsilon_year"),c("Component_1","Component_2"))),
                           RhoConfig=c("Beta1"=2,"Beta2"=2,"Epsilon1"=4,"Epsilon2"=4),
-                          
-                          #FieldConfig = matrix( c("IID","IID",'IID',"Identity","IID","IID",'IID',"Identity"), #c("IID","IID",0,"Identity", "IID","IID",0,"Identity"), 
-                          #                       ncol=2, 
-                          #                       nrow=4, 
-                          #                       dimnames=list(c("Omega","Epsilon","Beta","Epsilon_year"),c("Component_1","Component_2"))),
-                          #FieldConfig = c("Omega1"="IID", "Epsilon1"="IID", "Omega2"="IID", "Epsilon2"="IID"),
                           Version = version,
                           #fine_scale=TRUE,
-                          ObsModel = obs,#c(2,1), #c(1,1) #biomass
+                          ObsModel = c(2,1),
                           max_cells = Inf,
                           Options = c("Calculate_Range" =  F, 
                                       "Calculate_effective_area" = F)) 
 
-# ####################
-# ####create region grid
-# ####################
-# 
-# library(sp) # 1.4.4
-# library(sf) # 0.9.6
-# 
-# ### Method 1: use a set of lat/lon coordinates which define the
-# ### outer edge of the region. For instance you might want to plot
-# ### your data and simply create a region that captures it. The
-# ### locator() function can be useful for this as shown
-# ### below. Here we use a subset of the Eastern Bering Sea.
-# 
-# ### Use this to draw points around your data
-# data_geostat_grid<-subset(data_geostat,Year==2016)
-# plot(data_geostat_grid$Lon, data_geostat_grid$Lat)
-# LL <- locator()
-# saveRDS(LL, 'extent_LL.rds')
-# 
-# ## Take a data.frame of coordinates in longitude/latitude that
-# ## define the outer limits of the region (the extent).
-# LL <- readRDS('extent_LL.rds')
-# region_extent <- data.frame(long=LL$x, lat=LL$y)
-# str(region_extent)
-# ## > 'data.frame':	42 obs. of  2 variables:
-# ## $ long: num  -166 -166 -165 -165 -164 ...
-# ## $ lat : num  53.9 54.1 54.2 54.6 55 ...
-# 
-# #### Turn it into a spatial polygon object
-# ## Need to duplicate a point so that it is connected
-# region_extent <- rbind(region_extent, region_extent[1,])
-# ## https://www.maths.lancs.ac.uk/~rowlings/Teaching/Sheffield2013/cheatsheet.html
-# poly <- Polygon(region_extent)
-# polys <- Polygons(list(poly), ID='all')
-# sps <- SpatialPolygons(list(polys))
-# ## I think the F_AREA could be dropped here
-# sps <- SpatialPolygonsDataFrame(sps, data.frame(Id=factor('all'), F_AREA=1, row.names='all'))
-# proj4string(sps)<- CRS("+proj=longlat +datum=WGS84")
-# sps <- spTransform(sps, CRS("+proj=longlat +lat_0=90 +lon_0=180 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs +ellps=WGS84 +towgs84=0,0,0 "))
-# ### Get UTM zone for conversion to UTM projection
-# ## retrieves spatial bounding box from spatial data [,1] is
-# ## longitude
-# lon <- sum(bbox(sps)[1,])/2
-# ## convert decimal degrees to utm zone for average longitude, use
-# ## for new CRS
-# utmzone <- floor((lon + 180)/6)+1
-# crs_LL <- CRS('+proj=longlat +ellps=WGS84 +no_defs')
-# sps@proj4string <- crs_LL
-
+dim(data_geostat);dim(data_geostat1)
 
 #Kmeans_knots-200
 if (!file.exists(paste(out_dir,fol_region,sp,'Kmeans_knots-',knots,'.RData',sep='/')) ) {
   file.copy(paste(out_dir,fol_region,sp,'Kmeans_knots-',knots,'.RData',sep='/'),
             paste(out_dir,fol_region,sp,'Kmeans_knots-',knots,'.RData',sep='/'))}
 
-#formula and predictors settings for each model
-X1_formula<-' ~ bs(ScaleLogDepth, degree=2, intercept=FALSE)'
-X1config_cp = array( c(1,1), dim=c(1,1))
+#covariate data
+  if (cov=='depth') {
+    
+    #covariate data - filter by year and complete cases for env variables
+    covariate_data<-data_geostat1[complete.cases(data_geostat1[,c('Depth')]),]
+    covariate_data$Year<-NA #because depth is not variant over time
+    
+    #formula and predictors settings for each model
+    formula<-' ~ bs(ScaleLogDepth, degree=2, intercept=FALSE)'
+    X1config_cp = array( c(1,1), dim=c(1,1))
+  
+    #predictor settings
+    X2config_cp = X1config_cp
+    
+  } else if (cov=='cpe') {
+    
+    covariate_data <- data.frame(Year = c(coldpool:::cold_pool_index$YEAR, 2020),
+                                 Lat = mean(data_geostat1$Lat),
+                                 Lon = mean(data_geostat1$Lon),
+                                 cpe = c(cpe, 0))
+    
+    # Load covariates
+    formula <- ~ cpe
+    Xconfig_zcp <- array(2, dim=c(2,1,1) )
+    X1config_cp <- as.matrix(2)
+    X2config_cp <- as.matrix(2)
+  }
 
-#X1_formula<-' ~ 0'
-#X1config_cp = NULL
+#to get predictions in locations but not influencing fit
+pred_TF <- rep(1, nrow(data_geostat1))
+pred_TF[1:nrow(data_geostat)] <- 0
 
-#formula for positive catch rates equal to presence/absence
-X2_formula<-X1_formula
-
-#predictor settings
-X2config_cp = X1config_cp
-#formula for positive catch rates equal to presence/absence
-X2_formula<-X1_formula
-
-#predictor settings
-X2config_cp = X1config_cp
-
-#modify settings to use 2 or 3 factors on the spatial and spatiotemporal variation
-# if (grepl('IID',m)) {
-#   settings$FieldConfig[c('Epsilon','Omega'),]<-'IID'
-# } else if (grepl('f2',m)) {
-#   settings$FieldConfig[c('Epsilon','Omega'),]<-2
-# } else if (grepl('f3',m)) {
-#   settings$FieldConfig[c('Epsilon','Omega'),]<-3
-# }
-st<-Sys.time()
-#fit model #### ADD TryCatch{(),}
-
-#names(data_geostat1)[5]<-'CPUE_kg'
-
-ggplot()+
-  geom_point(data=data_geostat1,aes(y=Effort))
-
+#fit
 fit <- tryCatch( {fit_model(settings=settings,
                             Lat_i=data_geostat1$Lat, 
                             Lon_i=data_geostat1$Lon,
@@ -449,9 +328,9 @@ fit <- tryCatch( {fit_model(settings=settings,
                             getJointPrecision = TRUE,
                             test_fit=FALSE,
                             #create_strata_per_region = TRUE,  
-                            covariate_data = covariate_data[,c('Year',"Lat","Lon","ScaleLogDepth","Depth","Weight_kg")], 
-                            X1_formula =  X1_formula,
-                            X2_formula = X2_formula, 
+                            covariate_data = covariate_data,
+                            X1_formula =  formula,
+                            X2_formula = formula, 
                             newtonsteps = 1,
                             PredTF_i = pred_TF,
                             #X_gtp = X_gtp,
@@ -464,19 +343,13 @@ fit <- tryCatch( {fit_model(settings=settings,
                    return(NULL)
                  })
 
-  #drop_units(fit$Report$D_gct[,1,])
-  fit$Report
-  check_fit(fit$parameter_estimates)
-  plot(fit)
-  
+
   if (class(fit)=='fit_model') {
     
     save(list = 'fit',file=paste(out_dir,fol_region,sp,'fit_st.RData',sep = '/'))}
+  
+  
 }
-  
-  
-  
-  
   
   
   #load('./slope EBS VAST/Gadus chalcogrammus/fit.RData')
