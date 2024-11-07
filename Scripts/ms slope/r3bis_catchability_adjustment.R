@@ -94,6 +94,9 @@ spp1<-c('Yellowfin sole',
 data_sratio<-readRDS('./data raw/shelf_slope_sratio_bootstrap.rds')
 unique(data_sratio$SPECIES_CODE)
 
+#convert SR of one speccies into another
+data_sratio[which(data_sratio$SPECIES_CODE=='471'),'SPECIES_CODE']<-'472'
+
 #read length raw data
 #data_length<-readRDS('Data/data_raw/ak_bts_ebs_nbs_slope.rds') #data_length
 data_length<-readRDS('./data raw/ak_bts_ebs_nbs_slope.rds') #data_length
@@ -102,7 +105,7 @@ head(data_length$specimen)
 dim(data_length$specimen)
 head(data_length$catch)
 
-
+unique(data_length$size$SPECIES_CODE)
 head(data_length$specimen)
 
 #get cruisejoin for the ebs
@@ -125,7 +128,7 @@ names(spp_code)<-c('species_code',"scientific_name")
 spp_code1<-spp_code[which(spp_code$scientific_name %in% 
                             spp),]
 #add Alaska skate
-spp_code1<-rbind(spp_code1,c(471,'Bathyraja parmifera'))
+spp_code1<-rbind(spp_code1,c(472,'Bathyraja aleutica'))
 
 #merge sr data to species
 data_sratio<-merge(data_sratio,spp_code1,by.x='SPECIES_CODE',by.y='species_code')
@@ -133,7 +136,14 @@ data_sratio<-merge(data_sratio,spp_code1,by.x='SPECIES_CODE',by.y='species_code'
 aggregate(SPECIES_CODE ~ SIZE_BIN +scientific_name,data_sratio,FUN=length)
 
 #get mean
+data_sratio<-subset(data_sratio,s12<100)
 data_sratio1<-aggregate(s12 ~ SIZE_BIN +scientific_name,data_sratio,FUN=mean)
+
+#plot
+ggplot()+
+  #geom_point(data=data_sratio,aes(x=SIZE_BIN,y=s12))+
+  geom_boxplot(data=data_sratio1,aes(x=SIZE_BIN,y=s12,group=SIZE_BIN))+
+  facet_wrap(~scientific_name)
 
 #to convert cm to mm
 data_sratio1$LENGTH<-data_sratio1$SIZE_BIN*10
@@ -192,6 +202,21 @@ for (r in 1:nrow(coef_wl)) {
   
 }
 
+#add coeff of Aleutian skate
+lwgoa<-read.csv('./data raw/LenWtParams_GOA.csv')
+lwai<-read.csv('./data raw/LenWtParams_AI.csv')
+ilwgoa<-lwgoa[which(lwgoa$species=='472'),]
+ilwai<-lwai[which(lwai$species=='472'),]
+
+#rbind skate
+coef_wl<-
+rbind(coef_wl,
+      data.frame('spp'=c('Bathyraja aleutica','Bathyraja aleutica'),
+                 'sex'=c('all','all'),
+                 'year'=c('2015','2010'),
+                 'log_a'=c(log(ilwgoa$alpha.kg),log(ilwai$alpha.kg)),
+                 'b'=c(ilwgoa$beta,ilwai$beta)))
+
 #remove species with no coeffs
 sp_data<-unique(coef_wl[complete.cases(coef_wl),'spp'])
 sp_rem<-setdiff(spp_code1$scientific_name,sp_data)
@@ -248,8 +273,13 @@ for (r in 1:nrow(length_bss)) {
   data_sratio3<-data_sratio2[which(data_sratio2$scientific_name==sp),]
   
   #if no data, get the average
-  if (is.na(coef_wl1$log_a)) {
+  if (all(is.na(coef_wl1$log_a))) {
     coef_wl1<-coef_wl[which(coef_wl$spp==sp & coef_wl$sex==sex ),]
+    
+    if (all(is.na(coef_wl1$log_a))) {
+      coef_wl1<-coef_wl[which(coef_wl$spp==sp ),]
+    }
+    
     coef_wl1<-data.frame('spp'=sp,'sex'=sex,'year'=NA,'log_a'=mean(coef_wl1$log_a,na.rm=TRUE),'b'=mean(coef_wl1$b,na.rm=TRUE))
   }
   
@@ -280,7 +310,6 @@ for (r in 1:nrow(length_bss)) {
 length_bss[is.na(length_bss$SR),]
 unique(length_bss[is.na(length_bss$SR),'scientific_name'])
 
-
 #get subsample info
 freq_subsamp<-aggregate(FREQUENCY ~ HAULJOIN + SPECIES_CODE,length_bss,FUN=sum)
 freq_subsamp1<-merge(data_length$catch,freq_subsamp,by=c('SPECIES_CODE','HAULJOIN'))
@@ -292,7 +321,6 @@ length_bss<-merge(length_bss,freq_subsamp1[,c(1,2,4,5)],by=c('HAULJOIN','SPECIES
 #expanded frequency
 length_bss$FREQ_EXP<-length_bss$FREQUENCY*length_bss$NUMBER_FISH/length_bss$FREQ_SUBSAMP
 
-
 #Adjusted frequency (frequency * SR)
 length_bss$FREQ_ADJ<-length_bss$FREQ_EXP/length_bss$SR
 length_bss$WEIGHT_FREQ<-length_bss$WEIGHT*length_bss$FREQ_EXP
@@ -300,16 +328,12 @@ length_bss$WEIGHT_FREQ<-length_bss$WEIGHT*length_bss$FREQ_EXP
 #Adjusted frequency over weight to get adjusted WEIGHT
 length_bss$ADJ_WEIGHT_FREQ<-length_bss$FREQ_ADJ*length_bss$WEIGHT
 
-#check values of SR
-#View(length_bss)
-ggplot()+
-  geom_point(data=length_bss,aes(x=scientific_name,y=SR))+
-  geom_boxplot(data=length_bss,aes(x=scientific_name,y=SR))
-subset(length_bss,scientific_name=='Atheresthes evermanni' & SR>3)
-#'Reinhardtius hippoglossoides'
+# Filter out non-finite values
+length_bss_clean <- length_bss[is.finite(length_bss$SR), ]
 
-#assign max SR=2
-length_bss$SR[length_bss$SR > 2] <- 2
+# Replot with cleaned data
+ggplot() +
+  geom_boxplot(data = length_bss_clean, aes(x = scientific_name, y = SR))
 
 #weight by species for each haul
 wl<-aggregate(cbind(WEIGHT_FREQ,ADJ_WEIGHT_FREQ) ~ scientific_name + YEAR + HAULJOIN,length_bss,FUN=sum)
@@ -326,7 +350,7 @@ ggplot()+
   theme_minimal()+
   scale_color_discrete(labels=c('observed','adjusted'),name='estimates')
 
-#check data_catch slope
+ #check data_catch slope
 catch_bss<-data_length$catch[which(data_length$catch$HAULJOIN %in% unique(hauls_bss$HAULJOIN)),]
 catch_bss<-merge(catch_bss,hauls_bss[,c('HAULJOIN','YEAR')],by=c('HAULJOIN'))
 catch_bss<-merge(catch_bss,spp_code1,by.x='SPECIES_CODE',by.y='species_code')
@@ -344,13 +368,14 @@ plots<-list()
 #species with SR data
 spp_vect<-c("Atheresthes evermanni","Atheresthes stomias",
             "Gadus chalcogrammus","Gadus macrocephalus",
-            "Hippoglossoides elassodon","Reinhardtius hippoglossoides")
+            "Hippoglossoides elassodon","Reinhardtius hippoglossoides",'Bathyraja aleutica')
 
 #loop over species
 for (sp in spp_vect) {
   
   #species
   #sp<-'Reinhardtius hippoglossoides'
+  #sp<-spp_vect[7]
   
   #add new estimates per haul
   data_geostat<-readRDS(paste0('./data processed/species/',sp,'/data_geostat.rds'))
@@ -370,6 +395,11 @@ for (sp in spp_vect) {
   #convert grams to kg/ha
   data_geostat2$ADJ_KG_HA<-data_geostat2$ADJ_WEIGHT_FREQ/data_geostat2$effort/1000
   
+  #if bathyraja because of adjustments
+  if (sp=='Bathyraja aleutica') {
+    data_geostat2$ADJ_KG_HA<-data_geostat2$ADJ_KG_HA/1000
+  }
+  
   #save data
   saveRDS(data_geostat2,paste0('./data processed/species/',sp,'/data_geostat_slope_adj.rds'))
   #saveRDS(data_geostat2,paste0('Data/data_processed/',sp,'/data_geostat_slope_adj.rds'))
@@ -380,7 +410,8 @@ for (sp in spp_vect) {
   }
   
   #plot
-  p <- ggplot() +
+  p <- 
+    ggplot() +
     geom_point(data = subset(data_geostat2, cpue_kgha != 0), aes(x = cpue_kgha, y = ADJ_KG_HA)) +
     #scale_x_continuous(limits = c(0, max(data_geostat2$cpue_kgha) * 0.9)) +
     #scale_y_continuous(limits = c(0, max(data_geostat2$cpue_kgha) * 0.9)) +
