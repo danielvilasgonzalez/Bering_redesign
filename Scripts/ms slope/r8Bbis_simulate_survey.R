@@ -137,14 +137,21 @@ sbs_km2<-sum(grid[which(grid$cell %in% ok_slp_cells & grid$region == 'SBS'),'Are
 # Sampling designs 
 ###################################
 
-# #sampling scenarios
+#sampling scenarios
 samp_df<-expand.grid(type=c('static','dynamic'),#c('all','cold','warm'),
-                     region=c('EBS','EBS+NBS','EBS+SLOPE','EBS+NBS+SLOPE'),
+                     region=c('EBS','EBS+NBS','EBS+SBS','EBS+NBS+SBS'),
                      strat_var=c('varTemp','Depth'), #,'varTemp_forced','Depth_forced' #LonE and combinations
                      target_var=c('sumDensity'), #,'sqsumDensity'
                      n_samples=c(376), #c(300,500) 520 (EBS+NBS+CRAB);26 (CRAB); 350 (EBS-CRAB); 494 (NBS-CRAB)
                      n_strata=c(10),
                      domain=1) #c(5,10,15)
+
+#samples slope to add dummy approach
+samp_slope <- subset(samp_df, grepl("SBS", region))
+samp_slope$strat_var<-paste0(samp_slope$strat_var,'_dummy')
+
+#add with dummy approach
+samp_df<-rbind(samp_df,samp_slope)
 
 #add scenario number
 samp_df$samp_scn<-paste0(paste0('scn',1:nrow(samp_df)))
@@ -177,7 +184,7 @@ for (s in 1:nrow(samp_df)) { #nrow(samp_df)
   #r<-regime[1]  
       
   #scn_allocations
-  load(file = paste0('./output slope/survey_allocations_',samp_df[s,'samp_scn'],'_',r,'_376.RData')) 
+  load(file = paste0('./output slope/survey_allocations_',samp_df[s,'samp_scn'],'_',r,'.RData')) 
   
   for (sur in 1:n_sur) {
     
@@ -216,7 +223,7 @@ for (s in 1:nrow(samp_df)) { #nrow(samp_df)
 #####################
 
 #for SLOPE
-samp_df2<-subset(region_cells,region %in% c("EBS+SLOPE",'EBS+NBS+SLOPE'))
+samp_df2<-subset(region_cells,region %in% c("EBS+SBS",'EBS+NBS+SBS'))
 samp_df21<-reshape2::melt(samp_df2,id.vars=c(names(samp_df2)[7:12]))
 samp_df21<-samp_df21[grepl("SBS", samp_df21$variable), ]
 
@@ -260,7 +267,7 @@ ggplot(data=samp_df21)+
 
 
 #for NBS
-samp_df2<-subset(region_cells,region %in% c("EBS+NBS",'EBS+NBS+SLOPE'))
+samp_df2<-subset(region_cells,region %in% c("EBS+NBS",'EBS+NBS+SBS'))
 samp_df21<-reshape2::melt(samp_df2,id.vars=c(names(samp_df2)[7:12]))
 samp_df21<-samp_df21[grepl("NBS", samp_df21$variable), ]
 
@@ -378,7 +385,7 @@ for (sim in 1:n_sim_hist) {
         grid3<-subset(grid2,region %in% c('EBS'))
       } else if (samp_df[s,'region']=='EBS+NBS') {
         grid3<-subset(grid2,region %in% c('EBS','NBS'))
-      } else if (samp_df[s,'region']=='EBS+SLOPE') {
+      } else if (samp_df[s,'region']=='EBS+SBS') {
         grid3<-subset(grid2,region %in% c('EBS','SBS'))
       } else {
         grid3<-grid2
