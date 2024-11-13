@@ -135,14 +135,14 @@ load('./extrapolation grids/bering_sea_slope_grid.rda')
 dim(bering_sea_slope_grid)
 names(bering_sea_slope_grid)[4]<-'Stratum'
 bering_sea_slope_grid$Stratum<-999
-#gridslope<-data.frame(bering_sea_slope_grid,region='SLP')
+#gridslope<-data.frame(bering_sea_slope_grid,region='SBS')
 
 #load EBS+NBS grid
 load('./extrapolation grids/northern_bering_sea_grid.rda')
 load('./extrapolation grids/eastern_bering_sea_grid.rda')
 grid<-as.data.frame(rbind(data.frame(northern_bering_sea_grid,region='NBS'),
                           data.frame(eastern_bering_sea_grid,region='EBS'),
-                          data.frame(bering_sea_slope_grid,region='SLP')))
+                          data.frame(bering_sea_slope_grid,region='SBS')))
 ncell_ebsnbs<-nrow(rbind(data.frame(northern_bering_sea_grid,region='NBS'),
                          data.frame(eastern_bering_sea_grid,region='EBS')))
 ncell_nbs<-nrow(rbind(data.frame(northern_bering_sea_grid,region='NBS')))
@@ -280,9 +280,9 @@ save(samp_df,file='./tables/samp_df.RData')
 #s<-5 cannot find a solution
 
 #loop through sampling designs
-for (s in c(1:nrow(samp_df))[c(2,4,6,8,10,12,14,16,18,20,22,24)]) { #nrow(samp_df)
+for (s in c(1:nrow(samp_df))) { #nrow(samp_df)
   
-  #s<- 17
+  #s<- 2
   
   #print scenario to check progress
   cat(paste("\n #############  Sampling Scenario", samp_df[s,"samp_scn"], " #############\n"))
@@ -298,6 +298,9 @@ for (s in c(1:nrow(samp_df))[c(2,4,6,8,10,12,14,16,18,20,22,24)]) { #nrow(samp_d
   if (samp_df[s,'type']=='static') {
     #load multispecies data
     load(paste0('./output slope/multisp_optimization_static_data_ebsnbs_slope_st.RData')) #df
+    df<-data.frame(df[,c(1:9)],
+                   regime='all',
+                   df[,c(10:ncol(df))],check.names = FALSE)
     regime<-c('all')
   } else {
     #load multispecies data
@@ -318,7 +321,7 @@ for (s in c(1:nrow(samp_df))[c(2,4,6,8,10,12,14,16,18,20,22,24)]) { #nrow(samp_d
     df1<-
       df[which(df$cell<=53464),]
     #if ebs and slope
-  } else if (samp_df[s,'region']=='EBS+SLOPE') {
+  } else if (samp_df[s,'region']=='EBS+SBS') {
     df1<-
       df[which(df$cell>=15180+1),]
     #if all region
@@ -341,9 +344,10 @@ for (s in c(1:nrow(samp_df))[c(2,4,6,8,10,12,14,16,18,20,22,24)]) { #nrow(samp_d
   #years
   n_years<-length(2002:2016)
     
-    for (r in regime[2]) {
+    for (r in regime) {
   
       #r<-regime[1]
+      summary(static_df1)
       #subset cells with appropiate depth
       static_df1<-subset(df1,cell %in% ok_cells)
       #dim(static_df1)
@@ -354,25 +358,35 @@ for (s in c(1:nrow(samp_df))[c(2,4,6,8,10,12,14,16,18,20,22,24)]) { #nrow(samp_d
       
 
       #filter by regime if dynamic
-      if (length(regime)==2) {
-        static_df1<-subset(static_df1,regime==r)
-        #remove regime column
-        static_df1<-static_df1[,-10]
-      }
+      #if (length(regime)==2) {
+      static_df1<-subset(static_df1,regime==r)
+      #}
       
       #domain_input
       domain_input<-rep(1, nrow(static_df1))
       
       #static_df1[!complete.cases(static_df1), ]
+      #filter 
       
-      static_df1<-static_df1[,colSums(static_df1[,1:ncol(static_df1)]) != 0]      
+      #static_df1<-static_df1[,colSums(static_df1[,11:ncol(static_df1)]) != 0]      
+      
+      
+      # Select columns 1 to 10
+      selected_columns <- static_df1[, 1:10]
+      
+      # Identify columns from 11 to ncol(df1) with non-zero column sums
+      non_zero_columns <- static_df1[, 11:ncol(static_df1)][, colSums(static_df1[, 11:ncol(static_df1)]) != 0]
+      
+      # Combine the selected columns
+      static_df1 <- cbind(selected_columns, non_zero_columns)
+      
       # Extract the two parts of the vector
-      ys <- paste0('Y',1:(length(colnames(static_df1)[9:(ncol(static_df1))])/2))
-      sq_sums <- paste0('Y',1:(length(colnames(static_df1)[9:(ncol(static_df1))])/2),c('_SQ_SUM'))
+      ys <- paste0('Y',1:(length(colnames(static_df1)[11:(ncol(static_df1))])/2))
+      sq_sums <- paste0('Y',1:(length(colnames(static_df1)[11:(ncol(static_df1))])/2),c('_SQ_SUM'))
       
       # Interleave the two parts
-      colnames(static_df1)[10:(ncol(static_df1))]<- c(rbind(ys, sq_sums))
-      tar_var<-colnames(static_df1)[10:(ncol(static_df1))]
+      colnames(static_df1)[11:(ncol(static_df1))]<- c(rbind(ys, sq_sums))
+      tar_var<-colnames(static_df1)[11:(ncol(static_df1))]
       #names(df)[((ncol(df)-length(tar_var))+1):ncol(df)]<-tar_var
       ispp<-n_spp<-length(tar_var)/2
   
@@ -929,7 +943,7 @@ samp_df1$nbs_effort_dynamic_warm<-NA
 samp_df1$nbs_effort_dynamic_cold<-NA
 
 #loop through sampling designs
-for (s in c(19:nrow(samp_df))) { #nrow(samp_df)
+for (s in c(1:nrow(samp_df))) { #nrow(samp_df)
   
   #s<-1
   
@@ -952,7 +966,7 @@ for (s in c(19:nrow(samp_df))) { #nrow(samp_df)
   #   df1<-
   #     df[which(df$cell<=53464),]
   #   #if ebs and slope
-  # } else if (samp_df[s,'region']=='EBS+SLOPE') {
+  # } else if (samp_df[s,'region']=='EBS+SBS') {
   #   df1<-
   #     df[which(df$cell>=15180+1),]
   #   #if all region
@@ -978,7 +992,7 @@ for (s in c(19:nrow(samp_df))) { #nrow(samp_df)
     
   for (r in regime) {
     
-    r<-regime[1]
+    #r<-regime[1]
     
     #save list
     load(
@@ -1233,3 +1247,75 @@ for (s in c(1:nrow(samp_df))) { #nrow(samp_df)
 plot_grid(plotlist = plot_list,nrow = 4)
 
 1
+
+
+#check
+samp_df
+load(file = paste0("./output slope/ms_optim_allocations_ebsnbs_slope_scn1_all.RData"))
+all$cv #ebs
+load(file = paste0("./output slope/ms_optim_allocations_ebsnbs_slope_scn3_all.RData"))
+all$cv #with nbs
+load(file = paste0("./output slope/ms_optim_allocations_ebsnbs_slope_scn5_all.RData"))
+all$cv #with slope
+load(file = paste0("./output slope/ms_optim_allocations_ebsnbs_slope_scn7_all.RData"))
+all$cv #all
+
+#SPECIES CHECK
+#loop through sampling designs
+#for (s in c(1:nrow(samp_df))) { #nrow(samp_df)
+#for (s in c(1:4,9:12)) { #nrow(samp_df)
+for (s in c(5:8,13:24)) { #nrow(samp_df)
+    
+  #s<- 1
+  #s<-12
+  #print scenario to check progress
+  cat(paste("\n #############  Sampling Scenario", samp_df[s,"samp_scn"], " #############\n"))
+  
+  #domain
+  dom<-samp_df[s,'domain']
+  idom<-samp_df[s,'idomain']
+  
+  ###############
+  # load ms data and settings
+  ###############
+  
+  if (samp_df[s,'type']=='static') {
+    #load multispecies data
+    load(paste0('./output slope/multisp_optimization_static_data_ebsnbs_slope_st.RData')) #df
+    regime<-c('all')
+  } else {
+    #load multispecies data
+    load(paste0('./output slope/multisp_optimization_static_data_ebsnbs_slope_dyn.RData')) #df
+    regime<-c('cold','warm')
+  }
+  
+  #if ebs
+  if (samp_df[s,'region']=='EBS') {
+    df1<-
+      df[which(df$cell<=53464 & df$cell>=15180+1),]
+    #if ebs and nbs
+  } else if (samp_df[s,'region']=='EBS+NBS') {
+    df1<-
+      df[which(df$cell<=53464),]
+    #if ebs and slope
+  } else if (samp_df[s,'region']=='EBS+SBS') {
+    df1<-
+      df[which(df$cell>=15180+1),]
+    #if all region
+  } else {
+    df1<-df
+  }
+ 
+  spp_cols1<-paste0(spp_name$spp,'_sumDensity_sq')
+  spp_cols2<-paste0(spp_name$spp,'_sumDensity')
+  spp_cols<-c(spp_cols1,spp_cols2)
+  
+  df1<-df1[,spp_cols]
+  # Ensure only numeric columns are selected
+  spps <- (names(df1)[colSums(df1[sapply(df1, is.numeric)]) != 0])
+  # Remove everything after the first underscore
+  spps <- sort(unique(sub("_.*", "", spps)))
+  #print
+  cat(paste0('############# ',samp_df[s,'region'], ' - ', length(spps), ' #################\n'))
+  cat(paste0('############# ',spps, ' #################\n'))
+}
