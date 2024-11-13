@@ -134,7 +134,7 @@ ebs_km2<-sum(as.data.frame(eastern_bering_sea_grid)$Area_in_survey_km2)
 sbs_km2<-sum(grid[which(grid$cell %in% ok_slp_cells & grid$region == 'SBS'),'Area_in_survey_km2']) #adjust area sbs to represent <400km
 
 ###################################
-# Sampling designs 
+# Sampling designs (from script #11) 
 ###################################
 
 #sampling scenarios
@@ -182,7 +182,7 @@ for (s in 1:nrow(samp_df)) { #nrow(samp_df)
   for (r in regime) {
   
   #r<-regime[1]  
-      
+  cat(paste0('########## ',s,' - ',r,'##########\n'))    
   #scn_allocations
   load(file = paste0('./output slope/survey_allocations_',samp_df[s,'samp_scn'],'_',r,'.RData')) 
   
