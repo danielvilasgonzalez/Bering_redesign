@@ -114,7 +114,7 @@ names(bering_sea_slope_grid)[4]<-'Stratum'
 bering_sea_slope_grid$Stratum<-NA
 grid<-as.data.frame(rbind(data.frame(northern_bering_sea_grid,region='NBS'),
                           data.frame(eastern_bering_sea_grid,region='EBS'),
-                          data.frame(bering_sea_slope_grid,region='SLP')))
+                          data.frame(bering_sea_slope_grid,region='SBS')))
 grid$cell<-1:nrow(grid)
 grid2<-grid
 #add col and row number
